@@ -1,0 +1,6 @@
+.git/
+*.pyc
+auth.py
+*.cer
+*.key
+!certs/*.cer
