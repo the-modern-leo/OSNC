@@ -17,7 +17,7 @@ class Neighbor():
     def __hash__(self):
         return hash(self.deviceid)
 
-class SwitchChecker(object):
+class Checker():
     """
     A module that checks current, deployed switches against generated data
     to determine if their config, Infoblox naming, and Orion entries follow
@@ -249,63 +249,7 @@ class SwitchChecker(object):
         pass
         #TODO Create this function
 
-def switch_recommendation(portcount):
-    """
-
-    Args:
-        portcount:
-
-    Returns (tuple): (Int: blade count,obj:Switchmodel)
-
-    """
-    try:
-        recommendation = None
-        portexpansion = math.ceil(int(portcount) * 1.20)
-        if int(portexpansion) >= 336:
-            recommendation = (1,"C9404R")
-        elif int(portexpansion) < 336:
-            blades = int(portexpansion)/settings.c9300_48U.portcount
-            recommendation = (math.ceil(blades),"c9300_48U")
-
-    except Exception as e:
-        logging.error(e,exc_info=True)
-    else:
-        return recommendation
-
-def switch_power_recommendation(total_watts_used):
-    """
-
-    Args:
-        portcount:
-
-    Returns (tuple): (Int: blade count,obj:Switchmodel)
-
-    """
-    try:
-        recommendation = None
-
-
-    except Exception as e:
-        logging.error(e,exc_info=True)
-    else:
-        return recommendation
-
-class Interfaces:
-
-    """Iterator that starts on the first interface of a switch (1/0/1 or 0/1) and counts up till the last interface"""
-
-    def __init__(self, start):
-        self.start_interface = start
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        num = self.num
-        self.num += 1
-        return num
-
-class Switch(SwitchAccess):
+class Stack():
 
     def __init__(self,ip):
         # query result variables
@@ -4599,6 +4543,8 @@ class Switch(SwitchAccess):
             vlans.append(vlan)
         self.vlans = vlans
 
+class Chassis(Stack):
+
 class Blade:
     def __init__(self,serialnumber):
         self.serialnumber = serialnumber
@@ -4787,3 +4733,6 @@ class Blade:
         else:
             logger.info(
                 f'Transferring {interfaceobj.fullname} to Port:{"Next available" if nextavailable else portname} - success')
+
+class Switch(Blade):
+

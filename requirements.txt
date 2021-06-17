@@ -5,7 +5,6 @@ futures
 holidays
 Jinja2>=2.9
 SQLAlchemy>=1.1
-mysqlclient
 netaddr
 netmiko~=3.1.0
 orionsdk
@@ -14,7 +13,6 @@ pygraphviz
 pyOpenSSL
 python-cas
 python-dateutil
-python-ldap
 requests
 responses
 setuptools
@@ -32,3 +30,4 @@ mac-vendor-lookup
 openpyxl
 cython
 netmiko
+cryptography

@@ -31,3 +31,4 @@ acitools/aci-meta.json
 docker-compose.override.yml
 assets/data.sqlite3
 *.xlsx
+*.bin
