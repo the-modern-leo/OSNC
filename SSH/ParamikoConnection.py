@@ -1,5 +1,36 @@
+from auth import SSH
+import paramiko
+import socket
+import logging
+import time
+import re
+
 command_fails = ['nvalid command at','% Incomplete command.','FAILED:']
 # global helper functions
+
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(ch)
+
+
+def _exception(e):
+    logging.error(e)
+    return
+
+def remove_byte_strings(result):
+    new_result = []
+    for l in result.split("\r\n"):
+        l = bytes(l,'utf-8')
+        if b'\x1b' in l:
+            l=l.replace(b'\x1b',b'')
+        new_result.append(l.decode('utf-8'))
+    return '\r\n'.join(new_result)
+
+
 class Connection(object):
     """An SSH Object for managing connections to network switches and routers.
 
@@ -211,7 +242,7 @@ class Connection(object):
                          output.splitlines()[-2])):
                     raise ValueError('invalid command')  # catch Cisco errors
                 elif "^\r\n% Invalid command at \'^\' marker." in output:
-                    raise ValueError('invalid command')
+                    break
                 # stops the recieving loop when the full message has been received
                 if (self.prompt[:prompt_end] in output.splitlines()[-1] or
                         '[confirm]' in output.splitlines()[-1].rstrip() or
@@ -279,6 +310,7 @@ class Connection(object):
             output = re.sub('<--- More --->', '', output)
             logger.debug(f'{output}')
             return remove_byte_strings(output.replace('\b', ''))
+
         except IndexError as I:
             logger.debug(f'Output: {output}')
             logger.debug(f'Prompt: {self.prompt}')
@@ -301,23 +333,10 @@ class SwitchAccess(object):
     """
 
     def __init__(self, ipaddress, *args, **kwargs):
-        self.username = Switch_access.username
-        self.password = Switch_access.password
+        self.username = SSH.username
+        self.password = SSH.password
         self.ip = ipaddress
-
-    def get_routerlist(self):
-        """Return the list of IOS and NXOS routers.
-
-        These are defined in settings.py.
-
-        Returns:
-            A dictionary object that contains a 'nexus' key for nexus devices,
-            and an 'ios' key for IOS devices.
-        """
-        return copy.deepcopy({
-            'nexus': settings.ROUTERS_NXOS,
-            'ios': settings.ROUTERS_IOS
-        })
+        self.conn = None
 
     def login(self, quick=False):
         """Log in to a SSH device.
@@ -402,8 +421,7 @@ class SwitchAccess(object):
                     raise ValueError("Cisco prompt not reached")
 
             prompt = header.splitlines()[-1].strip()
-            connection_obj = Connection(client, channel, prompt)
-            return connection_obj
+            self.conn = Connection(client, channel, prompt)
         except paramiko.ssh_exception.NoValidConnectionsError as N:
             raise
         except OSError as O:
@@ -418,32 +436,17 @@ class SwitchAccess(object):
             _exception(e)
             raise
 
-    def login_and_run(self, router, command, quick=False):
-        """Log in to a device and immediately run a command.
 
-        Args:
-            router: Device IP address or DNS host name as a string.
-            command: Command to run on the device if login is successful.
-            quick: Optional boolean - if True, shorten timeouts for logging in.
-
-        Returns:
-            A tuple containing the Connection object as well as a multiline
-            output string.
-        """
-        connection = self.login(router, quick)
-        output = connection.send_command(command)
-        return connection, output
-
-    def logout(self, connection):
+    def logout(self):
         """Log out of a router and clean up (close channel and socket).
 
         Args:
             connection: Connection object to close.
         """
-        if not connection:
+        if not self.conn:
             return
-        if connection.channel is not None:
-            connection.channel.send("exit\n")
-            connection.channel.close()
-        if connection.client is not None:
-            connection.client.close()
+        if self.conn.channel is not None:
+            self.conn.channel.send("exit\n")
+            self.conn.channel.close()
+        if self.conn.client is not None:
+            self.conn.client.close()
