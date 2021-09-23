@@ -909,7 +909,7 @@ class Namecheck():
             Authoritative_name = None
             if switch.hostname:
                 if switch.buildnumber != None and switch.buildingname != None:
-                    if switch.buildnumber == '3574' or switch.buildingname == 'ddc' or switch.buildingname == 'tdc' or switch.buildnumber == '3475':  # process Data Center Switches:
+                    if switch.buildnumber == '3574' or switch.buildingname == 'ddc' or switch.buildingname == 'tdc' or switch.buildnumber == '3475':  # process Data Center Switches_syntax_compatability:
                         if (switch.buildingname
                                 and switch.function_descriptor_number
                                 and switch.buildnumber
@@ -1511,7 +1511,7 @@ Field: Old Name -- Old View --> Action --> New Name -- New View
             return switch
     def update_names(self):
         """
-        This Function updates the names in all the locations all the switches in self.Switches
+        This Function updates the names in all the locations all the switches in self.Switches_syntax_compatability
         """
 
         logger.info(f"Updating all names - started")

@@ -1,8 +1,11 @@
 import unittest
 from unittest.mock import patch
 from Network.Switch import Stack
+from Tests.TestNetwork.device_list.Switches_syntax_compatability.cisco.catalyst import ws_c3560cx_8pc_s,\
+    c29xx,c36xx,c38xx,c9407r,c4510r_e_,c94010r,c3560cg_8pc_s,c3560x_24_poe,c3650_48pq_e,c9300_series
+from Tests.TestNetwork.device_list.Switches_syntax_compatability.cisco.nexus import c9332pq,c93180yc_fx
 
-def SSH_Netmiko(*args, **kwargs):
+def mocked_creation_SSH_Netmiko(*args, **kwargs):
     """
     This should be for mocking responses from a Cisco 9300
     :return:
@@ -10,13 +13,29 @@ def SSH_Netmiko(*args, **kwargs):
     class MockResponse_Cisco_Catalyst_9300:
         pass
 
-class TestSwitch_Cisco_Catalyst_9300():
-    @patch('Network.Switch.Stack', side_effect=SSH_Netmiko)
-    def test_Netmiko_to_9300(self, mock_connection):
+# def mocked_creation_SSH_paramiko(*args, **kwargs):
+#     """
+#     This should be for mocking responses
+#     :return:
+#     """
+#     class MockResponse_SSH_paramiko_login:
+#         pass
+#     return MockResponse_SSH_paramiko_login
 
+def mocked_creation_SSH_paramiko_channel(*args, **kwargs):
+    """
+    This should be for mocking responses
+    :return:
+    """
+    class MockResponse_ssh_paramiko_channel:
+        def __init__(self):
+            pass
+        def settimeout(self,timeoutlimit):
+            self.timeoutlimit = timeoutlimit
+        def recv(self,recv_number):
+            self.recv_number = recv_number
 
-
-
+    return MockResponse_ssh_paramiko_channel
 class TestSwitchCommands(unittest.TestCase):
     """
     This is for Testing compatibility of Switch Devices accross multiple platforms
@@ -2465,6 +2484,32 @@ class TestSwitchCommands(unittest.TestCase):
         # self.assertEqual(s.should_overwrite_logging, )
         # self.assertEqual(s.mgmt_vlan, )
 
+                                
+class TestSwitchObject(unittest.TestCase):
+    # @patch('paramiko.SSHClient.connect', side_effect=mocked_creation_SSH_paramiko)
+    @patch('paramiko.channel.Channel.recv', side_effect=mocked_creation_SSH_paramiko_channel)
+    def test_read_to_write_config(self,test_send):
+        """
+        Tests that a switch object is able to read from all the approved switch types, and when writing it back out
+        the syntax is the same
+        :return:
+        """
+        switches_info = [ws_c3560cx_8pc_s,
+                      c29xx,c36xx,
+                      c38xx,
+                      c9407r,
+                      c4510r_e_,
+                      c94010r,
+                      c3560cg_8pc_s,
+                      c3560x_24_poe,
+                      c3650_48pq_e,
+                      c9300_series,
+                      c9332pq,
+                      c93180yc_fx]
+        #TODO work on Mocking the channel class
+        for s in switches_info:
+            switch = Stack(s.ip_address)
+            switch.login()
 
 if __name__ == '__main__':
     unittest.main()

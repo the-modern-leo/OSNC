@@ -1,3 +1,19 @@
+from collections import namedtuple
+import logging
+
+from SSH.NetmikoConnection import connection
+from SSH.ParamikoConnection import Connection as Pconn
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(ch)
+
+def _exception(e):
+    logger.error(e,exc_info=True)
+    raise
 
 class Neighbor():
     def __int__(self,deviceid):
@@ -250,10 +266,9 @@ class Checker():
         #TODO Create this function
 
 class Stack():
-
     def __init__(self,ip):
         # query result variables
-        super().__init__(ip)
+        self.ip = ip
         self.version_result = None
         self.run_result = None
         self.portdowntime_result = None
@@ -269,7 +284,6 @@ class Stack():
 
         self.device = None
         self.modelnumber = None
-        self.IPAddress = None
         self.uplink = None
         self.version = None
         self.serial = None
@@ -366,21 +380,6 @@ class Stack():
             return NotImplemented
         return self.ip == other.ip
 
-    def login_and_run_logout(self, command):
-        """Log in to a device and immediately run a command.
-
-        Args:
-            router: Device IP address or DNS host name as a string.
-            command: Command to run on the device if login is successful.
-            quick: Optional boolean - if True, shorten timeouts for logging in.
-
-        Returns:
-            A tuple containing the Connection object as well as a multiline
-            output string.
-        """
-        with Connection_manager(self.ip) as conn:
-            output = conn.send_command(command)
-        return command, output
     def check_for_errors_in_send_command(self,results):
         """
         This functions checks for all the common issues in responses on switches
@@ -433,14 +432,6 @@ class Stack():
         """
         logger.info(f"Gathering Switch data - Starting")
         try:
-            self.login()
-            teststring = self.conn.send_command('enable', manypages=True)
-            if not teststring:
-                pass
-            elif '% Invalid command at' in teststring:
-                pass
-            else:
-                self.conn.enable_cisco(password=Switch_access.password)
             self.version_result = self.conn.send_command('show version', manypages=True)
             self.run_result = self.conn.send_command('show run', manypages=True)
             self.status_result = self.conn.send_command('show int status', manypages=True)
@@ -1912,7 +1903,7 @@ class Stack():
                         logger.info("Sorting 'show Version' - Success")
                         return self
 
-            if self.modelnumber not in settings.modularaccess:  # handle working on a Stack of Switches
+            if self.modelnumber not in settings.modularaccess:  # handle working on a Stack of Switches_syntax_compatability
                 if len(serialnumber) > 1:
                     self.__setattr__('stack', True)
                     if not stackline or stackline == None:
@@ -3543,6 +3534,14 @@ class Stack():
             logger.error(e, exc_info=True)
 
     ############################################# Other Functions #############################################
+    def login_netmiko(self,hosttype=None):
+        """
+        This loging function will set the pass connnection libary as netmikio instead of paramiko
+        """
+        try:
+            self.conn = connection(self.ip,hosttype).connnect()
+        except Exception as e:
+            _exception(e)
 
     def login(self, quick=False):
         """Log in to a SSH device.
@@ -3558,99 +3557,10 @@ class Stack():
         Raises:
             ValueErrors if there are problems logging in to the device.
         """
-        logger.debug(f'SSH connection - {self.ip}')
-        client = None
         try:
-            client = paramiko.SSHClient()
-            client.load_system_host_keys()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            auth_retry = 0
-            # make two login attempts, in case something strange happens
-            while auth_retry < 2:
-                try:
-                    client.connect(self.ip, username=self.username,
-                                   password=self.password, look_for_keys=False,
-                                   allow_agent=False, timeout=(30 if quick else 60))
-                    break  # successful
-
-                except socket.timeout:
-                    raise IOError("Connection timed out")
-                except paramiko.ssh_exception.NoValidConnectionsError as N:
-                    logger.error(N, exc_info=True)
-                    raise
-                except paramiko.ssh_exception.AuthenticationException as a:
-                    if auth_retry < 2:
-                        auth_retry += 1
-                        time.sleep(2)
-                    else:
-                        logger.error('Login exception: ' + str(a))
-                        raise IOError("Cannot log in to device (" + str(a) + ")")
-                except socket.gaierror as g:
-                    logger.info(f'Router Value was not found on network: {self.ip}')
-                    logger.error(g, exc_info=True)
-                    _exception(g)
-                    raise
-
-                except Exception as e:
-                    logger.error(e, exc_info=True)
-                    _exception(e)
-                    raise
-
-            if auth_retry >= 2:
-                raise IOError(f"Cannot log in to device: {self.ip} (TACACS user expired?)")
-
-            channel = client.invoke_shell(height=60, width=120)
-            channel.settimeout((30 if quick else 60))
-            header = channel.recv(4096)  # clear channel
-            header = header.decode("utf-8")
-            if '#' not in header and '>' not in header and "User:" in header: #login for wireless controllers
-                channel.send(f"{self.username}\n")
-                loop_counter = 0
-                while not channel.recv_ready():
-                    time.sleep(0.1)
-                    loop_counter += 1
-                    if loop_counter > 1200:  # stuck for more than 60 seconds, give up
-                        raise ValueError("Stuck in wait loop.")
-                if channel.recv_ready():
-                    header = channel.recv(4096).decode("utf-8")
-                if "Password" in header:
-                    channel.send(f"{self.username}\n")
-                    loop_counter = 0
-                    while not channel.recv_ready():
-                        time.sleep(0.1)
-                        loop_counter += 1
-                        if loop_counter > 1200:  # stuck for more than 60 seconds, give up
-                            raise ValueError("Stuck in wait loop.")
-                    if channel.recv_ready():
-                        header = channel.recv(4096).decode("utf-8")
-
-            while ('#' not in header and '>' not in header and not channel.recv_ready()):
-                time.sleep(0.1)  # wait for login to be successful
-            if channel.recv_ready():
-                header = channel.recv(4096).decode("utf-8")
-
-            if '#' not in header and '>' not in header:  # invalid prompt
-                time.sleep(2)  # prompt may have not loaded yet
-                header += channel.recv(4096).decode("utf-8")
-                if '#' not in header and '>' not in header:
-                    logger.info(header)
-                    if channel is not None:
-                        channel.close()
-                    if client is not None:
-                        client.close()
-                    raise ValueError("Cisco prompt not reached")
-
-            prompt = header.splitlines()[-1].strip()
-            self.conn = Connection(client, channel, prompt)
-        except paramiko.ssh_exception.NoValidConnectionsError as N:
-            raise
-        except OSError as O:
-            logger.error(O, exc_info=True)
-            raise
-        except:
-            if client is not None:
-                client.close()
-            raise
+            self.conn = Pconn(self.ip).login()
+        except Exception as e:
+            _exception(e)
 
     def check_orion_migration(self,orionobj):
         """
@@ -4544,7 +4454,7 @@ class Stack():
         self.vlans = vlans
 
 class Chassis(Stack):
-
+    pass
 class Blade:
     def __init__(self,serialnumber):
         self.serialnumber = serialnumber
@@ -4735,4 +4645,4 @@ class Blade:
                 f'Transferring {interfaceobj.fullname} to Port:{"Next available" if nextavailable else portname} - success')
 
 class Switch(Blade):
-
+    pass

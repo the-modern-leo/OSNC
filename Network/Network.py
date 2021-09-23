@@ -318,7 +318,7 @@ class Building:
         """
         This function starts with the routers that are connected to the demarks in the building. It looks at their CDP
         Neigbhors, and sets the interface descriptions to the correct key format. Than Alters the interface descriptions
-        on the demark leading to the routers, and the interface descriptions leading to the Switches. It repeats this
+        on the demark leading to the routers, and the interface descriptions leading to the Switches_syntax_compatability. It repeats this
         one last time with the remaining switches altering their interface descriptions.
         """
         logger.info(f'Correcting Interfaces to Network Devices - Starting')
@@ -912,21 +912,21 @@ class Node():
         """
 
         try:
-            logger.info(f'Getting All Switches Touching: {self.r1.hostname} - Starting')
+            logger.info(f'Getting All Switches_syntax_compatability Touching: {self.r1.hostname} - Starting')
             neighbors = set()
             for neighbor in self.r1.cdpneighbors:
                 neighbors.add(neighbor)
-            logger.info(f'Getting All Switches Touching: {self.r2.hostname} - Starting')
+            logger.info(f'Getting All Switches_syntax_compatability Touching: {self.r2.hostname} - Starting')
             for neighbor in self.r2.cdpneighbors:
                 neighbors.add(neighbor)
 
         except Exception as e:
-            logger.info(f'Getting All Switches Touching: {self.r1.hostname} - Failed')
+            logger.info(f'Getting All Switches_syntax_compatability Touching: {self.r1.hostname} - Failed')
             logger.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info(f'Getting All Switches Touching: {self.r1.hostname} - Success')
+            logger.info(f'Getting All Switches_syntax_compatability Touching: {self.r1.hostname} - Success')
             return neighbors
 
     def get_neibhors(self, ip):

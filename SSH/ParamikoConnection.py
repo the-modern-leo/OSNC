@@ -34,7 +34,7 @@ def remove_byte_strings(result):
 class Connection(object):
     """An SSH Object for managing connections to network switches and routers.
 
-    Use SwitchAccess.login() to instantiate, and SwitchAccess.logout() to
+    Use SwitchAccess.login() to instantiate connection before self.send_command(), and SwitchAccess.logout() to
     destroy.
 
     Attributes:
@@ -43,26 +43,127 @@ class Connection(object):
         prompt: The device prompt format as a string.
     """
 
-    def __init__(self, client, channel, prompt):
-        self.client = client
-        self.channel = channel
-        self.channel.setblocking(1)
-        self.prompt = prompt
-        if len(self.prompt) > 20:
-            self.configprompt = self.prompt[:20]
-            self.configprompt = self.configprompt + '(config)#'
-        else:
-            self.configprompt = re.sub('#', '(config)#', self.prompt)
-        if len(self.prompt) > 20:
-            self.configifprompt = self.prompt[:20]
-            self.configifprompt = self.configifprompt + '(config-if)#'
-        else:
-            self.configifprompt = re.sub('#', '(config-if)#', self.prompt)
-        if len(self.prompt) > 20:
-            self.configifrangeprompt = self.prompt[:20]
-            self.configifrangeprompt = self.configifrangeprompt + '(config-if-range)#'
-        else:
-            self.configifrangeprompt = re.sub('#', '(config-if-range)#', self.prompt)
+    def __init__(self,ipaddress):
+        self.client = None
+        self.channel = None
+        self.prompt = None
+        self.conn = None
+        self.username = SSH.username
+        self.password = SSH.password
+        self.ip = ipaddress
+
+    def login(self, quick=False):
+        """Log in to a SSH device.
+
+        Args:
+            router: Device IP address or DNS hostname.
+            quick: Optional boolean - if True, shorten timeouts for logging in.
+
+        Returns:
+            A Connection object to continue sending and receiving data from
+            the device.
+
+        Raises:
+            ValueErrors if there are problems logging in to the device.
+        """
+        logger.debug(f'SSH connection - {self.ip}')
+        client = None
+        try:
+            self.client = paramiko.SSHClient()
+            self.client.load_system_host_keys()
+            self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            auth_retry = 0
+            # make two login attempts, in case something strange happens
+            while auth_retry < 2:
+                try:
+                    self.client.connect(self.ip, username=self.username,
+                                   password=self.password, look_for_keys=False,
+                                   allow_agent=True, timeout=(30 if quick else 240),auth_timeout=240,banner_timeout=240)
+                    break  # successful
+
+                except socket.timeout:
+                    raise IOError("Connection timed out")
+                except paramiko.ssh_exception.NoValidConnectionsError as N:
+                    logger.error("username not exists")
+                    logger.error(N, exc_info=True)
+                    raise
+                except paramiko.ssh_exception.AuthenticationException as a:
+                    if auth_retry < 2:
+                        auth_retry += 1
+                        time.sleep(2)
+                    else:
+                        logger.error('Password incorrect: ' + str(a))
+                        raise IOError("Cannot log in to device (" + str(a) + ")")
+                # except paramiko.ssh_exception as g:
+                #     if "Illegal info request from server" in g:
+                #         raise ConnectionError(
+                #             f"Cannot log into device {self.ip} You might need to change your password\r\n"
+                #             f"{g}")
+                except socket.gaierror as g:
+                    logger.info(f'Router Value was not found on network: {self.ip}')
+                    logger.error(g, exc_info=True)
+                    _exception(g)
+                    raise
+
+                except Exception as e:
+                    logger.error(e, exc_info=True)
+                    _exception(e)
+                    raise
+
+            if auth_retry >= 2:
+                raise IOError(f"Cannot log in to device: {self.ip} (TACACS user expired?)")
+
+            self.channel = self.client.invoke_shell(height=60, width=120)
+            self.channel.settimeout((30 if quick else 240))
+            header = self.channel.recv(4096)  # clear self.channel
+            header = header.decode("utf-8")
+            while ('#' not in header and '>' not in header and
+                   not self.channel.recv_ready()):
+                time.sleep(0.1)  # wait for login to be successful
+            if self.channel.recv_ready():
+                header = self.channel.recv(4096).decode("utf-8")
+
+            if '#' not in header and '>' not in header:  # invalid prompt
+                time.sleep(2)  # prompt may have not loaded yet
+                header += self.channel.recv(4096).decode("utf-8")
+                if '#' not in header and '>' not in header:
+                    logger.info(header)
+                    if self.channel is not None:
+                        self.channel.close()
+                    if self.client is not None:
+                        self.client.close()
+                    raise ValueError("Cisco prompt not reached")
+
+            prompt = header.splitlines()[-1].strip()
+            self.prompt = prompt
+        except paramiko.ssh_exception.NoValidConnectionsError as N:
+            raise
+        except OSError as O:
+            logger.error(O, exc_info=True)
+            if client is not None:
+                client.close()
+            raise
+        except Exception as e:
+            if client is not None:
+                client.close()
+            logger.error(e, exc_info=True)
+            _exception(e)
+            raise
+
+    def logout(self):
+        """Log out of a router and clean up (close channel and socket).
+
+        Args:
+            connection: Connection object to close.
+        """
+        if not self.conn:
+            return
+        if self.conn.channel is not None:
+            self.conn.channel.send("exit\n")
+            self.conn.channel.close()
+        if self.conn.client is not None:
+            self.conn.client.close()
+
     def update_prompts(self,prompt):
         try:
             self.prompt = prompt + '#'
@@ -323,130 +424,4 @@ class Connection(object):
             _exception(e)
             raise
 
-class SwitchAccess(object):
-    """A common backend module for accessing (login/command/config/logout)
-    network switches and routers. This uses Paramiko for SSH communication.
 
-    Attributes:
-        username: SSH device username as a string.
-        password: SSH device password as a string.
-    """
-
-    def __init__(self, ipaddress, *args, **kwargs):
-        self.username = SSH.username
-        self.password = SSH.password
-        self.ip = ipaddress
-        self.conn = None
-
-    def login(self, quick=False):
-        """Log in to a SSH device.
-
-        Args:
-            router: Device IP address or DNS hostname.
-            quick: Optional boolean - if True, shorten timeouts for logging in.
-
-        Returns:
-            A Connection object to continue sending and receiving data from
-            the device.
-
-        Raises:
-            ValueErrors if there are problems logging in to the device.
-        """
-        logger.debug(f'SSH connection - {self.ip}')
-        client = None
-        try:
-            client = paramiko.SSHClient()
-            client.load_system_host_keys()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            auth_retry = 0
-            # make two login attempts, in case something strange happens
-            while auth_retry < 2:
-                try:
-                    client.connect(self.ip, username=self.username,
-                                   password=self.password, look_for_keys=False,
-                                   allow_agent=True, timeout=(30 if quick else 240),auth_timeout=240,banner_timeout=240)
-                    break  # successful
-
-                except socket.timeout:
-                    raise IOError("Connection timed out")
-                except paramiko.ssh_exception.NoValidConnectionsError as N:
-                    logger.error("username not exists")
-                    logger.error(N, exc_info=True)
-                    raise
-                except paramiko.ssh_exception.AuthenticationException as a:
-                    if auth_retry < 2:
-                        auth_retry += 1
-                        time.sleep(2)
-                    else:
-                        logger.error('Password incorrect: ' + str(a))
-                        raise IOError("Cannot log in to device (" + str(a) + ")")
-                # except paramiko.ssh_exception as g:
-                #     if "Illegal info request from server" in g:
-                #         raise ConnectionError(
-                #             f"Cannot log into device {self.ip} You might need to change your password\r\n"
-                #             f"{g}")
-                except socket.gaierror as g:
-                    logger.info(f'Router Value was not found on network: {self.ip}')
-                    logger.error(g, exc_info=True)
-                    _exception(g)
-                    raise
-
-                except Exception as e:
-                    logger.error(e, exc_info=True)
-                    _exception(e)
-                    raise
-
-            if auth_retry >= 2:
-                raise IOError(f"Cannot log in to device: {self.ip} (TACACS user expired?)")
-
-            channel = client.invoke_shell(height=60, width=120)
-            channel.settimeout((30 if quick else 240))
-            header = channel.recv(4096)  # clear channel
-            header = header.decode("utf-8")
-            while ('#' not in header and '>' not in header and
-                   not channel.recv_ready()):
-                time.sleep(0.1)  # wait for login to be successful
-            if channel.recv_ready():
-                header = channel.recv(4096).decode("utf-8")
-
-            if '#' not in header and '>' not in header:  # invalid prompt
-                time.sleep(2)  # prompt may have not loaded yet
-                header += channel.recv(4096).decode("utf-8")
-                if '#' not in header and '>' not in header:
-                    logger.info(header)
-                    if channel is not None:
-                        channel.close()
-                    if client is not None:
-                        client.close()
-                    raise ValueError("Cisco prompt not reached")
-
-            prompt = header.splitlines()[-1].strip()
-            self.conn = Connection(client, channel, prompt)
-        except paramiko.ssh_exception.NoValidConnectionsError as N:
-            raise
-        except OSError as O:
-            logger.error(O, exc_info=True)
-            if client is not None:
-                client.close()
-            raise
-        except Exception as e:
-            if client is not None:
-                client.close()
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-
-
-    def logout(self):
-        """Log out of a router and clean up (close channel and socket).
-
-        Args:
-            connection: Connection object to close.
-        """
-        if not self.conn:
-            return
-        if self.conn.channel is not None:
-            self.conn.channel.send("exit\n")
-            self.conn.channel.close()
-        if self.conn.client is not None:
-            self.conn.client.close()

@@ -1,4 +1,4 @@
-from netmiko import ConnectHandler
+from netmiko import SSHDetect, ConnectHandler
 from auth import SSH
 import logging
 logging.basicConfig(filename='test.log', level=logging.DEBUG)
@@ -9,7 +9,9 @@ def _exception(e):
     return
 
 class connection():
-    def __init__(self,host,device_type):
+    def __init__(self,host,device_type=None):
+        self.host = host
+        self.device_type = device_type
         self.device = {
                 'device_type':device_type,
                 'host':host,
@@ -18,9 +20,27 @@ class connection():
 
     def connnect(self):
         try:
-            with ConnectHandler(**self.device) as net_connect:
-                yield net_connect
-                net_connect.disconnect()
+            if self.device_type == None:
+                self._auto_connect()
+            net_connect = ConnectHandler(**self.device)
+            return net_connect
+        except Exception as e:
+            _exception(e)
+
+    def _auto_connect(self):
+        try:
+            device = {
+                "device_type": "autodetect",
+                "host": self.host,
+                'username':SSH.username,
+                'password':SSH.password}
+
+            guesser = SSHDetect(**device)
+            best_match = guesser.autodetect()
+            print(best_match)  # Name of the best device_type to use further
+            print(guesser.potential_matches)  # Dictionary of the whole matching result
+            # Update the 'device' dictionary with the device_type
+            self.device["device_type"] = best_match
         except Exception as e:
             _exception(e)
 
