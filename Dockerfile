@@ -24,4 +24,4 @@ COPY . /opt/project
 
 EXPOSE 8443
 
-CMD ["python3", "web_interface.py"]
+CMD ["python3", "WebServer/web_interface.py"]
