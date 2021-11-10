@@ -280,7 +280,7 @@ class Infoblox(object):
 
     def get_subnet_types(self):
         """
-        Get a list of valid subnet types, defined in settings.py.
+        Get a list of valid subnet types, defined in cisco.py.
 
         Returns:
             list: A list of strings.
@@ -290,7 +290,7 @@ class Infoblox(object):
     def get_device_types(self):
         """
         Get a list of valid device types when adding hostnames. These are
-        also defined in settings.py.
+        also defined in cisco.py.
 
         Returns:
             list: A list of strings.
@@ -733,7 +733,7 @@ class Infoblox(object):
     def generate_infoblox_dns_csv(self, zonelist, subdomain):
         """
         Generate an Infoblox-formatted CSV from DNS record data. The CSV
-        format is defined in settings.py.
+        format is defined in cisco.py.
 
         Args:
             zonelist (list): A list of DNSRecord objects.
@@ -818,10 +818,10 @@ class Infoblox(object):
         Args:
             cidr (int): CIDR size, from 16 to 32.
             subnet_type (str): Subnet type from SUBNET_TYPES in
-                settings.py.
+                cisco.py.
             dhcp (bool): A Boolean that enables or disables DHCP for that network.
                 The first few addresses are not included in the DHCP range -
-                this amount may also be modified in settings.py
+                this amount may also be modified in cisco.py
 
         Returns:
             dict: The new subnet in an Infoblox dictionary, with the subnet
@@ -831,7 +831,7 @@ class Infoblox(object):
         # Argument checks
         if (subnet_type is not None
                 and subnet_type not in settings.SUBNET_TYPES):
-            # subnettype was passed, but not defined in settings.py
+            # subnettype was passed, but not defined in cisco.py
             raise ValueError("Subnet type given is not defined")
         elif subnet_type is None:
             subnet_type = 'default'

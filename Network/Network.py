@@ -1,18 +1,11 @@
-import copy
-import queue
 import re
-import paramiko
 import logging
 import datetime
-import itertools
-import socket
-from . import settings
+from .settings import cisco
 from datetime import datetime
 from collections import defaultdict
 import concurrent
 from concurrent.futures import ThreadPoolExecutor
-import uuid
-
 
 def RepresentsInt(s):
     try:
@@ -628,8 +621,8 @@ class Node():
             # filter, and compile the devices downstream from the router
             for switch in self.r1.cdpneighbors:
                 # Don't include the distro routers in this list
-                test = any(x in switch.deviceid for x in settings.distrobution_layer_list)
-                if any(x in switch.deviceid for x in settings.distrobution_layer_list):
+                test = any(x in switch.deviceid for x in cisco.distrobution_layer_list)
+                if any(x in switch.deviceid for x in cisco.distrobution_layer_list):
                     continue
                 # ignore the partner nodes
                 if self.r1_ipaddress in switch.ip or self.r1.hostname in switch.deviceid:
@@ -639,11 +632,11 @@ class Node():
                         continue
                 # special filter rules if this is the remote router
                 if "r1-remote" in self.r1.hostname:
-                    for funcdiscr in settings.core_layer_function_descriptors:
+                    for funcdiscr in cisco.core_layer_function_descriptors:
                         if funcdiscr not in switch.deviceid.lower():
                             hostnamelist.add(switch.deviceid)
                 else:
-                    for funcdiscr in settings.core_layer_function_descriptors:
+                    for funcdiscr in cisco.core_layer_function_descriptors:
                         if (funcdiscr not in switch.deviceid.lower()
                                 or 'r1' not in switch.deviceid.lower() or 'r2' not in switch.deviceid.lower()):
                             hostnamelist.add(switch.deviceid)
@@ -652,7 +645,7 @@ class Node():
                 # filter through all the devices in r2
                 for switch in self.r2.cdpneighbors:
                     # Don't include the distro routers in this list
-                    if any(x in switch.deviceid for x in settings.distrobution_layer_list):
+                    if any(x in switch.deviceid for x in cisco.distrobution_layer_list):
                         continue
                     # ignore the partner nodes
                     if self.r1_ipaddress in switch.ip or self.r1.hostname in switch.deviceid:
@@ -663,11 +656,11 @@ class Node():
                     # special filter rules if this is the remote routers
                     if self.r2_ipaddress:
                         if "r2-remote" in self.r2.hostname:
-                            for funcdiscr in settings.core_layer_function_descriptors:
+                            for funcdiscr in cisco.core_layer_function_descriptors:
                                 if funcdiscr not in switch.deviceid.lower():
                                     hostnamelist.add(switch.deviceid)
                         else:
-                            for funcdiscr in settings.core_layer_function_descriptors:
+                            for funcdiscr in cisco.core_layer_function_descriptors:
                                 if (funcdiscr not in switch.deviceid.lower()
                                         or 'r1' not in switch.deviceid.lower() or 'r2' not in switch.deviceid.lower()):
                                     hostnamelist.add(switch.deviceid)
@@ -940,13 +933,13 @@ class Node():
                 if 'r1-remote' in switch2.hostname or 'r2-remote' in switch2.hostname:
                     continue
                 # filter out any distrobution routers
-                if any(x in switch2.hostname for x in settings.distrobution_layer_list):
+                if any(x in switch2.hostname for x in cisco.distrobution_layer_list):
                     continue
                 if 'ap' in switch2.hostname:
                     continue
-                if any(x in switch2.hostname for x in settings.access_layer_function_descriptors):
+                if any(x in switch2.hostname for x in cisco.access_layer_function_descriptors):
                     switchipaddresslist.add((switch2.ip, switch2.hostname))
-                if any(x in switch2.hostname for x in settings.distrobution_layer_descriptors):
+                if any(x in switch2.hostname for x in cisco.distrobution_layer_descriptors):
                     switchipaddresslist.add((switch2.ip, switch2.hostname))
         except Exception as e:
             logger.info(f'Getting Edge Device: {ip} - Failed')
@@ -1013,10 +1006,10 @@ class Network():
         pass
 
     def Get_All_devices(self):
-        for distnode in settings.distrobution_layer_ip:
+        for distnode in cisco.distrobution_layer_ip:
             n = Node(r1_ipaddress=distnode[0], r2_ipaddress=distnode[1])
             n.get_all_downstream()
-            from concurrent.futures import ThreadPoolExecutor, as_completed
+            from concurrent.futures import ThreadPoolExecutor
             import concurrent.futures
             try:
                 batch = []

@@ -3,6 +3,8 @@ import logging
 import re
 from SSH.NetmikoConnection import connection
 from SSH.ParamikoConnection import Connection as Pconn
+from Network import settings
+from Network.settings.cisco import Hardware as chw
 
 
 
@@ -561,7 +563,7 @@ class Stack():
             # gatjers the model numbers for device
             self.sortVersion(versionresult=self.version_result)
             self.sortInventory(self.inv_result)
-            if self.modelnumber in settings.modularaccess:
+            if self.modelnumber in chw.chassis:
                 # gathers blades for chassis
                 self.sortmodule(self.module_result)
             # applies interfaces to blades, applies vlans
@@ -570,8 +572,8 @@ class Stack():
             self.sortinterfaces(self.interface_result)
             # applies the uplinks
             self.sortCdpNeiDetail(self.cdpnei_result)
-            # runs extra commands to gather the need information for modularaccess switches.
-            if self.modelnumber in settings.modularaccess:
+            # runs extra commands to gather the need informacisco_chassis switches.
+            if self.modelnumber in chw.chassis:
                 self.chassis = True
             self.sort_hostname()
             if not self.portcount:
@@ -593,7 +595,7 @@ class Stack():
             # gatjers the model numbers for device
             self.sortVersion(versionresult=self.version_result)
             self.sortInventory(self.inv_result)
-            if self.modelnumber in settings.modularaccess:
+            if self.modelnumber in chw.chassis:
                 # gathers blades for chassis
                 self.sortmodule(self.module_result)
             # applies interfaces to blades, applies vlans
@@ -612,8 +614,8 @@ class Stack():
             self._sort_snmp_user()
             # applies the port counters to the interfaces
             self.sortportcounters(self.portcount_result)
-            # runs extra commands to gather the need information for modularaccess switches.
-            if self.modelnumber in settings.modularaccess:
+            # runs extra commands to gather the need informacisco_chassis switches.
+            if self.modelnumber in chw.chassis:
                 self.chassis = True
                 # self.sortportdowntime(self.portdowntime_result)
             self.sort_hostname()
@@ -642,7 +644,7 @@ class Stack():
             # gatjers the model numbers for device
             self.sortVersion(versionresult=self.version_result)
             self.sortInventory(self.inv_result)
-            if self.modelnumber in settings.modularaccess:
+            if self.modelnumber in chw.chassis:
                 # gathers blades for chassis
                 self.sortmodule(self.module_result)
             # applies interfaces to blades, applies vlans
@@ -658,8 +660,8 @@ class Stack():
                 future_results[executor.submit(self.sortsnmp, None)] = None
                 future_results[executor.submit(self._sort_snmp_user, None)] = None
                 future_results[executor.submit(self.sortportcounters, self.portcount_result)] = self.portcount_result
-                # runs extra commands to gather the need information for modularaccess switches.
-                if self.modelnumber in settings.modularaccess:
+                # runs extra commands to gather the need informacisco_chassis switches.
+                if self.modelnumber in chw.chassis:
                     future_results[executor.submit(self.sortportdowntime, self.portdowntime_result)] = self.portdowntime_result
                 future_results[executor.submit(self.sort_hostname, None)] = None
                 future_results[executor.submit(self.sort_mac_address, self.mac_address_result)] = self.mac_address_result
@@ -1758,7 +1760,7 @@ class Stack():
             #     elif '24' in pid:
             #         bl.portcount = 24
             #     self.blades.add(bl)
-            if pid in settings.line_card_pids:
+            if pid in network_settings.line_card_pids:
                 bl = Blade(sn)
                 if stacknumber:
                     stacknumber = re.sub('-','',stacknumber)
@@ -1772,7 +1774,7 @@ class Stack():
                     bl.SUP = True
                     bl.stacknumber = int(supervisor)
                 self.blades.add(bl)
-            if description in settings.sfp_descriptions: #add SFP to list
+            if description in network_settings.sfp_descriptions: #add SFP to list
                 s = SFP()
                 s.port = name
                 s.SN = sn
@@ -1889,7 +1891,7 @@ class Stack():
                     time = self._get_uptime(line)
                     self.uptime = self._get_uptime(line)
                 # discovers if the switch is a chassis
-                for model in settings.modularaccess:
+                for model in chw.chassis:
                     if model in line:
                         self.modelnumber = model
                         # gets the all possible data points from Version
@@ -1906,7 +1908,7 @@ class Stack():
                         logger.info("Sorting 'show Version' - Success")
                         return self
 
-            if self.modelnumber not in settings.modularaccess:  # handle working on a Stack of Switches_syntax_compatability
+            if self.modelnumber not in chw.chassis:  # handle working on a Stack of Switches_syntax_compatability
                 if len(serialnumber) > 1:
                     self.__setattr__('stack', True)
                     if not stackline or stackline == None:
@@ -2446,11 +2448,11 @@ class Stack():
                     # <function descriptor><number>-<building name>-<rack location>
                     self.function_descriptor = ''.join([i for i in hostsplit[0] if not i.isdigit()])
                     self.function_descriptor_number = int(re.sub(self.function_descriptor,"",hostsplit[0]))
-                    self.description = settings.function_descriptors[self.function_descriptor]
+                    self.description = network_settings.function_descriptors[self.function_descriptor]
                     self.buildingname = hostsplit[1]
                     self.buildnumber = '3574'
                     self.racknumber = hostsplit[2]
-                    for abv in settings.nodeabrlist:
+                    for abv in network_settings.nodeabrlist:
                         if abv in hostsplit:
                             self.node = abv
                             hostsplit.remove(abv)
@@ -2458,11 +2460,11 @@ class Stack():
                 elif "3574ddc" in self.hostname:
                     self.function_descriptor = ''.join([i for i in hostsplit[0] if not i.isdigit()])
                     self.function_descriptor_number = int(re.sub(self.function_descriptor, "", hostsplit[0]))
-                    self.description = settings.function_descriptors[self.function_descriptor]
+                    self.description = network_settings.function_descriptors[self.function_descriptor]
                     self.buildingname = hostsplit[1]
                     self.buildnumber = '3574'
                     self.racknumber = hostsplit[2]
-                    for abv in settings.nodeabrlist:
+                    for abv in network_settings.nodeabrlist:
                         if abv in hostsplit:
                             self.node = abv
                             hostsplit.remove(abv)
@@ -2471,7 +2473,7 @@ class Stack():
                     # <function descriptor><number>-<building name>-<rack location>
                     self.function_descriptor = ''.join([i for i in hostsplit[0] if not i.isdigit()])
                     self.function_descriptor_number = int(re.sub(self.function_descriptor, "", hostsplit[0]))
-                    self.description = settings.function_descriptors[self.function_descriptor]
+                    self.description = network_settings.function_descriptors[self.function_descriptor]
                     self.buildingname = hostsplit[1]
                     self.buildnumber = '3475'
                     self.racknumber = hostsplit[2]
@@ -2576,10 +2578,10 @@ class Stack():
                 self.function_descriptor_number = i
                 self.function_descriptor = "r"
         if self.function_descriptor:
-            self.description = settings.function_descriptors[self.function_descriptor]
+            self.description = network_settings.function_descriptors[self.function_descriptor]
         return hostsplit
     def _sort_abv_node(self,hostsplit):
-        for abv in settings.nodeabrlist:
+        for abv in network_settings.nodeabrlist:
             if abv in hostsplit:
                 self.node = abv
                 hostsplit.remove(abv)
@@ -3150,26 +3152,26 @@ class Stack():
                 logger.info(f"Removing 70 ACLs ({self.IPAddress})")
                 switch_connection.send_command("no access-list 70")
                 logger.info(f"Adding standard 70 ACLs ({self.IPAddress})")
-                for line in settings.standard_acl_70:
+                for line in network_settings.standard_acl_70:
                     switch_connection.send_command(line)
             # Rewriting 71 ACL
             if not self.acl_correct_status[71]:
                 logger.info(f"Removing 71 ACLs ({self.IPAddress})")
                 switch_connection.send_command("no access-list 71")
                 logger.info(f"Adding standard 71 ACLs ({self.IPAddress})")
-                if self.IPAddress in settings.packetfence_switches:
-                    for line in settings.standard_acl_71_snmp2:
+                if self.IPAddress in network_settings.packetfence_switches:
+                    for line in network_settings.standard_acl_71_snmp2:
                         switch_connection.send_command(line)
                 else:
-                    for line in settings.standard_acl_71:
+                    for line in network_settings.standard_acl_71:
                         switch_connection.send_command(line)
             # Rewriting 76 ACL (SNMPv3)
             if not self.acl_correct_status[76]:
                 logger.info(f"Removing 76 ACLs ({self.IPAddress})")
                 switch_connection.send_command("no access-list 76")
-                if self.IPAddress in settings.packetfence_switches:
+                if self.IPAddress in network_settings.packetfence_switches:
                     logger.info(f"Adding standard 76 ACLs ({self.IPAddress})")
-                    for line in settings.standard_acl_76:
+                    for line in network_settings.standard_acl_76:
                         switch_connection.send_command(line)
             # Rewriting 199 ACL
             if not self.acl_correct_status[199]:
@@ -3177,10 +3179,10 @@ class Stack():
                 switch_connection.send_command("no access-list 199")
                 logger.info(f"Adding standard 199 ACLs ({self.IPAddress})")
                 if "-565eejmrb-" in self.hostname:
-                    for line in settings.standard_acl_199_bldg565:
+                    for line in network_settings.standard_acl_199_bldg565:
                         switch_connection.send_command(line)
                 else:
-                    for line in settings.standard_acl_199:
+                    for line in network_settings.standard_acl_199:
                         switch_connection.send_command(line)
             logger.info(f"Saving config ({self.IPAddress})")
             switch_connection.send_command("end")
@@ -3195,7 +3197,7 @@ class Stack():
             logger.info(f"Exception Occurred - Rewriting 199 ACL config ({self.IPAddress})")
             result = switch_connection.send_command("conf t")
             result = switch_connection.send_command("no access-list 199")
-            for line in settings.standard_acl_199:
+            for line in network_settings.standard_acl_199:
                 result = switch_connection.send_command(line)
             result = switch_connection.send_command("end")
             result = switch_connection.send_command("wr")
@@ -3235,7 +3237,7 @@ class Stack():
                 switch_connection.send_command("no " + line)
             # Adding log IP addresses
             logger.info(f"Adding new logging IP addresses ({self.IPAddress})")
-            for ip_addr in settings.standard_log_ips:
+            for ip_addr in network_settings.standard_log_ips:
                 logger.info(f"Adding: logging host {ip_addr} ({self.IPAddress})")
                 # TODO Use different switch commands according to software version
                 output = switch_connection.send_command("logging host " + ip_addr)
@@ -3289,7 +3291,7 @@ class Stack():
                 self._create_snmp('RW-group')
             if self.snmp_group_RW_wrong:
                 for group in self.SNMP.groups:
-                    if group.name == settings.SNMP.RW.group.name:
+                    if group.name == network_settings.SNMP.RW.group.name:
                         self._modify_snmp('RW-group',group)
             if self.snmp_user_RW_missing:
                 self._create_snmp('RW-User')
@@ -3323,7 +3325,7 @@ class Stack():
             result = self.conn.send_command('config t')
             result = self.conn.send_command(f"no access-list {str(number)}")
             if number == 71:
-                for line in settings.standard_acl_71:
+                for line in network_settings.standard_acl_71:
                     try:
                         result = self.conn.send_command(line)
                     except ValueError as v:
@@ -3405,7 +3407,7 @@ class Stack():
             result = self.conn.send_command('config t')
             result = self.conn.send_command(f"no access-list {str(number)}")
             if number == 71:
-                for line in settings.standard_acl_71:
+                for line in network_settings.standard_acl_71:
                     try:
                         result = self.conn.send_command(line)
                     except ValueError as v:
@@ -3420,7 +3422,7 @@ class Stack():
         if type == 'RW-group':
             try:
                 result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"snmp-server group {settings.SNMP.RW.group.name} v3 {settings.SNMP.RW.group.security} read {settings.SNMP.RW.group.view.name} write {settings.SNMP.RW.group.view.name} access {settings.SNMP.RW.group.access} ")
+                result = self.conn.send_command(f"snmp-server group {network_settings.SNMP.RW.group.name} v3 {network_settings.SNMP.RW.group.security} read {network_settings.SNMP.RW.group.view.name} write {network_settings.SNMP.RW.group.view.name} access {network_settings.SNMP.RW.group.access} ")
                 result = self.conn.send_command(f"end")
                 result = self.conn.send_command(f"wri")
             except Exception as e:
@@ -3430,9 +3432,9 @@ class Stack():
         elif type == 'RW-view':
             try:
                 result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"snmp-server view {settings.SNMP.RW.group.view.name} "
-                                                f"{settings.SNMP.RW.group.view.access} "
-                                                f"{settings.SNMP.RW.group.view.mibfamily}")
+                result = self.conn.send_command(f"snmp-server view {network_settings.SNMP.RW.group.view.name} "
+                                                f"{network_settings.SNMP.RW.group.view.access} "
+                                                f"{network_settings.SNMP.RW.group.view.mibfamily}")
                 result = self.conn.send_command(f"end")
                 result = self.conn.send_command(f"wri")
             except Exception as e:
@@ -3442,7 +3444,7 @@ class Stack():
         elif type == 'RW-User':
             try:
                 result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"snmp-server user {settings.SNMP.RW.username} {settings.SNMP.RW.group.name} {settings.SNMP.RW.group.version} auth {settings.SNMP.RW.snmpv3_auth_meth} {settings.SNMP.RW.snmpv3_auth_pass} priv {settings.SNMP.RW.snmpv3_priv_meth} {settings.SNMP.RW.snmpv3_priv_pass}")
+                result = self.conn.send_command(f"snmp-server user {network_settings.SNMP.RW.username} {network_settings.SNMP.RW.group.name} {network_settings.SNMP.RW.group.version} auth {network_settings.SNMP.RW.snmpv3_auth_meth} {network_settings.SNMP.RW.snmpv3_auth_pass} priv {network_settings.SNMP.RW.snmpv3_priv_meth} {network_settings.SNMP.RW.snmpv3_priv_pass}")
                 result = self.conn.send_command(f"end")
                 result = self.conn.send_command(f"wri")
             except Exception as e:
@@ -3452,7 +3454,7 @@ class Stack():
         elif type == "context":
             try:
                 result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"snmp-server group {settings.SNMP.RW.context_line}")
+                result = self.conn.send_command(f"snmp-server group {network_settings.SNMP.RW.context_line}")
                 result = self.conn.send_command(f"end")
                 result = self.conn.send_command(f"wri")
             except Exception as e:
@@ -3464,7 +3466,7 @@ class Stack():
             if type == "context":
                 result = self.conn.send_command('config t')
                 result = self.conn.send_command(f"no snmp-server group {objtype}")
-                result = self.conn.send_command(f"snmp-server group {settings.SNMP.RW.context_line}")
+                result = self.conn.send_command(f"snmp-server group {network_settings.SNMP.RW.context_line}")
                 result = self.conn.send_command(f"end")
                 result = self.conn.send_command(f"wri")
             elif type == 'RW-User':
@@ -3497,24 +3499,24 @@ class Stack():
                     if not snmp_group.correct:
                         logger.debug(f"SNMP Group: {snmp_group} - added")
                         if snmp_group.acl.number == '71':
-                            result = switch_con.send_command(f'{settings.SNMP_group_71.auth}')
-                            result = switch_con.send_command(f'{settings.SNMP_group_71.priv}')
+                            result = switch_con.send_command(f'{network_settings.SNMP_group_71.auth}')
+                            result = switch_con.send_command(f'{network_settings.SNMP_group_71.priv}')
                         if snmp_group.acl.number == '70':
-                            result = switch_con.send_command(f'{settings.SNMP_group_70.auth}')
-                            result = switch_con.send_command(f'{settings.SNMP_group_70.priv}')
+                            result = switch_con.send_command(f'{network_settings.SNMP_group_70.auth}')
+                            result = switch_con.send_command(f'{network_settings.SNMP_group_70.priv}')
                         if snmp_group.acl.number == '76':
-                            result = switch_con.send_command(f'{settings.SNMP_group_76.priv}')
+                            result = switch_con.send_command(f'{network_settings.SNMP_group_76.priv}')
 
                 # apply all corrections SNMP View to the switch
                 for snmp_view in self.SNMP.views:
                     if not snmp_view.correct:
                         logger.debug(f"SNMP View: {snmp_view} - added")
                         if 'PFviewRO' in snmp_view.name:
-                            result = switch_con.send_command(f'{settings.SNMP_View.PFG}')
+                            result = switch_con.send_command(f'{network_settings.SNMP_View.PFG}')
                         if 'NOCViewRO' in snmp_view.name:
-                            result = switch_con.send_command(f'{settings.SNMP_View.RO}')
+                            result = switch_con.send_command(f'{network_settings.SNMP_View.RO}')
                         if 'NOCViewRW' in snmp_view.name:
-                            result = switch_con.send_command(f'{settings.SNMP_View.RW}')
+                            result = switch_con.send_command(f'{network_settings.SNMP_View.RW}')
 
             if 2 in self.SNMP.version:
                 pass
@@ -3568,7 +3570,6 @@ class Stack():
         else:
             pass
 
-
     def logout(self):
         """
         Log out of ssh connection from device. Clean up connections
@@ -3611,9 +3612,9 @@ class Stack():
                 for standard_list in self.access_lists.standard_ip_lists:
                     if standard_list.number == 71:
                         for entries in standard_list.Entries:
-                            if str(entries.source) in settings.new_orion_ips:
+                            if str(entries.source) in network_settings.new_orion_ips:
                                 self.new_orion_ips_71 = True
-                            if str(entries.source) in settings.old_orion_ips or str(entries.source) == '155.98.253.0':
+                            if str(entries.source) in network_settings.old_orion_ips or str(entries.source) == '155.98.253.0':
                                 self.old_orion_ips_71 = True
                     elif standard_list.number == 76:
                         pass
@@ -3638,11 +3639,11 @@ class Stack():
         try:
             if orionobj['SNMPLevel'] == 2:
                 self.orion_version_wrong = True
-            if not orionobj['SNMPAuthType'] == settings.SNMP.RW.snmpv3_auth_meth:
+            if not orionobj['SNMPAuthType'] == network_settings.SNMP.RW.snmpv3_auth_meth:
                 self.orion_auth_meth_wrong = True
-            if not orionobj['SNMPEncryptType'] == settings.SNMP.RW.snmpv3_priv_meth:
+            if not orionobj['SNMPEncryptType'] == network_settings.SNMP.RW.snmpv3_priv_meth:
                 self.orion_encript_meth_wrong = True
-            if not orionobj['SNMPUsername'] == settings.SNMP.RW.username:
+            if not orionobj['SNMPUsername'] == network_settings.SNMP.RW.username:
                 self.orion_username_wrong = True
 
         except Exception as e:
@@ -3664,7 +3665,7 @@ class Stack():
                 if not hasattr(self.SNMP,"context_line"):
                     self.SNMP_context_missing = True
                 else:
-                    if self.SNMP.context_line != settings.SNMP.RW.context_line:
+                    if self.SNMP.context_line != network_settings.SNMP.RW.context_line:
                         self.SNMP_context_wrong = True
             else:
                 self.snmp_group_RW_missing = True
@@ -3672,11 +3673,11 @@ class Stack():
                 self.snmp_user_RW_missing = True
 
             if 2 in self.SNMP.version:
-                if self.modelnumber in settings.SNMPv3_versions_supported:
+                if self.modelnumber in network_settings.SNMPv3_versions_supported:
                     self.remove_SNMP_version_2 = True
                 elif self.modelnumber == None:
                     for model in self.blades:
-                        if model.modelnumber in settings.SNMPv3_versions_supported:
+                        if model.modelnumber in network_settings.SNMPv3_versions_supported:
                             self.remove_SNMP_version_2 = True
                 else:
                     self.check_SNMP_v2()
@@ -3706,7 +3707,7 @@ class Stack():
             logger.info(f"Logging IP addresses extacted: {str(current_log_ips)} ({self.IPAddress})")
 
             # Compares current logging IP addresses to standard addresses
-            if set(settings.standard_log_ips) == set(current_log_ips):
+            if set(network_settings.standard_log_ips) == set(current_log_ips):
                 logger.info(f"Logging IPs correctly match our standards ({self.IPAddress})")
                 self.should_overwrite_logging = False
 
@@ -3733,11 +3734,11 @@ class Stack():
             snmp_communities = []
             for s in self.SNMP.communities:
                 if hasattr(SNMP_community,'accesslist'):
-                    if (s.string == settings.SNMP_V2.standard_ro and
+                    if (s.string == network_settings.SNMP_V2.standard_ro and
                             SNMP_community.accesslist == '70'):  # Check for the Standard RO SNMP V2
                         standard_ro = True
                         snmp_communities.append(s)
-                    elif (s.string == settings.SNMP_V2.standard_rw and
+                    elif (s.string == network_settings.SNMP_V2.standard_rw and
                           SNMP_community.accesslist == '71'):  # Check for the Standard RO SNMP V2
                         standard_rw = True
                         snmp_communities.append(s)
@@ -3751,7 +3752,7 @@ class Stack():
 
     def _check_snmpv3_groups(self):
         try:
-            if any([ True for x in self.SNMP.groups if settings.SNMP.RW.group.name == x.name]):#check for RW View
+            if any([True for x in self.SNMP.groups if network_settings.SNMP.RW.group.name == x.name]):#check for RW View
                 pass
             else:
                 self.snmp_group_RW_missing = True
@@ -3759,9 +3760,9 @@ class Stack():
             logger.debug(f"SNMP Groups {self.SNMP.groups}")
             for snmp_group in self.SNMP.groups:
                 if snmp_group.acl != None:
-                    if snmp_group.acl.number not in settings.permitted_SNMP_Groups:
+                    if snmp_group.acl.number not in network_settings.permitted_SNMP_Groups:
                         self.snmp_group_remove.append(snmp_group)
-                    elif snmp_group.RW and snmp_group.name != settings.SNMP.RW.group.name:
+                    elif snmp_group.RW and snmp_group.name != network_settings.SNMP.RW.group.name:
                         self.snmp_group_remove.append(snmp_group)
                 else:
                     self.snmp_group_remove.append(snmp_group)
@@ -3772,9 +3773,9 @@ class Stack():
                         self.snmp_group_RW_wrong = False
                     if group.securitylevel != 'priv':
                         self.snmp_group_RW_wrong = False
-                    if group.viewname != settings.SNMP.RW.group.view.name:
+                    if group.viewname != network_settings.SNMP.RW.group.view.name:
                         self.snmp_group_RW_wrong = False
-                    if group.version != settings.SNMP.RW.group.version:
+                    if group.version != network_settings.SNMP.RW.group.version:
                         self.snmp_group_RW_wrong = False
                     if not group.RO:
                         self.snmp_group_RW_wrong = False
@@ -3788,20 +3789,20 @@ class Stack():
 
     def _check_snmpv3_views(self):
         try:
-            if any([ True for x in self.SNMP.views if settings.SNMP.RW.group.view.name == x.name]):#check for RW View
+            if any([True for x in self.SNMP.views if network_settings.SNMP.RW.group.view.name == x.name]):#check for RW View
                 pass
             else:
                 self.snmp_view_rw_missing = True
 
             logger.debug(f"SNMP Views {self.SNMP.views}")
             for view in self.SNMP.views:
-                if view.name == settings.SNMP.RW.group.view.name:
+                if view.name == network_settings.SNMP.RW.group.view.name:
                     continue
-                if view.name != settings.SNMP.RW.group.view.name:
+                if view.name != network_settings.SNMP.RW.group.view.name:
                     self.snmp_view_remove.append(view)
 
             for view in self.SNMP.views:
-                if not view.remove and view.name == settings.SNMP.RW.group.view.name:
+                if not view.remove and view.name == network_settings.SNMP.RW.group.view.name:
                     if not view.included:
                         self.snmp_view_rw_wrong = True
                     if view.excluded:
@@ -3814,19 +3815,19 @@ class Stack():
             raise
 
     def _check_snmpv3_users(self):
-        if any([ True for x in self.SNMP.user if settings.SNMP.RW.username == x.name]):#check for RW View
+        if any([True for x in self.SNMP.user if network_settings.SNMP.RW.username == x.name]):#check for RW View
             pass
         else:
             self.snmp_user_RW_missing = True
 
         for user in self.SNMP.user:
-            if user.name == settings.SNMP.RW.username:
+            if user.name == network_settings.SNMP.RW.username:
                 continue
-            if user.name != settings.SNMP.RW.username:
+            if user.name != network_settings.SNMP.RW.username:
                 self.snmp_user_remove.append(user)
 
         for User in self.SNMP.user:
-            if not User.remove and User.name == settings.SNMP.RW.username:
+            if not User.remove and User.name == network_settings.SNMP.RW.username:
                 if User.Auth_proto != 'MD5':
                     self.snmp_user_RW_wrong = True
                 if User.group != 'NOCGrv3RW':
@@ -4202,20 +4203,20 @@ class Stack():
             node = namesplit[len(namesplit) - 1]
             if "new" in node:
                 node = namesplit[len(namesplit) - 2]
-            if node in settings.nodeabrlist:
+            if node in network_settings.nodeabrlist:
                 AuthNode = f'{node}'
             else:  # get Node the hard way
                 for switch in self.cdpneighbors:
                     switchname = re.sub('.net.utah.edu', '', switch.hostname)
                     switchname = switchname.split('-')
                     switchname = '-'.join(switchname[:len(switchname)])
-                    if switchname in settings.nodeabrlist:
+                    if switchname in network_settings.nodeabrlist:
                         AuthNode = switchname
                     else:
                         if 'dx' in switch.hostname:
                             pass
             if AuthNode:
-                n = settings.nodes[AuthNode]
+                n = network_settings.nodes[AuthNode]
                 r = Router(n['r1'])
                 r.login()
 
@@ -4261,7 +4262,7 @@ class Stack():
             hostname = self._remove_domain_name(hostname)
             namesplit = hostname.split('-')
             for name in namesplit:
-                if name.lower() in settings.ROUTERS_NXOS:
+                if name.lower() in network_settings.ROUTERS_NXOS:
                     return name.lower()
         except Exception as e:
             logger.error(e, exc_info=True)
@@ -4281,13 +4282,13 @@ class Stack():
             self.distrobution_node = None
             # check hostname for router info
             namesplit = self.hostname.split('-')
-            for node in settings.ROUTERS_NXOS:
+            for node in network_settings.ROUTERS_NXOS:
                 if node.lower() in namesplit:
                     self.node = node
                     self.distrobution_node = node
                     return
             node = namesplit[len(namesplit) - 1]
-            if f'{node}' in settings.ROUTERS_NXOS:
+            if f'{node}' in network_settings.ROUTERS_NXOS:
                 self.distrobution_node = f'{node}'
             else:  # get Node the hard way
                 for switch in self.cdpneighbors:
@@ -4668,8 +4669,4 @@ class Switch(Blade):
 
 
 if __name__=="__main__":
-    s = Stack("172.31.132.11")
-    s.login()
-    s.getSwitchInfo()
-    s.assignattributes()
     pass

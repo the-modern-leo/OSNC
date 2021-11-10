@@ -1173,7 +1173,7 @@ Field: Old Name -- Old View --> Action --> New Name -- New View
             pass
 
     def _name_mapping(self):
-        for name in Switch.settings.name_mapping:
+        for name in Switch.network_settings.name_mapping:
             if self.switch.hostname == name['hostname']:
                 self.AuthoritativeName = name['newname']
                 return
@@ -1674,7 +1674,7 @@ SKIPPING DEVICE NOT ABLE TO SSH INTO DEVICE"""
 def _batch_name_update():
     update_email_string = ''
     with ThreadPoolExecutor(max_workers=8) as executor:
-        results = executor.map(_run_create_name_update, Switch.settings.Random_batch_test_3)
+        results = executor.map(_run_create_name_update, Switch.network_settings.Random_batch_test_3)
         for result in results:
             update_email_string += result + '\r\n'
 
