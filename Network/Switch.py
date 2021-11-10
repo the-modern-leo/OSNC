@@ -3566,6 +3566,7 @@ class Stack():
         else:
             pass
 
+
     def logout(self):
         """
         Log out of ssh connection from device. Clean up connections
