@@ -14,7 +14,7 @@ from routefinder import settings
 
 Route = namedtuple('Route', ['ip', 'vrf', 'interface', 'nodename', 'config',
         'ip2', 'config2', 'mac', 'current_ip'])
-Route.__new__.__defaults__ = (None, None, None, None, None, None, None, None, 
+Route.__new__.__defaults__ = (None, None, None, None, None, None, None, None,
         None)
 
 class RouteFinder(object):
@@ -24,9 +24,9 @@ class RouteFinder(object):
     routed from.
 
     Args:
-        switchaccess (SwitchAccess): SwitchAccess object used to log in to 
+        switchaccess (SwitchAccess): SwitchAccess object used to log in to
                 switches.
-        acitools (ACITools): ACITools object to look up ACI routes. May be None 
+        acitools (ACITools): ACITools object to look up ACI routes. May be None
                 if ACI is not available.
         default_router (str): Default (core) router to start searches from.
     """
@@ -103,7 +103,7 @@ class RouteFinder(object):
 
         Returns:
             Route: A named tuple describing the next hop IP or local VLAN ID.
-        
+
         Raises:
             RouteFinderNotRoutedException: When the subnet is not routed
         """
@@ -157,8 +157,8 @@ class RouteFinder(object):
             ip (str): IP address of the firewall/next hop
 
         Returns:
-            str or None: A message string if the IP is in the unmanaged devices 
-            list in settings.py; otherwise None
+            str or None: A message string if the IP is in the unmanaged devices
+            list in cisco.py; otherwise None
         """
         with database.db_session() as dbsession:
             result = dbsession.query(DBUnmanagedRouter).filter(
@@ -180,7 +180,7 @@ class RouteFinder(object):
         Get a list of routers known by the module.
 
         Returns:
-            dict: A dictionary of tuples with the router IP as a key, name, and 
+            dict: A dictionary of tuples with the router IP as a key, name, and
             backup name as the tuple value
         """
         with database.db_session() as dbsession:
@@ -291,7 +291,7 @@ class RouteFinder(object):
         Args:
             ip (str): IP address of the device to delete.
 
-        Raises: 
+        Raises:
             ValueError: When the requested IP is not in the list
         """
         if not ip:
@@ -358,7 +358,7 @@ class RouteFinder(object):
             router (str): Primary router IP
             interface (str): SVI ID to retrieve the config for
             result (str): String that is modified with the config result.
-        
+
         Raises:
             RouteFinderTimeoutException: When the connection times out
         """
@@ -437,16 +437,16 @@ class RouteFinder(object):
         an error or end result (actual router) is reached.
 
         Args:
-            ip (str): IP address or CIDR subnet of the route destination to 
+            ip (str): IP address or CIDR subnet of the route destination to
             check
             router (str): Router to check the route for.
             vrf (str): Optional - string describing the VRF to check.
             config (bool): Optional - if True, retrieve the SVI config as well.
-        
+
         Returns:
-            str or Route: retruns a message if not able to find results; returns 
+            str or Route: retruns a message if not able to find results; returns
             the found results in a Route named tuple
-        
+
         Raises:
             RouteFinderIPException: When the router/ IP is invalid
             RouteFinderNotRoutedException: When the subnet route is not found
@@ -512,11 +512,11 @@ class RouteFinder(object):
                     if unmanaged: # check unmanaged devices just in case
                         return ("Unreachable router " + parsed.ip + ": " +
                                 unmanaged)
-                    # TODO: Enable this tool to search palo-alto firwalls for 
+                    # TODO: Enable this tool to search palo-alto firwalls for
                     # Layer 3 configurations anddisplay them in Cisco style.
                     # Then this chck can be removed
                     if parsed.ip == "10.64.32.229":
-                        return ("Requested IP/subnet routed on fw-ddc-colo_" + 
+                        return ("Requested IP/subnet routed on fw-ddc-colo_" +
                                 "untrust.net.utah.edu (10.64.32.229).")
                     return Route(parsed.ip, vrf, None, 'junos')
             elif unmanaged: # Unmanaged device, give up and don't log in
@@ -617,7 +617,7 @@ class RouteFinder(object):
         Args:
             ip (str): IP address or subnet to check.
             config (bool): Optional - if True, retrieve the config as well.
-            synchronous (bool): Optional - If True, run synchronously (wait for 
+            synchronous (bool): Optional - If True, run synchronously (wait for
                     thread to finish).
 
         Returns:
@@ -650,12 +650,12 @@ class RouteFinder(object):
 
         Args:
             thread_id (int): Thread ID
-            autodelete (bool): Optional - If True, this will delete thread 
+            autodelete (bool): Optional - If True, this will delete thread
                     information if the thread/route finding has been completed.
 
         Returns:
             dict: containing the route message and a Route namedtuple.
-        
+
         Raises:
             ValueError: When the threadID is invalid
         """
@@ -698,7 +698,7 @@ class RouteFinder(object):
             dst_config (str): Destination VLAN configuration
 
         Returns:
-            tuple: A tuple containing a list of firewalls (in order from source 
+            tuple: A tuple containing a list of firewalls (in order from source
             to destination) and a boolean for the destination ACL.
         """
         firewalls = [] # in order, from source to destination
@@ -781,7 +781,7 @@ class FindRouteThread(threading.Thread):
 
     def run(self):
         """
-        Search for the routed path of this subnet on the network using the 
+        Search for the routed path of this subnet on the network using the
         RouteFinder object in a separate thread
         """
         old_router = None
@@ -835,16 +835,16 @@ class FindRouteThread(threading.Thread):
                     if self.config:
                         if type(aci_result).__name__ == 'SubnetInfo':
                             # get BD information from any (the first) epg
-                            epginfo = self.rf.acitools.get_epg_info(apic, 
-                                    aci_result.epgs[0].dn.split("/")[1][3:], 
-                                    aci_result.epgs[0].dn.split("/")[2][3:], 
+                            epginfo = self.rf.acitools.get_epg_info(apic,
+                                    aci_result.epgs[0].dn.split("/")[1][3:],
+                                    aci_result.epgs[0].dn.split("/")[2][3:],
                                     aci_result.epgs[0].dn.split("/")[3][4:])
                             subnetlist = epginfo['subnets']
                             aci_config = ('BD: ' + epginfo['bd']['name'] +
                                     '\n\nContext/VRF: ' +
                                     epginfo['context']['name']+
                                     '\n\nEPGs:\n' +
-                                    '\n'.join(epg.dn for epg in aci_result.epgs) 
+                                    '\n'.join(epg.dn for epg in aci_result.epgs)
                                     + '\n\nSubnets:\n' +
                                     '\n'.join(sub['ip'] for sub in subnetlist)+
                                     '\n\nDHCP Relays: ' +
@@ -868,7 +868,7 @@ class FindRouteThread(threading.Thread):
                             "interface": interface,
                             "name": if_name,
                             "config": aci_config,
-                            "ip2": None, "name2": None, "config2": None, 
+                            "ip2": None, "name2": None, "config2": None,
                             "current_ip": self.ip})
                 elif "whitelist" in route:
                     logging.error('non-whitelisted ip ' + str(router) +
