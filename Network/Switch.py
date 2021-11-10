@@ -1,8 +1,10 @@
 from collections import namedtuple
 import logging
-
+import re
 from SSH.NetmikoConnection import connection
 from SSH.ParamikoConnection import Connection as Pconn
+
+
 
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
