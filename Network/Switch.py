@@ -3567,8 +3567,8 @@ class Stack():
             pass
 
     def logout(self):
-        """Log out of a router and clean up (close channel and socket).
-
+        """
+        Log out of ssh connection from device. Clean up connections
         Args:
             connection: Connection object to close.
         """
