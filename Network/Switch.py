@@ -3566,7 +3566,6 @@ class Stack():
         else:
             pass
 
-
     def check_orion_migration(self,orionobj):
         """
         A function that checks the logging. ACL, and SNMP for the switch against policy standards.
