@@ -15,11 +15,10 @@ class ServiceNowAPIError(Exception):
 class ServiceNow(object):
     """
     An abstraction layer for working with the service now REST API.
-
     Args:
         user (str): Username required for making the API calls.
         pwd (str): Password required for making the API calls.
-        url (str): The URL may be the production or development version of 
+        url (str): The URL may be the production or development version of
                 ServiceNow.
     """
     _headers = {"Content-Type":"application/json", "Accept":"application/json"}
@@ -293,7 +292,7 @@ class ServiceNow(object):
             str: sys_id for the created change.
 
         Raises:
-            ServiceNowAPIError: If an error occured when creating a standard 
+            ServiceNowAPIError: If an error occured when creating a standard
             change.
         """
         url = (self._url + '/api/sn_sc/servicecatalog/items/'+ str(sys_id) +
@@ -328,7 +327,7 @@ class ServiceNow(object):
             unid (str): The uNID of the user to assign to the change.
 
         Raises:
-            ServiceNowAPIError: If an error occured when updating a standard 
+            ServiceNowAPIError: If an error occured when updating a standard
             change.
         """
         now = datetime.now()
@@ -355,7 +354,7 @@ class ServiceNow(object):
             state (int): State code.
 
         Raises:
-            ServiceNowAPIError: If an error occured when updating a standard 
+            ServiceNowAPIError: If an error occured when updating a standard
             change.
         """
         url = (self._url + '/api/now/table/change_request/' + sys_id)
@@ -378,12 +377,12 @@ class ServiceNow(object):
 
         Args:
             sys_id (str): The change sys_id.
-            close_code (str): 'Successful', 'Successful with issues' or 
+            close_code (str): 'Successful', 'Successful with issues' or
                 'Unsuccessful'.
             close_notes (str): 4000 Character limit of close notes.
 
         Raises:
-            ServiceNowAPIError: If an error occured when closing a standard 
+            ServiceNowAPIError: If an error occured when closing a standard
             change.
         """
         url = (self._url + '/api/now/table/change_request/' + sys_id)
@@ -419,7 +418,7 @@ class ServiceNow(object):
 
     def get_open_tickets(self, short_description):
         """
-        Returns a list of task numbers matching the short description of the 
+        Returns a list of task numbers matching the short description of the
         ticket.
 
         Args:
@@ -457,10 +456,10 @@ class ServiceNow(object):
             url = (self._url + "/api/now/table/sc_task?sysparm_query=" +
                     f"number={number}^active=true")
         elif "INC" in number.upper():
-            url = (f"{self._url}/api/now/table/incident?sysparm_query=" + 
+            url = (f"{self._url}/api/now/table/incident?sysparm_query=" +
                     f"number={number}^active=true")
         elif "RITM" in number.upper():
-            url = (f"{self._url}/api/now/table/sc_req_item?sysparm_query=" + 
+            url = (f"{self._url}/api/now/table/sc_req_item?sysparm_query=" +
                     f"number={number}^active=true")
         else:
             raise ValueError("Only TASKs, RITMs and INCs are supported!")
@@ -473,13 +472,13 @@ class ServiceNow(object):
                     ": " + str(response.text))
 
         ticket_information = response.json()
-        
+
         tasks = [task['number'] for task in ticket_information['result']]
         return True if tasks else False
 
     def _get_task_info(self, task_number):
         """
-        Collects more information to be added to the dict created in 
+        Collects more information to be added to the dict created in
         get_ticket_info.
 
         Args:
@@ -582,9 +581,9 @@ class ServiceNow(object):
 
     def close_task(self, sys_id, unid, worknotes=None):
         """
-        Updates the task to a close state. Changes the task state to be 
-        "closed complete". The user accredited to closing the ticket is the user 
-        provided by the unid. Closing the ticket with a closing work note is 
+        Updates the task to a close state. Changes the task state to be
+        "closed complete". The user accredited to closing the ticket is the user
+        provided by the unid. Closing the ticket with a closing work note is
         recommended.
 
         Args:
@@ -612,7 +611,7 @@ class ServiceNow(object):
         Returns a user's first and last name identified by a uNID.
 
         Args:
-            unid (str): A unid has the form uXXXXXXX, where an X represents a 
+            unid (str): A unid has the form uXXXXXXX, where an X represents a
                 digit.
 
         Returns:
@@ -641,7 +640,7 @@ class ServiceNow(object):
             ticket_number (str): I.E. TASK1234567 or INC1234567.
             data (bytes): Raw bytes of string information for txt.
             file_name (str): Name of txt file to attach.
-        
+
         Raises:
             ValueError: Caused if ticket number is not a task or inc.
             Exception: Caused by error in request.
@@ -661,13 +660,13 @@ class ServiceNow(object):
             "file_name": f"{file_name}.txt"
         }
         header = {
-            "Content-Type": "text/plain", 
+            "Content-Type": "text/plain",
             "Accept": "application/json"
         }
-        response = requests.post(url, params=args, headers=header, data=data, 
+        response = requests.post(url, params=args, headers=header, data=data,
                 auth=(self._user, self._pwd))
         if response.status_code != 201:
-            raise Exception(f"Request failed, code {response.status_code}: " + 
+            raise Exception(f"Request failed, code {response.status_code}: " +
                     f"{response.text}")
 
     def remove_txt_attachment(self, ticket_number, file_name):
@@ -677,7 +676,7 @@ class ServiceNow(object):
         Args:
             ticket_number (str): I.E. TASK1234567 or INC1234567.
             file_name (str): Name of attached file.
-        
+
         Raises:
             ValueError: Caused if ticket number is not a task or inc.
             Exception: Caused by error in request.
@@ -694,10 +693,10 @@ class ServiceNow(object):
         args = {
             "sysparm_query": f"table_sys_id={sys_id}",
         }
-        response = requests.get(url, params=args, headers=self._headers, 
+        response = requests.get(url, params=args, headers=self._headers,
                 auth=(self._user, self._pwd))
         if response.status_code != 200:
-            raise Exception(f"Request failed, code {response.status_code}: " + 
+            raise Exception(f"Request failed, code {response.status_code}: " +
                     f"{response.text}")
         file_sys_id = None
         for file_attachment in response.json()["result"]:
@@ -706,8 +705,8 @@ class ServiceNow(object):
         if not file_sys_id:
             raise Exception(f"File: {file_name} cannot be found.")
         url = f"{self._url}/api/now/attachment/{file_sys_id}"
-        response = requests.delete(url, headers=self._headers, 
+        response = requests.delete(url, headers=self._headers,
                 auth=(self._user, self._pwd))
         if response.status_code != 204:
-            raise Exception(f"Request failed, code {response.status_code}: " + 
+            raise Exception(f"Request failed, code {response.status_code}: " +
                     f"{response.text}")

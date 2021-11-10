@@ -29,6 +29,5 @@ pandas
 mac-vendor-lookup
 openpyxl
 cython
-netmiko
 cryptography
 tornado

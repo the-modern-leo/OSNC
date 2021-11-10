@@ -1,27 +1,18 @@
 import copy
-import ipaddress
-from netaddr import EUI
-from ipaddress import IPv4Network
 import queue
-import time
 import re
 import paramiko
-from netmiko import ConnectHandler
 import logging
 import datetime
-from dateutil.relativedelta import relativedelta
 import itertools
 import socket
 from . import settings
-from auth import Switch_access, ServiceNowAPI, InfobloxAPI
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
 import concurrent
 from concurrent.futures import ThreadPoolExecutor
-from servicenow import servicenow
-from Infoblox.infoblox import Infoblox
 import uuid
-import string
+
 
 def RepresentsInt(s):
     try:

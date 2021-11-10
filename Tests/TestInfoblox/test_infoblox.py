@@ -1,6 +1,5 @@
-import unittest, time, auth
-from Infoblox.infoblox import Infoblox
-from Tests.TestInfoblox.settings import *
+import unittest, auth
+from Vendor_Applications.Infoblox import Infoblox
 
 ib_obj = None
 test_subnet = '10.64.3.0/24'

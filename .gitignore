@@ -22,9 +22,9 @@ console-commands.py
 *.crt
 *.key
 .vscode/*
-api/templates/*
-api/doctrees/*
-api/coverage/*
+WebServer/API/templates/*
+WebServer/API/doctrees/*
+WebServer/API/coverage/*
 api_results.txt
 *.idea
 acitools/aci-meta.json

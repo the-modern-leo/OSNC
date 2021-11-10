@@ -467,7 +467,8 @@ class Stack():
             self.logout(self.conn)
         else:
             logger.info(f"Gathering Switch data - Success")
-            self.logout(self.conn)
+            # self.logout(self.conn)
+            return self.version_result
 
     def getSwitchInfo_thread(self):
         """
@@ -3558,9 +3559,12 @@ class Stack():
             ValueErrors if there are problems logging in to the device.
         """
         try:
-            self.conn = Pconn(self.ip).login()
+            self.conn = Pconn(self.ip)
+            self.conn.login()
         except Exception as e:
             _exception(e)
+        else:
+            pass
 
     def check_orion_migration(self,orionobj):
         """
@@ -4455,6 +4459,7 @@ class Stack():
 
 class Chassis(Stack):
     pass
+
 class Blade:
     def __init__(self,serialnumber):
         self.serialnumber = serialnumber
@@ -4645,4 +4650,12 @@ class Blade:
                 f'Transferring {interfaceobj.fullname} to Port:{"Next available" if nextavailable else portname} - success')
 
 class Switch(Blade):
+    pass
+
+
+if __name__=="__main__":
+    s = Stack("172.31.132.11")
+    s.login()
+    s.getSwitchInfo()
+    s.assignattributes()
     pass

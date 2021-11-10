@@ -1,11 +1,11 @@
 import tornado.ioloop
 import tornado.web
-from tornado.web import RequestHandler, Application
+from tornado.web import Application
 from tornado.template import Loader
 import logging
 import os
-from API.Survey import survey_handler
-from API.Base  import BaseHandler
+from WebServer.API.Survey import survey_handler
+from WebServer.API.Base import BaseHandler
 
 handlers = []
 handlers.extend(survey_handler.handlers)
@@ -21,7 +21,7 @@ class MultiTemplateLoader(Loader):
         return super(MultiTemplateLoader, self)._create_template(name)
 
 def make_app():
-    template_path = os.path.join(os.path.dirname(__file__), "../Frontend")
+    template_path = os.path.join(os.path.dirname(__file__), "Frontend")
     tloader = MultiTemplateLoader(template_path)
     app = Application(handlers,template_loader=tloader)
     return app

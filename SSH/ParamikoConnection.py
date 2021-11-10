@@ -52,6 +52,7 @@ class Connection(object):
         self.password = SSH.password
         self.ip = ipaddress
 
+
     def login(self, quick=False):
         """Log in to a SSH device.
 
@@ -67,7 +68,6 @@ class Connection(object):
             ValueErrors if there are problems logging in to the device.
         """
         logger.debug(f'SSH connection - {self.ip}')
-        client = None
         try:
             self.client = paramiko.SSHClient()
             self.client.load_system_host_keys()
@@ -136,6 +136,7 @@ class Connection(object):
 
             prompt = header.splitlines()[-1].strip()
             self.prompt = prompt
+            self.update_prompts(self.prompt)
         except paramiko.ssh_exception.NoValidConnectionsError as N:
             raise
         except OSError as O:
