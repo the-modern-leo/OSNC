@@ -1,10 +1,12 @@
 from collections import namedtuple
 import logging
-
+import re
 from SSH.NetmikoConnection import connection
 from SSH.ParamikoConnection import Connection as Pconn
 from Network import settings
 from Network.settings.cisco import Hardware as chw
+
+
 
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
