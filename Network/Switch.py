@@ -3566,6 +3566,17 @@ class Stack():
         else:
             pass
 
+    def logout(self):
+        """Log out of a router and clean up (close channel and socket).
+
+        Args:
+            connection: Connection object to close.
+        """
+        try:
+            self.conn.logout()
+        except Exception as e:
+            _exception(e)
+
     def check_orion_migration(self,orionobj):
         """
         A function that checks the logging. ACL, and SNMP for the switch against policy standards.

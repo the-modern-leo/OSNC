@@ -9,7 +9,6 @@ netaddr
 netmiko
 orionsdk
 paramiko>=2
-pygraphviz
 pyOpenSSL
 python-cas
 python-dateutil
