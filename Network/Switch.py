@@ -1,12 +1,28 @@
-from collections import namedtuple
-import logging
-import re
+### Network Imports ###
+from Network.Vlan import vlan
+from Network.settings.cisco import Hardware as chw
+from Network.settings import router as router_settings
+from Network.Port import Interface, PortChannel, SFP
+from Network.AccessList import Access_Lists, ACL, ACL_Entry
+
+### OSNC Application Imports ###
 from SSH.NetmikoConnection import connection
 from SSH.ParamikoConnection import Connection as Pconn
-from Network import settings
-from Network.settings.cisco import Hardware as chw
+from SNMP.Objects import SNMP,SNMP_Group,SNMP_view,SNMP_contact,SNMP_User,\
+    SNMP_community, SNMP_Host_Group
+from Tacacs.Objects import TACACS
 
-
+### Package Imports ###
+import logging
+import re
+from collections import namedtuple
+import ipaddress
+from netaddr import EUI
+from dateutil.relativedelta import relativedelta
+from datetime import timedelta,datetime
+import concurrent
+from concurrent.futures import ThreadPoolExecutor
+import itertools
 
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
@@ -249,7 +265,7 @@ class Checker():
             if "Node does not exist" in str(e):
                 error = "does not exist"
             else:
-                traceback.print_exc()
+                logger.error(e, exc_info=True)
         finally:
             return self.CheckStatus(error, actual_entry, expected_entry, None)
 
@@ -618,7 +634,6 @@ class Stack():
             if self.modelnumber in chw.chassis:
                 self.chassis = True
                 # self.sortportdowntime(self.portdowntime_result)
-            self.sort_hostname()
             self.sort_mac_address(self.mac_address_result)
             self.sort_tacacs()
             self.sort_status()
@@ -1760,7 +1775,7 @@ class Stack():
             #     elif '24' in pid:
             #         bl.portcount = 24
             #     self.blades.add(bl)
-            if pid in network_settings.line_card_pids:
+            if pid in chw.line_card_pids:
                 bl = Blade(sn)
                 if stacknumber:
                     stacknumber = re.sub('-','',stacknumber)
@@ -1774,7 +1789,7 @@ class Stack():
                     bl.SUP = True
                     bl.stacknumber = int(supervisor)
                 self.blades.add(bl)
-            if description in network_settings.sfp_descriptions: #add SFP to list
+            if description in chw.sfp_descriptions: #add SFP to list
                 s = SFP()
                 s.port = name
                 s.SN = sn
@@ -2433,230 +2448,6 @@ class Stack():
             raise
         else:
             pass
-    def sort_hostname(self):
-        """
-        Gets room numbers, bldg numbers, rack numbers, and node information
-        """
-        try:
-            pattern = re.compile("([0-9]{2,4}[A-Za-z]{2,10})")
-            hostsplit = self.hostname.split("-")
-            hostsplit = [x for x in hostsplit if x]
-            if "_" in self.hostname:
-                self._sort_research_park_names(hostsplit,pattern,underscore=True)
-            else:
-                if "ddc" in self.hostname and not "3574ddc" in self.hostname:  # process Dataceneter names
-                    # <function descriptor><number>-<building name>-<rack location>
-                    self.function_descriptor = ''.join([i for i in hostsplit[0] if not i.isdigit()])
-                    self.function_descriptor_number = int(re.sub(self.function_descriptor,"",hostsplit[0]))
-                    self.description = network_settings.function_descriptors[self.function_descriptor]
-                    self.buildingname = hostsplit[1]
-                    self.buildnumber = '3574'
-                    self.racknumber = hostsplit[2]
-                    for abv in network_settings.nodeabrlist:
-                        if abv in hostsplit:
-                            self.node = abv
-                            hostsplit.remove(abv)
-                            break
-                elif "3574ddc" in self.hostname:
-                    self.function_descriptor = ''.join([i for i in hostsplit[0] if not i.isdigit()])
-                    self.function_descriptor_number = int(re.sub(self.function_descriptor, "", hostsplit[0]))
-                    self.description = network_settings.function_descriptors[self.function_descriptor]
-                    self.buildingname = hostsplit[1]
-                    self.buildnumber = '3574'
-                    self.racknumber = hostsplit[2]
-                    for abv in network_settings.nodeabrlist:
-                        if abv in hostsplit:
-                            self.node = abv
-                            hostsplit.remove(abv)
-                            break
-                elif "tdc" in self.hostname:
-                    # <function descriptor><number>-<building name>-<rack location>
-                    self.function_descriptor = ''.join([i for i in hostsplit[0] if not i.isdigit()])
-                    self.function_descriptor_number = int(re.sub(self.function_descriptor, "", hostsplit[0]))
-                    self.description = network_settings.function_descriptors[self.function_descriptor]
-                    self.buildingname = hostsplit[1]
-                    self.buildnumber = '3475'
-                    self.racknumber = hostsplit[2]
-                elif not pattern.match(hostsplit[1]) and RepresentsInt(hostsplit[1]): #process addresses locations in research park
-                    self._sort_research_park_names(hostsplit,pattern)
-                else:  # edge names
-                    self._sort_edge_names(hostsplit,pattern)
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            pass
-    def _sort_research_park_names(self,hostsplit,pattern,underscore=False):
-        if underscore == True:
-            hostsplit_a = self.hostname.split("_")
-            self.address = hostsplit_a[0].split("-")[1]
-            self.hostname = re.sub(f"{self.address}_", "", self.hostname)
-            hostsplit = self.hostname.split("-")
-            hostsplit = [x for x in hostsplit if x]
-            self.function_descriptor = None
-        hostsplit = self._sort_key_words(hostsplit)
-        hostsplit = self._sort_function_descriptor(hostsplit)
-        hostsplit = self._sort_abv_node(hostsplit)
-        hostsplit = self._sort_buildingname_number(hostsplit,pattern)
-        hostsplit = self._sort_name_leftovers(hostsplit)
-    def _sort_edge_names(self,hostsplit, pattern):
-        try:
-            self.function_descriptor = None
-            hostsplit = self._sort_key_words(hostsplit)
-            hostsplit = self._sort_function_descriptor(hostsplit)
-            hostsplit = self._sort_abv_node(hostsplit)
-            hostsplit = self._sort_buildingname_number(hostsplit,pattern)
-            hostsplit = self._sort_name_leftovers(hostsplit)
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-    def _sort_key_words(self,hostsplit):
-        if "PoE" in hostsplit:
-            hostsplit.remove("PoE")
-        if "noc" in hostsplit:
-            hostsplit.remove("noc")
-        if 'poison' in hostsplit:
-            hostsplit.remove('poison')
-        if 'airmed' in hostsplit:
-            hostsplit.remove('airmed')
-        if 'parkcitycovid' in hostsplit:
-            hostsplit.remove('parkcitycovid')
-        if 'indoors' in hostsplit:
-            hostsplit.remove('indoors')
-        if 'meraki' in hostsplit:
-            hostsplit.remove('meraki')
-        if 'liberty' in hostsplit:
-            hostsplit.remove('liberty')
-        if 'dental' in hostsplit:
-            hostsplit.remove('dental')
-        return hostsplit
-    def _sort_function_descriptor(self,hostsplit):
-        for i in range(1, 10):
-            if f"sx{i}" in hostsplit[0]:
-                hostsplit.remove(f"sx{i}")
-                self.function_descriptor_number = i
-                self.function_descriptor = "sx"
-            elif f"scx{i}" in hostsplit[0]:
-                hostsplit.remove(f"scx{i}")
-                self.function_descriptor_number = i
-                self.function_descriptor = "scx"
-            elif f"SCX{i}" in hostsplit[0]:
-                hostsplit.remove(f"SCX{i}")
-                self.function_descriptor_number = i
-                self.function_descriptor = "scx"
-            elif f"SX{i}" in hostsplit[0]:
-                hostsplit.remove(f"SX{i}")
-                self.function_descriptor_number = i
-                self.function_descriptor = "sx"
-        for i in range(1, 3):
-            if f"dx{i}" in hostsplit[0]:
-                hostsplit.remove(f"dx{i}")
-                self.function_descriptor_number = i
-                self.function_descriptor = "dx"
-            elif f"DX{i}" in hostsplit[0]:
-                hostsplit.remove(f"DX{i}")
-                self.function_descriptor_number = i
-                self.function_descriptor = "dx"
-        for i in range(1, 3):
-            if f"r{i}" in hostsplit[0]:
-                hostsplit.remove(f"r{i}")
-                self.function_descriptor_number = i
-                self.function_descriptor = "r"
-            elif f"R{i}" in hostsplit[0]:
-                hostsplit.remove(f"R{i}")
-                self.function_descriptor_number = i
-                self.function_descriptor = "r"
-        for i in range(1, 3):
-            if f"gw{i}" in hostsplit[0]:
-                hostsplit.remove(f"r{i}")
-                self.function_descriptor_number = i
-                self.function_descriptor = "r"
-            elif f"R{i}" in hostsplit[0]:
-                hostsplit.remove(f"R{i}")
-                self.function_descriptor_number = i
-                self.function_descriptor = "r"
-        if self.function_descriptor:
-            self.description = network_settings.function_descriptors[self.function_descriptor]
-        return hostsplit
-    def _sort_abv_node(self,hostsplit):
-        for abv in network_settings.nodeabrlist:
-            if abv in hostsplit:
-                self.node = abv
-                hostsplit.remove(abv)
-                break
-        return hostsplit
-    def _sort_buildingname_number(self,hostsplit,pattern):
-        for portion in hostsplit:
-            if pattern.match(portion):
-                hostsplit.remove(portion)
-                bldgsplit = re.split('(\d+)', portion)
-                bldgsplit = [x for x in bldgsplit if x]
-                self.buildnumber = int(bldgsplit[0])
-                self._pad_building_number()
-                self.buildingname = bldgsplit[1]
-        return hostsplit
-    def _sort_name_leftovers(self,hostsplit):
-        try:
-            if len(hostsplit) > 0:
-                new_hostsplit = []
-                for portion in hostsplit:
-                    if portion == self.address:
-                        continue
-                    elif portion == self.buildingname:
-                        continue
-                    elif portion == self.node:
-                        continue
-                    elif portion == self.racknumber:
-                        continue
-                    elif portion == self.roomnumber:
-                        continue
-                    elif RepresentsInt(portion):
-                        if portion == self.address:
-                            continue
-                        elif portion == self.buildnumber:
-                            continue
-                        else:
-                            new_hostsplit.append(portion)
-                    else:
-                        new_hostsplit.append(portion)
-                if len(new_hostsplit) == 1:  # most likely the room
-                    self.roomnumber = new_hostsplit[0]
-                if len(new_hostsplit) == 2:
-                    self.roomnumber = new_hostsplit[0]
-                    self.racknumber = new_hostsplit[1]
-                if len(new_hostsplit) == 3:
-                    if 'va' in new_hostsplit:
-                        new_hostsplit.remove('va')
-                        if new_hostsplit[0] == '1':
-                            new_hostsplit.remove('1')
-                            self.buildnumber = '3460'
-                        elif new_hostsplit[0] == '2':
-                            new_hostsplit.remove('2')
-                            self.buildnumber = '3464'
-                        elif new_hostsplit[0] == '3':
-                            new_hostsplit.remove('3')
-                            self.buildnumber = '3466'
-                        elif new_hostsplit[0] == '7':
-                            new_hostsplit.remove('7')
-                            self.buildnumber = '3467'
-                        elif new_hostsplit[0] == '14':
-                            new_hostsplit.remove('14')
-                            self.buildnumber = '3465'
-                        elif new_hostsplit[0] == '45':
-                            new_hostsplit.remove('45')
-                            self.buildnumber = '3486'
-                        else:
-                            pass
-                        self.buildingname = 'va'
-                        self.roomnumber = new_hostsplit[0]
-                    self.buildnumber = int(new_hostsplit[0])
-                    self._pad_building_number()
-                    self.buildingname = new_hostsplit[1]
-                    self.roomnumber = new_hostsplit[2]
-        except Exception as e:
-            logger.error(e, exc_info=True)
     def _pad_building_number(self):
         self.buildnumber = str(self.buildnumber)
         self.buildnumber = self.buildnumber.zfill(4)
@@ -2706,7 +2497,7 @@ class Stack():
                 self.login()
             except Exception as ssh:
                 logger.info("Sorting Memory: Unable to Collect")
-                _exception(e)
+                _exception(ssh)
                 raise
             self.system_results = self.conn.send_command('show system resources', manypages=True)
             self.memory_results = self.conn.send_command('show processes memory', manypages=True)
@@ -3092,7 +2883,7 @@ class Stack():
         Takes all the port configurations stored in self.Ports and writes them to the connection
         :param (Connection): A Parimiko Objecct
         """
-        assert isinstance(self.conn, Connection), f'self.conn is not a connection object: {type(self.conn)}'
+        assert isinstance(self.conn, Pconn), f'self.conn is not a connection object: {type(self.conn)}'
         assert isinstance(self.portconfig, list), f'self.Ports is not list'
         logger.info("Writing Port configs to device - Started")
         try:
@@ -3116,7 +2907,7 @@ class Stack():
         This function writes out the configuration of the vlans stored in self.vlans
         :param self.conn (Connection): A Parmimiko connection to the device
         """
-        assert isinstance(self.conn, Connection), f'self.conn is not a connection object: {type(self.conn)}'
+        assert isinstance(self.conn, Pconn), f'self.conn is not a connection object: {type(self.conn)}'
         logger.info("Writing vlan configs to device - Started")
         try:
             result = self.conn.send_command('config t', trim=False)
@@ -3134,208 +2925,7 @@ class Stack():
             logger.error(e, exc_info=True)
         else:
             logger.info("Writing vlan configs to device - Success")
-    def update_ACL(self, switch_connection):
-        """
-        Updates the ACL list with our standards on the switch, if needed.
 
-        Args:
-            switch_connection (Connection): Used to send and update ACLs on switch.
-        """
-        logger.info(f"Updating switch ACLs - Starting ({self.IPAddress})")
-        try:
-            # Saving old config incase we need to roll back
-            old_acl = switch_connection.send_command("show run | inc access-list")
-
-            output = switch_connection.send_command("conf t")
-            # Rewriting 70 ACL
-            if not self.acl_correct_status[70]:
-                logger.info(f"Removing 70 ACLs ({self.IPAddress})")
-                switch_connection.send_command("no access-list 70")
-                logger.info(f"Adding standard 70 ACLs ({self.IPAddress})")
-                for line in network_settings.standard_acl_70:
-                    switch_connection.send_command(line)
-            # Rewriting 71 ACL
-            if not self.acl_correct_status[71]:
-                logger.info(f"Removing 71 ACLs ({self.IPAddress})")
-                switch_connection.send_command("no access-list 71")
-                logger.info(f"Adding standard 71 ACLs ({self.IPAddress})")
-                if self.IPAddress in network_settings.packetfence_switches:
-                    for line in network_settings.standard_acl_71_snmp2:
-                        switch_connection.send_command(line)
-                else:
-                    for line in network_settings.standard_acl_71:
-                        switch_connection.send_command(line)
-            # Rewriting 76 ACL (SNMPv3)
-            if not self.acl_correct_status[76]:
-                logger.info(f"Removing 76 ACLs ({self.IPAddress})")
-                switch_connection.send_command("no access-list 76")
-                if self.IPAddress in network_settings.packetfence_switches:
-                    logger.info(f"Adding standard 76 ACLs ({self.IPAddress})")
-                    for line in network_settings.standard_acl_76:
-                        switch_connection.send_command(line)
-            # Rewriting 199 ACL
-            if not self.acl_correct_status[199]:
-                logger.info(f"Removing 199 ACLs ({self.IPAddress})")
-                switch_connection.send_command("no access-list 199")
-                logger.info(f"Adding standard 199 ACLs ({self.IPAddress})")
-                if "-565eejmrb-" in self.hostname:
-                    for line in network_settings.standard_acl_199_bldg565:
-                        switch_connection.send_command(line)
-                else:
-                    for line in network_settings.standard_acl_199:
-                        switch_connection.send_command(line)
-            logger.info(f"Saving config ({self.IPAddress})")
-            switch_connection.send_command("end")
-            switch_connection.send_command("wr")
-
-            # Metric Logging
-            if (not self.acl_correct_status[70] or not self.acl_correct_status[71]
-                    or not self.acl_correct_status[76] or not self.acl_correct_status[199]):
-                pass
-
-        except Exception as e:
-            logger.info(f"Exception Occurred - Rewriting 199 ACL config ({self.IPAddress})")
-            result = switch_connection.send_command("conf t")
-            result = switch_connection.send_command("no access-list 199")
-            for line in network_settings.standard_acl_199:
-                result = switch_connection.send_command(line)
-            result = switch_connection.send_command("end")
-            result = switch_connection.send_command("wr")
-            logger.info(f"Updating switch ACLs for {self.IPAddress} - Failed")
-            logger.error(f"{self.IPAddress} Failed Update ACL")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info(f"Updating switch ACLs for {self.IPAddress} - Success")
-    def update_logging(self, switch_connection):
-        """
-        Updates the logging host addresses with our standards on the switch, if needed.
-
-        Args:
-            switch_connection (Connection): Used to send and update logging addresses on switch.
-        """
-        logger.info(f"Updating switch logging configuration for {self.IPAddress} - Starting")
-        if self.should_overwrite_logging == None:
-            logger.info(f"check_logging() must be run before update_logging() ({self.IPAddress})")
-            logger.info("Updating switch logging configuration - Failed")
-            return
-        if not self.should_overwrite_logging:
-            logger.info(f"No update for logging is needed ({self.IPAddress})")
-            logger.info(f"Updating switch logging configuration for {self.IPAddress} - Success")
-            return
-        try:
-            # Saving old logging config
-            old_logging_config = switch_connection.send_command("show run | inc logging host")
-            output = switch_connection.send_command("conf t")
-            # Removing old IP addresses
-            logger.info(f"Removing old logging addresses ({self.IPAddress})")
-            old_logging_lines = []
-            for line_info in self.logging_data:
-                line = " ".join(line_info[0])
-                line = line.strip("\r\n")
-                old_logging_lines.append(line)
-                logger.info(f"Removing: {line} ({self.IPAddress})")
-                switch_connection.send_command("no " + line)
-            # Adding log IP addresses
-            logger.info(f"Adding new logging IP addresses ({self.IPAddress})")
-            for ip_addr in network_settings.standard_log_ips:
-                logger.info(f"Adding: logging host {ip_addr} ({self.IPAddress})")
-                # TODO Use different switch commands according to software version
-                output = switch_connection.send_command("logging host " + ip_addr)
-            logger.info(f"Saving config ({self.IPAddress})")
-            switch_connection.send_command("end")
-            switch_connection.send_command("wr")
-            new_logging_config = switch_connection.send_command("show run | inc logging host")
-            # Metric Logging
-
-        except Exception as e:
-            logger.info(f"Exception Occurred - Rolling back config ({self.IPAddress})")
-            # Undoing any new changes
-            new_changes = switch_connection.send_command("show run | inc logging host")
-            new_changes = new_changes.split("\n\r")
-            for i in range(len(new_changes)):
-                new_changes[i] = new_changes[i].strip()
-            switch_connection.send_command("conf t")
-            for line in new_changes:
-                switch_connection.send_command(f"no {line}")
-            # Writing old config
-            old_logging_config = old_logging_config.split("\n\r")
-            for i in range(len(old_logging_config)):
-                old_logging_config[i] = old_logging_config[i].strip()
-            for line in old_logging_config:
-                switch_connection.send_command(line)
-            switch_connection.send_command("end")
-            switch_connection.send_command("wr")
-            logger.info("Updating switch logging configuration - Failed")
-            logger.error(f"{self.IPAddress} Failed Update Logging")
-            logger.error(e, exc_info=True)
-
-        else:
-            logger.info("Updating switch logging configuration - Success")
-    def update_orion_migration(self):
-        """
-        Update logging, SNMP, and ACL for the Orion migration.
-        """
-        logger.info("Orion Migration: Updating - Starting ")
-        try:
-            if self.acl_71_missing:
-                self._create_acl(71)
-            if not self.new_orion_ips_71:
-                self._correct_acl_to_standard(71)
-            if self.old_orion_ips_71:
-                self._correct_acl_to_standard(71)
-            if self.snmp_view_rw_missing:
-                self._create_snmp('RW-view')
-            if self.snmp_view_rw_wrong:
-                self._modify_snmp('RW-view')
-            if self.snmp_group_RW_missing:
-                self._create_snmp('RW-group')
-            if self.snmp_group_RW_wrong:
-                for group in self.SNMP.groups:
-                    if group.name == network_settings.SNMP.RW.group.name:
-                        self._modify_snmp('RW-group',group)
-            if self.snmp_user_RW_missing:
-                self._create_snmp('RW-User')
-            if self.snmp_user_RW_wrong:
-                self._modify_snmp('RW-User')
-            if self.SNMP_context_wrong:
-                self._modify_snmp("context", self.SNMP.context_line)
-            if self.SNMP_context_missing:
-                self._create_snmp("context")
-            if self.remove_SNMP_version_2:
-                for community in self.SNMP.communities:
-                    self._remove_snmp(community)
-            for user in self.snmp_user_remove:
-                self._remove_snmp(user)
-            for view in self.snmp_view_remove:
-                self._remove_snmp(view)
-            for group in self.snmp_group_remove:
-                self._remove_snmp(group)
-            for acl in self.remove_acl:
-                self._remove_acl(acl)
-
-        except Exception as e:
-            logger.info("Orion Migration: Updating - Failed ")
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logger.info("Orion Migration: Updating - Success ")
-    def _create_acl(self,number):
-        try:
-            result = self.conn.send_command('config t')
-            result = self.conn.send_command(f"no access-list {str(number)}")
-            if number == 71:
-                for line in network_settings.standard_acl_71:
-                    try:
-                        result = self.conn.send_command(line)
-                    except ValueError as v:
-                        pass
-            result = self.conn.send_command(f"end")
-            result = self.conn.send_command(f"wri")
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
     def _modify_acl(self,aclnumber):
         pass
     def _remove_acl(self,acl):
@@ -3393,139 +2983,7 @@ class Stack():
             pass
     def _add_entry_to_acl(self,acl,entries):
         pass
-    def _correct_acl_to_standard(self, number):
-        """
 
-        Args:
-            acl:
-            entries:
-
-        Returns:
-
-        """
-        try:
-            result = self.conn.send_command('config t')
-            result = self.conn.send_command(f"no access-list {str(number)}")
-            if number == 71:
-                for line in network_settings.standard_acl_71:
-                    try:
-                        result = self.conn.send_command(line)
-                    except ValueError as v:
-                        pass
-            result = self.conn.send_command(f"end")
-            result = self.conn.send_command(f"wri")
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-    def _create_snmp(self,type):
-        if type == 'RW-group':
-            try:
-                result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"snmp-server group {network_settings.SNMP.RW.group.name} v3 {network_settings.SNMP.RW.group.security} read {network_settings.SNMP.RW.group.view.name} write {network_settings.SNMP.RW.group.view.name} access {network_settings.SNMP.RW.group.access} ")
-                result = self.conn.send_command(f"end")
-                result = self.conn.send_command(f"wri")
-            except Exception as e:
-                logger.error(e, exc_info=True)
-                _exception(e)
-                raise
-        elif type == 'RW-view':
-            try:
-                result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"snmp-server view {network_settings.SNMP.RW.group.view.name} "
-                                                f"{network_settings.SNMP.RW.group.view.access} "
-                                                f"{network_settings.SNMP.RW.group.view.mibfamily}")
-                result = self.conn.send_command(f"end")
-                result = self.conn.send_command(f"wri")
-            except Exception as e:
-                logger.error(e, exc_info=True)
-                _exception(e)
-                raise
-        elif type == 'RW-User':
-            try:
-                result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"snmp-server user {network_settings.SNMP.RW.username} {network_settings.SNMP.RW.group.name} {network_settings.SNMP.RW.group.version} auth {network_settings.SNMP.RW.snmpv3_auth_meth} {network_settings.SNMP.RW.snmpv3_auth_pass} priv {network_settings.SNMP.RW.snmpv3_priv_meth} {network_settings.SNMP.RW.snmpv3_priv_pass}")
-                result = self.conn.send_command(f"end")
-                result = self.conn.send_command(f"wri")
-            except Exception as e:
-                logger.error(e, exc_info=True)
-                _exception(e)
-                raise
-        elif type == "context":
-            try:
-                result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"snmp-server group {network_settings.SNMP.RW.context_line}")
-                result = self.conn.send_command(f"end")
-                result = self.conn.send_command(f"wri")
-            except Exception as e:
-                logger.error(e, exc_info=True)
-                _exception(e)
-                raise
-    def _modify_snmp(self,type,objtype):
-        try:
-            if type == "context":
-                result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"no snmp-server group {objtype}")
-                result = self.conn.send_command(f"snmp-server group {network_settings.SNMP.RW.context_line}")
-                result = self.conn.send_command(f"end")
-                result = self.conn.send_command(f"wri")
-            elif type == 'RW-User':
-                pass
-            elif type == 'RW-view':
-                pass
-            elif type == 'RW-group':
-                result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"no snmp-server group {objtype}")
-                result = self.conn.send_command(f"end")
-                result = self.conn.send_command(f"wri")
-                self._create_snmp('RW-group')
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-    def update_SNMP(self, switch_con):
-        """
-        Updates the SNMP configuration lines on the switch
-        """
-        logger.info(f"Updating SNMP ({self.IPAddress})  - Starting ")
-        try:
-            result = switch_con.send_command('config t')
-            if 3 in self.SNMP.version:
-                # apply any Group Corrections to the Switch
-                for snmp_group in self.SNMP.groups:
-                    if snmp_group.remove:
-                        logger.debug(f"SNMP Group: {snmp_group} - removed")
-                        result = switch_con.send_command(f'no {snmp_group.line}')
-                    if not snmp_group.correct:
-                        logger.debug(f"SNMP Group: {snmp_group} - added")
-                        if snmp_group.acl.number == '71':
-                            result = switch_con.send_command(f'{network_settings.SNMP_group_71.auth}')
-                            result = switch_con.send_command(f'{network_settings.SNMP_group_71.priv}')
-                        if snmp_group.acl.number == '70':
-                            result = switch_con.send_command(f'{network_settings.SNMP_group_70.auth}')
-                            result = switch_con.send_command(f'{network_settings.SNMP_group_70.priv}')
-                        if snmp_group.acl.number == '76':
-                            result = switch_con.send_command(f'{network_settings.SNMP_group_76.priv}')
-
-                # apply all corrections SNMP View to the switch
-                for snmp_view in self.SNMP.views:
-                    if not snmp_view.correct:
-                        logger.debug(f"SNMP View: {snmp_view} - added")
-                        if 'PFviewRO' in snmp_view.name:
-                            result = switch_con.send_command(f'{network_settings.SNMP_View.PFG}')
-                        if 'NOCViewRO' in snmp_view.name:
-                            result = switch_con.send_command(f'{network_settings.SNMP_View.RO}')
-                        if 'NOCViewRW' in snmp_view.name:
-                            result = switch_con.send_command(f'{network_settings.SNMP_View.RW}')
-
-            if 2 in self.SNMP.version:
-                pass
-
-        except Exception as e:
-            logger.info(f"Updating SNMP ({self.IPAddress}) - Failed ")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info(f"Updating SNMP ({self.IPAddress}) - Success ")
     def generate_config(self):
         """
         Returns:
@@ -3580,278 +3038,6 @@ class Stack():
             self.conn.logout()
         except Exception as e:
             _exception(e)
-
-    def check_orion_migration(self,orionobj):
-        """
-        A function that checks the logging. ACL, and SNMP for the switch against policy standards.
-        """
-        logger.info("Orion Migration: Checking - Starting ")
-        try:
-            self.check_ACL()
-            self.check_SNMP(orionobj)
-            self.check_orion_snmp(orionobj)
-
-        except Exception as e:
-            logger.info("Orion Migration: Checking - Failed ")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info("Orion Migration: Checking - Success ")
-
-    def check_ACL(self):
-        """
-        Compares ACLs found on switch to standard ACLs for edge devices. If any need to be updated,
-        the ACL status is updated in the self.acl_correct_status dictionary under the ACL number.
-        """
-        logger.info(f"Checking ACL for {self.ip} - Starting ")
-        try:
-            # Checking switch 70 ACLs
-            if 71 not in self.access_lists.numbers:
-                self.acl_71_missing = True
-
-            if self.access_lists.standard_ip_lists:
-                for standard_list in self.access_lists.standard_ip_lists:
-                    if standard_list.number == 71:
-                        for entries in standard_list.Entries:
-                            if str(entries.source) in network_settings.new_orion_ips:
-                                self.new_orion_ips_71 = True
-                            if str(entries.source) in network_settings.old_orion_ips or str(entries.source) == '155.98.253.0':
-                                self.old_orion_ips_71 = True
-                    elif standard_list.number == 76:
-                        pass
-                    else:
-                        self.remove_acl.append(standard_list)
-        except Exception as e:
-            logger.info(f"Checking ACL for {self.IPAddress} - Failed")
-            logger.error(f"{self.IPAddress} Failed Check ACL")
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logger.info(f"Checking ACL for {self.IPAddress} - Success")
-
-    def check_orion_snmp(self,orionobj):
-        """
-        Args:
-            orionobj:
-
-        Returns:
-        """
-        try:
-            if orionobj['SNMPLevel'] == 2:
-                self.orion_version_wrong = True
-            if not orionobj['SNMPAuthType'] == network_settings.SNMP.RW.snmpv3_auth_meth:
-                self.orion_auth_meth_wrong = True
-            if not orionobj['SNMPEncryptType'] == network_settings.SNMP.RW.snmpv3_priv_meth:
-                self.orion_encript_meth_wrong = True
-            if not orionobj['SNMPUsername'] == network_settings.SNMP.RW.username:
-                self.orion_username_wrong = True
-
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            pass
-
-    def check_SNMP(self,orionobj):
-        """
-        Takes the SNMP Information stored in self.SNMP, and checks it against our standards
-        """
-        logger.info(f"Checking SNMP ({self.ip}) - Starting ")
-        try:
-            # look for all the SNMP properties to determing what is missing
-            if 3 in self.SNMP.version:
-                self.check_SNMP_v3()
-                if not hasattr(self.SNMP,"context_line"):
-                    self.SNMP_context_missing = True
-                else:
-                    if self.SNMP.context_line != network_settings.SNMP.RW.context_line:
-                        self.SNMP_context_wrong = True
-            else:
-                self.snmp_group_RW_missing = True
-                self.snmp_view_rw_missing = True
-                self.snmp_user_RW_missing = True
-
-            if 2 in self.SNMP.version:
-                if self.modelnumber in network_settings.SNMPv3_versions_supported:
-                    self.remove_SNMP_version_2 = True
-                elif self.modelnumber == None:
-                    for model in self.blades:
-                        if model.modelnumber in network_settings.SNMPv3_versions_supported:
-                            self.remove_SNMP_version_2 = True
-                else:
-                    self.check_SNMP_v2()
-
-        except Exception as e:
-            logger.info(f"Checking SNMP ({self.ip}) - Failed ")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info(f"Checking SNMP ({self.IPAddress}) - Success ")
-
-    def check_Logging(self):
-        """
-        Compares logging IP addresses found on switch against standard edge device logging IP
-        addresses. If the IPs need to be updated, self.should_overwrite_logging is set to true.
-        """
-        logger.info(f"Checking logging IP addresses for {self.IPAddress} - Starting")
-        try:
-            current_log_ips = []
-            for line_info in self.logging_data:
-                # Grabs IPv4 address object as 1st index in tuple.
-                ip = line_info[1]
-                if type(ip) is ipaddress.IPv4Address:
-                    current_log_ips.append(str(ip))
-                else:
-                    log_str = " ".join(line_info[0])
-                    logger.info(f"Could not locate IP address from {log_str} ({self.IPAddress})")
-            logger.info(f"Logging IP addresses extacted: {str(current_log_ips)} ({self.IPAddress})")
-
-            # Compares current logging IP addresses to standard addresses
-            if set(network_settings.standard_log_ips) == set(current_log_ips):
-                logger.info(f"Logging IPs correctly match our standards ({self.IPAddress})")
-                self.should_overwrite_logging = False
-
-            else:
-                logger.info(f"Logging IPs do not match our standards ({self.IPAddress})")
-                self.should_overwrite_logging = True
-
-        except Exception as e:
-            logger.info(f"Checking logging IP addresses - Failed ({self.IPAddress})")
-            logger.error(f"{self.IPAddress} Failed Check Logging")
-            logger.error(e, exc_info=True)
-
-        else:
-            logger.info(f"Checking logging IP addresses - Success ({self.IPAddress})")
-
-    def check_SNMP_v2(self):
-        """
-        Checks the SNMP object for Version 2 standards
-        """
-        logger.info(f"Checking SNMP v2 ({self.IPAddress}) - Starting")
-        try:
-            standard_ro = False
-            standard_rw = False
-            snmp_communities = []
-            for s in self.SNMP.communities:
-                if hasattr(SNMP_community,'accesslist'):
-                    if (s.string == network_settings.SNMP_V2.standard_ro and
-                            SNMP_community.accesslist == '70'):  # Check for the Standard RO SNMP V2
-                        standard_ro = True
-                        snmp_communities.append(s)
-                    elif (s.string == network_settings.SNMP_V2.standard_rw and
-                          SNMP_community.accesslist == '71'):  # Check for the Standard RO SNMP V2
-                        standard_rw = True
-                        snmp_communities.append(s)
-
-        except Exception as e:
-            logger.info(f"Checking SNMP v2 ({self.IPAddress}) - Failed ")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info(f"Checking SNMP v2 ({self.IPAddress}) - Success ")
-            self.SNMP.communities = snmp_communities
-
-    def _check_snmpv3_groups(self):
-        try:
-            if any([True for x in self.SNMP.groups if network_settings.SNMP.RW.group.name == x.name]):#check for RW View
-                pass
-            else:
-                self.snmp_group_RW_missing = True
-
-            logger.debug(f"SNMP Groups {self.SNMP.groups}")
-            for snmp_group in self.SNMP.groups:
-                if snmp_group.acl != None:
-                    if snmp_group.acl.number not in network_settings.permitted_SNMP_Groups:
-                        self.snmp_group_remove.append(snmp_group)
-                    elif snmp_group.RW and snmp_group.name != network_settings.SNMP.RW.group.name:
-                        self.snmp_group_remove.append(snmp_group)
-                else:
-                    self.snmp_group_remove.append(snmp_group)
-
-            for group in self.SNMP.groups:
-                if not group.remove and group.RW:
-                    if group.acl.number != 71:
-                        self.snmp_group_RW_wrong = False
-                    if group.securitylevel != 'priv':
-                        self.snmp_group_RW_wrong = False
-                    if group.viewname != network_settings.SNMP.RW.group.view.name:
-                        self.snmp_group_RW_wrong = False
-                    if group.version != network_settings.SNMP.RW.group.version:
-                        self.snmp_group_RW_wrong = False
-                    if not group.RO:
-                        self.snmp_group_RW_wrong = False
-
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            pass
-
-    def _check_snmpv3_views(self):
-        try:
-            if any([True for x in self.SNMP.views if network_settings.SNMP.RW.group.view.name == x.name]):#check for RW View
-                pass
-            else:
-                self.snmp_view_rw_missing = True
-
-            logger.debug(f"SNMP Views {self.SNMP.views}")
-            for view in self.SNMP.views:
-                if view.name == network_settings.SNMP.RW.group.view.name:
-                    continue
-                if view.name != network_settings.SNMP.RW.group.view.name:
-                    self.snmp_view_remove.append(view)
-
-            for view in self.SNMP.views:
-                if not view.remove and view.name == network_settings.SNMP.RW.group.view.name:
-                    if not view.included:
-                        self.snmp_view_rw_wrong = True
-                    if view.excluded:
-                        self.snmp_view_rw_wrong = True
-                    if view.mibfamily != 'internet':
-                        self.snmp_view_rw_wrong = True
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-
-    def _check_snmpv3_users(self):
-        if any([True for x in self.SNMP.user if network_settings.SNMP.RW.username == x.name]):#check for RW View
-            pass
-        else:
-            self.snmp_user_RW_missing = True
-
-        for user in self.SNMP.user:
-            if user.name == network_settings.SNMP.RW.username:
-                continue
-            if user.name != network_settings.SNMP.RW.username:
-                self.snmp_user_remove.append(user)
-
-        for User in self.SNMP.user:
-            if not User.remove and User.name == network_settings.SNMP.RW.username:
-                if User.Auth_proto != 'MD5':
-                    self.snmp_user_RW_wrong = True
-                if User.group != 'NOCGrv3RW':
-                    self.snmp_user_RW_wrong = True
-                if User.priv_proto != 'DES':
-                    self.snmp_user_RW_wrong = True
-
-    def check_SNMP_v3(self):
-        """
-        Checks the SNMP object for Version 3 standards
-        """
-        logger.info(f"Checking SNMP v3 ({self.ip}) - Starting")
-        try:
-            # remove SNMP Groups outside of accepted
-            self._check_snmpv3_groups()
-            # remove SNMP Views outside of what is needed
-            self._check_snmpv3_views()
-            # remove SNMP Groups outside of accepted
-            self._check_snmpv3_users()
-        except Exception as e:
-            logger.info(f"Checking SNMP v3 ({self.ip}) - Failed ")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info(f"Checking SNMP v3 ({self.ip}) - Success ")
 
     def get_mgmt_vlan(self, switch_connection):
         # This function will be rewritten
@@ -4189,140 +3375,10 @@ class Stack():
             logger.info('Generating Port Configuration - Success')
             self.portconfig = allconfigs
 
-    def check_vlan_name(self):
-        """
-        This method checks the vlans stored in self.vlans by comparing the the name assigned on the router node for
-        this device against against the current name. The current name is changed if the name is different.
-        """
-        logger.info("Checking Vlan names - Starting")
-        try:
-            vlans = None
-            AuthNode = None
-            # check hostname for router info
-            namesplit = self.hostname.split('-')
-            node = namesplit[len(namesplit) - 1]
-            if "new" in node:
-                node = namesplit[len(namesplit) - 2]
-            if node in network_settings.nodeabrlist:
-                AuthNode = f'{node}'
-            else:  # get Node the hard way
-                for switch in self.cdpneighbors:
-                    switchname = re.sub('.net.utah.edu', '', switch.hostname)
-                    switchname = switchname.split('-')
-                    switchname = '-'.join(switchname[:len(switchname)])
-                    if switchname in network_settings.nodeabrlist:
-                        AuthNode = switchname
-                    else:
-                        if 'dx' in switch.hostname:
-                            pass
-            if AuthNode:
-                n = network_settings.nodes[AuthNode]
-                r = Router(n['r1'])
-                r.login()
-
-                vlans = set()
-                for vlan in self.vlans:
-                    result = r.conn.send_command(f'show run int vlan {vlan.number}')
-                    if 'description' in result:
-                        for line in result.split('\n'):
-                            if 'description' in line:
-                                vlanname = re.sub('description', '', line)
-                                vlanname = re.sub(' ', '', vlanname)
-                                vlanname = re.sub('#', '', vlanname)
-                                vlanname = re.sub('vlan', '', vlanname)
-                                vlanname = re.sub(f'{vlan.number}', '', vlanname)
-                                vlanname = re.sub(':', '', vlanname)
-                                vlanname = vlanname.rstrip()
-                                if vlanname != vlan.name:  # Vlan name is wrong
-                                    vlan.name = vlanname
-                                vlans.add(vlan)
-
-                    else:  # missing description
-                        vlans.add(vlan)
-                        pass
-
-        except Exception as e:
-            logger.info("Checking Vlan names - Failed")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info("Checking Vlan names - Success")
-            self.vlans = vlans
     def _remove_domain_name(self,name):
         name = re.sub('.net.utah.edu','',name)
         name = re.sub('.med.utah.edu', '', name)
         return name
-    def _get_node_from_name(self,hostname):
-        """
-
-        Returns:
-
-        """
-        try:
-            # check hostname for router info
-            hostname = self._remove_domain_name(hostname)
-            namesplit = hostname.split('-')
-            for name in namesplit:
-                if name.lower() in network_settings.ROUTERS_NXOS:
-                    return name.lower()
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            pass
-
-    def get_distro_Node(self):
-        """
-        Run this Function to assign self.distro_nodes with the correct Park, Lib, Remote, etc
-        """
-        assert self.hostname is not None, f'Hostname not assigned'
-        assert self.cdpneighbors is not None, f'You need to assign CDP Neighbnors before running'
-        logger.info("Assigning Distribution Node - starting")
-        try:
-            self.distrobution_node = None
-            # check hostname for router info
-            namesplit = self.hostname.split('-')
-            for node in network_settings.ROUTERS_NXOS:
-                if node.lower() in namesplit:
-                    self.node = node
-                    self.distrobution_node = node
-                    return
-            node = namesplit[len(namesplit) - 1]
-            if f'{node}' in network_settings.ROUTERS_NXOS:
-                self.distrobution_node = f'{node}'
-            else:  # get Node the hard way
-                for switch in self.cdpneighbors:
-                    node = self._get_node_from_name(switch.deviceid)
-                    if node != None:
-                        self.distrobution_node = node
-                        self.node = node
-                        logger.info("Assigning Distribution Node' - Success")
-                        return
-                    else:
-                        if 'dx' in switch.deviceid:
-                            s = Switch(str(switch.ip))
-                            s.login()
-                            s.getSwitchInfo()
-                            s.assignattributes()
-                            for cdp in s.cdpneighbors:
-                                node = self._get_node_from_name(cdp.deviceid)
-                                if node:
-                                    self.node = node
-                                    self.distrobution_node = node
-                                    break
-
-                            # TODO create the function for getting the CDP neibor for this node
-                        else:  # handle daisy chained devices
-                            for switch in self.cdpneighbors:
-                                if 'sx' in switch.deviceid:
-                                    pass
-        except Exception as e:
-            logger.info("Assigning Distribution Node - Failed")
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logger.info("Assigning Distribution Node' - Success")
 
     def get_hostname(self):
         """

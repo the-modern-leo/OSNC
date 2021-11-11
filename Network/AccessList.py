@@ -1,3 +1,5 @@
+import uuid
+
 class ACL_Entry:
     def __init__(self):
         self.destination_wildcard = None
