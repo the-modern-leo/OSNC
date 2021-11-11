@@ -7,7 +7,6 @@ from builtins import object
 import traceback, re, os, jinja2, logging
 from netaddr import IPAddress, IPNetwork
 
-from Vlan import settings
 
 class vlan:
     """
@@ -71,7 +70,7 @@ class VLANConfig(object):
     def get_dev_info(self):
         """
         Gets development information.
-        
+
         Returns:
             str: Returns "Production".
         """
@@ -86,7 +85,7 @@ class VLANConfig(object):
             subnet (str): Subnet to be checked.
 
         Returns:
-            bool or str: Returns true if subnet is free; Otherwise returns 
+            bool or str: Returns true if subnet is free; Otherwise returns
             errors.
         """
         error = []
@@ -194,7 +193,7 @@ class VLANConfig(object):
         Args:
             vlanid (int): VLAN ID.
             subnet (IPNetwork): Subnet IPNetwork object.
-            is_department (bool): Optional - Defines whether subnet is 
+            is_department (bool): Optional - Defines whether subnet is
                 departmental.
             department_name (str): Optional - Department name.
             is_clinical (bool): Optional - Defines whether subnet is clincal.
@@ -202,7 +201,7 @@ class VLANConfig(object):
             hsrp_group (int): Optional - hsrp Group.
             is_uguest (bool): Optional - Defines whether subnet is UGuest.
             extra_helpers (str): Optional - Extra helper addresses.
-        
+
         Returns:
             str: Rendered jinja2 template.
 
@@ -344,7 +343,7 @@ class VLANConfig(object):
             infoblox_servers (list): List of Infoblox servers.
             bldg_number (int): Building number.
             is_nexus (bool): Optional - Indicates whether switch is a nexus.
-        
+
         Return:
             str: Rendered jinja2 template.
         """
@@ -405,7 +404,7 @@ class VLANConfig(object):
             subnet (IPNetwork): IPNetwork Object that defines subnet.
             vrf (str): Optional - VRF for VLAN.
             is_nexus (bool): Optional - Indicates whether switch is a nexus.
-        
+
         Returns:
             str: Rendered jinja2 template.
 
@@ -476,7 +475,7 @@ class VLANLookup(object):
             router (str): Router IP address or hostname.
 
         returns:
-            None or dict: None if no VLAN is found; Otherwise a dict if a vlan 
+            None or dict: None if no VLAN is found; Otherwise a dict if a vlan
             is found with keys 'router', 'name', and 'config'
         """
         result = None
@@ -507,7 +506,7 @@ class VLANLookup(object):
         finally:
             self.switchaccess.logout(connection)
 
-class VLANChanger(PortConfigCommon):
+class VLANChanger():
     """
     Object that handles changing VLAN configurations on edge ports.
 

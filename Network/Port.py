@@ -1,11 +1,8 @@
-import socket, re, logging, time, threading
-from collections import namedtuple
-from __future__ import print_function
+import logging, time, threading
 from builtins import str
 from builtins import range
 from builtins import object
-import sys, traceback, re, socket
-from Network import Network
+import traceback, re, socket
 from collections import namedtuple
 class Interface:
     """
@@ -572,7 +569,7 @@ class PortInfo(object):
 
     Args:
         switch (str): Optional - the name or IP of the switch
-        port (str): Optional - The port number 
+        port (str): Optional - The port number
         simple_config (str): Optional - The config of the port
         mac (str): Optional - the mac of the device on the port
         ip (str): Optional - the ip of the device
@@ -619,7 +616,7 @@ class PortConfig(PortConfigCommon):
     status is determined by a method from the parent clsss PortConfigCommon,
     verify_switchport
 
-    Args: 
+    Args:
         sa (SwitchAccess): A SwitchAccess object for logging into switches
         mc (MacFinder): A MacFinder object
         rf (RouteFinder): A RouteFinder object
@@ -647,7 +644,7 @@ class PortConfig(PortConfigCommon):
             connection (Connection): Optional - A SwitchAccess connection to the
                     switch
             ip (str): Optional - IP of the device connected to the port
-            keep_alive (bool): Optional - whether or not to keep the connection 
+            keep_alive (bool): Optional - whether or not to keep the connection
                     alive
 
         Returns:
@@ -725,11 +722,11 @@ class PortConfig(PortConfigCommon):
         Args:
             connection (Connection): A Network connection object
             port (str): the port to check the connection on
-            thread_id (int): Optional - the id of the thread to send the update 
+            thread_id (int): Optional - the id of the thread to send the update
                     message to
 
         Returns:
-            bool: True if the port has a connected device, false if the port 
+            bool: True if the port has a connected device, false if the port
             does not
         """
         if thread_id:
@@ -787,7 +784,7 @@ class PortConfig(PortConfigCommon):
             port (str): port on switch
 
         Returns:
-            PortInfo: Info about the port 
+            PortInfo: Info about the port
         """
         try:
             self.threadlock.acquire()
@@ -819,7 +816,7 @@ class PortConfig(PortConfigCommon):
             PortInfo: The info about the port found
 
         Raises:
-            ValueError: When the connection is broken or the direct port could 
+            ValueError: When the connection is broken or the direct port could
                     not be found
         """
         if thread_id:
@@ -874,7 +871,7 @@ class PortConfig(PortConfigCommon):
             thread_id (int): Optional - The ID of the thread
 
         Returns:
-            str: An IP address if there is one tied to the mac, otherwise 
+            str: An IP address if there is one tied to the mac, otherwise
             returns unknown
 
         Raises:
@@ -910,7 +907,7 @@ class PortConfig(PortConfigCommon):
         Args:
             ip (str): the ip address to search for
             thread_id (int): Optional - The ID of the thread
-        
+
         Returns:
             PortInfo: the info about the port
 
@@ -939,14 +936,14 @@ class PortConfig(PortConfigCommon):
         a dict of the relevant information
 
         Args:
-            maclocation (Maclocation): a named tuple or object that has the 
+            maclocation (Maclocation): a named tuple or object that has the
                     required members
             connection (Connection): a Switchaccess connection to a switch
             thread_id (int): Optional - The ID of the thread
             info (PortInfo): a PortInfo object
 
         Returns:
-            PortInfo: A PortInfo object with an accurate 'protected' field 
+            PortInfo: A PortInfo object with an accurate 'protected' field
         """
         if thread_id:
             self.update(thread_id, "Checking if port is protected...", None,
@@ -981,19 +978,19 @@ class PortConfig(PortConfigCommon):
         to start searching for port datails. It starts the thread for searching
         for the port information, and can either return the thread id to
         check for updates, or a dictionary that contains a message and a
-        PortInfo object after the thread has completed. It requires either an 
-        IP, a MAC address, or a switch/port pair to function. 
+        PortInfo object after the thread has completed. It requires either an
+        IP, a MAC address, or a switch/port pair to function.
 
         Args:
             switch (str): a switch name, or None
             port (str): a port number, or None
             mac (str): a mac address, or None
             ip (str): an IP address, or None
-            get_thread (bool): Optional - True to get thread id, False to get 
+            get_thread (bool): Optional - True to get thread id, False to get
                     dictionary of results
-                    
+
         Returns:
-            int or dict: the thread ID if get_thread is True; A dictionary 
+            int or dict: the thread ID if get_thread is True; A dictionary
             containing the keys message, data, and error if False
         """
         thread_id = int(round(time.time() * 1000))
@@ -1007,7 +1004,7 @@ class PortConfig(PortConfigCommon):
 
     def update(self, threadID, message, data, error):
         """
-        Internal method only. This method updates the thread dictionary with any 
+        Internal method only. This method updates the thread dictionary with any
         information given, namely a message, data, or an error
 
         Args:
@@ -1031,7 +1028,7 @@ class PortConfig(PortConfigCommon):
             thread_id (int): the id that is stored as a key in self.threads
 
         Returns:
-            dict: Either a result dictionary with a dict of the PortObject, or 
+            dict: Either a result dictionary with a dict of the PortObject, or
             an error dictionary with a message
         """
         self.threadlock.acquire()
@@ -1061,8 +1058,8 @@ class SSThread(threading.Thread):
     """
     This class contains the work that will be done to create a
     PortInfo Object. It is designated as a thread so that multiple
-    instances can be called at a time. It requires either an IP, a MAC address, 
-    or a switch/port pair to function. The other fields can be initialized as 
+    instances can be called at a time. It requires either an IP, a MAC address,
+    or a switch/port pair to function. The other fields can be initialized as
     None
 
     Args:
@@ -1071,7 +1068,7 @@ class SSThread(threading.Thread):
         port (str): the port number on the switch
         mac (str): the mac address of the device on the port
         ip (str): the IP of the device on the port
-        portconfig (PortConfig): a PortConfig object 
+        portconfig (PortConfig): a PortConfig object
     """
     def __init__(self, threadID, switch, port, mac, ip, portconfig):
         threading.Thread.__init__(self)
@@ -1085,8 +1082,8 @@ class SSThread(threading.Thread):
 
     def run(self):
         """
-        Determines which set of data was given, and searches for the port info 
-        based off of that. Looks for mac first, then switch/port, then IP. 
+        Determines which set of data was given, and searches for the port info
+        based off of that. Looks for mac first, then switch/port, then IP.
         """
         try:
             if self.mac:

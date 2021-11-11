@@ -1,3 +1,5 @@
+import uuid
+
 class SNMP:
     """
     For looking through the SNMP portion of a device
