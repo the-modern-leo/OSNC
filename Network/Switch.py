@@ -14,6 +14,8 @@ from Tacacs.Objects import TACACS
 
 ### Package Imports ###
 import logging
+import os
+from pathlib import Path
 import re
 from collections import namedtuple
 import ipaddress
@@ -24,12 +26,20 @@ import concurrent
 from concurrent.futures import ThreadPoolExecutor
 import itertools
 
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+directory = os.path.realpath(__file__)
+path = Path(directory)
+parent_folder = path.parent.absolute()
+project_folder = parent_folder.parent.absolute()
+Logging_folder = [x for x in project_folder.iterdir() if x.is_dir() and x.name == "Logging"][0]
+Network_Logging_folder = [x for x in Logging_folder.iterdir() if x.is_dir() and x.name == "Network"][0]
+logging_file_name = str(Network_Logging_folder)
+
+fh = logging.FileHandler(logging_file_name+"/switch.log",mode="a+")
+fh.setLevel(logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-logger.addHandler(ch)
+logger.addHandler(fh)
 
 def _exception(e):
     logger.error(e,exc_info=True)
@@ -377,6 +387,10 @@ class Stack():
         self.old_orion_ips_71 = False
         self.new_orion_ips_71 = False
         self.remove_acl = []
+        date_name = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        stack_fh = logging.FileHandler(f"{logging_file_name}/{ip}_{date_name}.log", mode="a+")
+        stack_fh.setLevel(logging.DEBUG)
+        logger.addHandler(stack_fh)
 
     def __repr__(self):
         return str(self.ip)
@@ -453,34 +467,57 @@ class Stack():
         logger.info(f"Gathering Switch data - Starting")
         try:
             self.version_result = self.conn.send_command('show version', manypages=True)
+            logger.debug(f"version_result={self.version_result}")
             self.run_result = self.conn.send_command('show run', manypages=True)
+            logger.debug(f"run_result={self.run_result}")
             self.status_result = self.conn.send_command('show int status', manypages=True)
+            logger.debug(f"status_result={self.status_result}")
             self.interface_result = self.conn.send_command('show run | section interface', manypages=True)
+            logger.debug(f"interface_result={self.interface_result}")
             if 'Invalid input detected at' in self.interface_result:
                 self.interface_name_r = self.conn.send_command('show run | in interface', manypages=True)
+                logger.debug(f"interface_name_r={self.interface_name_r}")
             self.portdowntime_result = self.conn.send_command('show interface link', manypages=True)
+            logger.debug(f"portdowntime_result={self.portdowntime_result}")
             if 'Invalid input detected at' in self.portdowntime_result:
                 self.portdowntime_result_in = self.conn.send_command('show interface', manypages=True)
+                logger.debug(f"portdowntime_result_in={self.portdowntime_result_in}")
             self.inv_result = self.conn.send_command('show inventory', manypages=True)
+            logger.debug(f"inv_result={self.inv_result}")
             self.portcount_result = self.conn.send_command('show interface counters', manypages=True)
+            logger.debug(f"portcount_result={self.portcount_result}")
             self.cdpnei_result = self.conn.send_command('show cdp nei detail', manypages=True)
+            logger.debug(f"cdpnei_result={self.cdpnei_result}")
             self.module_result = self.conn.send_command('show module all', manypages=True)
+            logger.debug(f"module_result={self.module_result}")
             if 'Invalid input detected at' in self.module_result:
                 self.module_result = self.conn.send_command('show module', manypages=True)
+                logger.debug(f"module_result={self.module_result}")
             self.snmp_result = self.conn.send_command('show run | section snmp', manypages=True)
+            logger.debug(f"snmp_result={self.snmp_result}")
             if 'Invalid input detected at' in self.snmp_result:
                 self.snmp_result_in = self.conn.send_command('show run | in snmp', manypages=True)
+                logger.debug(f"snmp_result_in={self.snmp_result_in}")
             self.snmp_user_result = self.conn.send_command('show snmp user', manypages=True)
+            logger.debug(f"snmp_user_result={self.snmp_user_result}")
             self.acl_result = self.conn.send_command('show access-list', manypages=True)
+            logger.debug(f"acl_result={self.acl_result}")
             self.logging_data_result = self.conn.send_command('show run | section logging', manypages=True)
+            logger.debug(f"logging_data_result={self.logging_data_result}")
             if 'Invalid input detected at' in self.logging_data_result:
                 self.logging_data_result = self.conn.send_command('show run | in logging', manypages=True)
+                logger.debug(f"logging_data_result={self.logging_data_result}")
             self.mac_address_result = self.conn.send_command('show mac address-table', manypages=True)
+            logger.debug(f"mac_address_result={self.mac_address_result}")
             self.tacacs_result = self.conn.send_command('show run | section tacacs', manypages=True)
+            logger.debug(f"tacacs_result={self.tacacs_result}")
             if 'Invalid input detected at' in self.tacacs_result:
                 self.tacacs_result_in = self.conn.send_command('show run | in tacacs', manypages=True)
+                logger.debug(f"tacacs_result_in={self.tacacs_result_in}")
             self.inline_power_result = self.conn.send_command('show power inline', manypages=True)
+            logger.debug(f"inline_power_result={self.inline_power_result}")
             self.environment_result = self.conn.send_command('show environment all', manypages=True)
+            logger.debug(f"environment_result={self.environment_result}")
         except Exception as e:
             logger.info(f"Gathering Switch data - Failed")
             logger.error(e, exc_info=True)
