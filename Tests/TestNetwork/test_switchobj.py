@@ -3905,7 +3905,9 @@ end"""
         self.assertEqual(s.serial[0], 'FOC2011Z16A')
         self.assertEqual(s.subnetmask, '255.255.255.0')
         self.assertNotEqual(s.uptime, None)
-        self.assertEqual(s.uplink,)
+        self.assertEqual(s.uplinklist,list)
+        self.assertIsInstance(s.uplinklist[0],Interface)
+        self.assertEqual(s.uplinklist[0].fullame, "GigabitEthernet0/9")
 
         # test the assignment of ACL object properties
         self.assertEqual(len(s.access_lists), 3)
