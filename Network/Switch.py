@@ -314,7 +314,7 @@ class Stack():
 
         self.device = None
         self.modelnumber = None
-        self.uplink = None
+        self.uplinklist = None
         self.version = None
         self.serial = None
         self.stack = None
