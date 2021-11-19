@@ -1,3 +1,19 @@
+### Local Packages ###
+from Network.Router import Router
+from auth import SSH
+
+
+### Global Packages ###
+import re
+import logging
+from ipaddress import IPv4Address,IPv4Network
+
+
+def _exception(e):
+    logging.error(e,exc_info=True)
+    raise
+
+
 class CryptoMap:
 
     def __init__(self, concentrator_ip):
@@ -74,7 +90,7 @@ class ASA(Router):
                             c.object_local = object_local
                             object_remote = [x for x in object_groups_2[1] if x]
                             object_remote = [x for x in object_groups_2[1] if x != ' ']
-                            c.insideips = ipaddress.IPv4Address(''.join(object_remote))
+                            c.insideips = IPv4Address(''.join(object_remote))
                         elif 'object' in object_groups[0]:
                             object_groups_2 = object_groups[0].split('object')
                             object_local = [x for x in object_groups_2[0] if x]
@@ -126,7 +142,7 @@ class ASA(Router):
                                     ip = [x for x in ip if x]
                                     ip = [x for x in ip if x != ' ']
                                     ip = ''.join(ip)
-                                    ip = ipaddress.IPv4Address(ip)
+                                    ip = IPv4Address(ip)
                                     c.insideips.add(ip)
                                     continue
                                 else:
@@ -147,7 +163,7 @@ class ASA(Router):
                                         subnet = [x for x in subnet if x]
                                         subnet = [x for x in subnet if x != ' ']
                                         subnet = ''.join(subnet)
-                                        network = ipaddress.IPv4Network(f"{ip}/{subnet}")
+                                        network = IPv4Network(f"{ip}/{subnet}")
                                         c.inside_network.add(network)
                                         continue
                                     else:
@@ -220,270 +236,18 @@ class ASA(Router):
                             ip = ip.split(" ")
                             ip = [x for x in ip if x]
                             ip = [x for x in ip if x != ' '][1]
-                            ip = ipaddress.IPv4Address(ip)
+                            ip = IPv4Address(ip)
                             c.outsideip = ip
 
         for c in crypto_objs:
             print(c)
-
-    def check_SNMP(self):
-        """
-        Takes the SNMP Information stored in self.SNMP, and checks it against our standards
-        """
-        logger.info(f"Checking SNMP ({self.IPAddress}) - Starting ")
-        try:
-            if self.SNMP.groups: # check SNMP groups
-                if self.SNMP.groups[0].line != 'orionvpn v3 priv ':
-                    self.snmp_group_wrong = True
-            if self.SNMP.loggingips: #checking SNMP logging
-                for log in self.SNMP.loggingips:
-                    if str(log) not in settings.standard_log_ips:
-                        self.snmp_logging_wrong = True
-            if self.SNMP.user: # check user info
-                if self.SNMP.user.name != 'Orion':
-                    self.snmp_user_wrong = True
-            if self.SNMP.host_group: # check host_group info
-                if (self.SNMP.host_group.user != 'Orion' or self.SNMP.host_group.interface != 'inside' or
-                    self.SNMP.host_group.network_object !=  'Orion_Monitoring'):
-                    self.snmp_host_group_wrong = True
-        except Exception as e:
-            logger.info(f"Checking SNMP ({self.IPAddress}) - Failed ")
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logger.info(f"Checking SNMP ({self.IPAddress}) - Success ")
-    def check_SNMP_v2(self):
-        """
-        Checks the SNMP object for Version 2 standards
-        """
-        logger.info(f"Checking SNMP v2 ({self.IPAddress}) - Starting")
-        try:
-            standard_ro = False
-            standard_rw = False
-            snmp_communities = []
-            for s in self.SNMP.communities:
-                if (s.string == settings.SNMP_V2.standard_ro and
-                        SNMP_community.accesslist == '70'):  # Check for the Standard RO SNMP V2
-                    metrics_logger.info(f"SNMP v2 Standard RO ({self.IPAddress}) - Present")
-                    standard_ro = True
-                    snmp_communities.append(s)
-                elif (s.string == settings.SNMP_V2.standard_rw and
-                      SNMP_community.accesslist == '71'):  # Check for the Standard RO SNMP V2
-                    metrics_logger.info(f"SNMP v2 Standard RW ({self.IPAddress}) - Present")
-                    standard_rw = True
-                    snmp_communities.append(s)
-                else:
-                    metrics_logger.info(f'SNMP Community: {s.string} {"RO" if s.ro else ""} '
-                                        f'{"RW" if s.rw else ""} {s.accesslist} ({self.IPAddress}) - Removing')
-
-            if not standard_ro:
-                metrics_logger.info(f"SNMP v2 Standard RO ({self.IPAddress}) - Missing")
-            if not standard_rw:
-                metrics_logger.info(f"SNMP v2 Standard RW ({self.IPAddress}) - Missing")
-
-        except Exception as e:
-            logger.info(f"Checking SNMP v2 ({self.IPAddress}) - Failed ")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info(f"Checking SNMP v2 ({self.IPAddress}) - Success ")
-            self.SNMP.communities = snmp_communities
-
-    def check_SNMP_v3(self):
-        """
-        Checks the SNMP object for Version 3 standards
-        """
-        logger.info(f"Checking SNMP v3 ({self.IPAddress}) - Starting")
-        try:
-            snmp_groups = []
-            # remove SNMP Groups outside of accepted
-            logger.debug(f"SNMP Groups {self.SNMP.groups}")
-            for snmp_group in self.SNMP.groups:
-                if snmp_group.acl.number not in settings.permitted_SNMP_Groups:
-                    snmp_group.remove = True
-                    logger.debug(f"SNMP Group ({snmp_group}) - Not Needed")
-                else:
-                    snmp_groups.append(snmp_group)
-            self.SNMP.groups = snmp_groups
-
-            # remove SNMP Views outside of what is needed
-            snmp_views = []
-            # remove SNMP Groups outside of accepted
-            logger.debug(f"SNMP Views {self.SNMP.views}")
-            for snmp_view in self.SNMP.views:
-                if snmp_view.name not in settings.permitted_SNMP_views:
-                    snmp_view.remove = True
-                    logger.debug(f"SNMP view ({snmp_view}) - Not Needed")
-                else:
-                    snmp_views.append(snmp_view)
-            self.SNMP.views = snmp_views
-
-            acl71auth = False
-            acl70auth = False
-            acl71priv = False
-            acl70priv = False
-            acl76priv = False
-            RWview = False
-            ROview = False
-            PFview = False
-            if self.SNMP.context:
-                metrics_logger.info(f"SNMP Context Line ({self.IPAddress}) - Present")
-            else:
-                metrics_logger.info(f"SNMP Context Line ({self.IPAddress}) - Missing")
-            if self.SNMP.contextPFG:
-                metrics_logger.info(f"SNMP PFG Context Line ({self.IPAddress}) - Present")
-            else:
-                metrics_logger.info(f"SNMP PFG Context Line ({self.IPAddress}) - Missing")
-            for group in self.SNMP.groups:
-                if 'NOCViewRO' in group.viewname:
-                    ROview = True
-                if 'NOCViewRW' in group.viewname:
-                    RWview = True
-                if 'PFViewRO' in group.viewname:
-                    PFview = True
-                if group.acl.number == '76':
-                    if group.securitylevel == 'priv':
-                        acl76priv = group
-                        metrics_logger.info(f"ACL 76 priv ({self.IPAddress}) - Present")
-                if group.acl.number == '70':
-                    if group.securitylevel == 'auth':
-                        acl70auth = group
-                        metrics_logger.info(f"ACL 70 auth ({self.IPAddress}) - Present")
-                    if group.securitylevel == 'priv':
-                        acl70priv = group
-                        metrics_logger.info(f"ACL 70 priv ({self.IPAddress}) - Present")
-                if group.acl.number == '71':
-                    if group.securitylevel == 'auth':
-                        acl71auth = group
-                        metrics_logger.info(f"ACL 71 auth ({self.IPAddress}) - Present")
-                    if group.securitylevel == 'priv':
-                        acl71priv = group
-                        metrics_logger.info(f"ACL 71 priv ({self.IPAddress}) - Present")
-
-            grouplist = []
-            # check the accuracy of every line
-            if acl71auth:
-                if acl71auth.RW and acl71auth.name == 'NOCGrv3RW' and acl71auth.viewname == 'NOCViewRW':
-                    metrics_logger.info(f"ACL 71 auth ({self.IPAddress}) - Corrrect")
-                    acl71auth.correct = True
-                    grouplist.append(acl71auth)
-                else:
-                    metrics_logger.info(f"ACL 71 auth ({self.IPAddress}) - Incorrect")
-                    grouplist.append(acl71auth)
-            else:
-                metrics_logger.info(f"ACL 71 auth ({self.IPAddress}) - Missing")
-
-            if acl70auth:
-                if acl70auth.RO and acl70auth.name == 'NOCGrv3RO' and acl70auth.viewname == 'NOCViewRO':
-                    metrics_logger.info(f"ACL 70 auth ({self.IPAddress}) - Corrrect")
-                    acl70auth.correct = True
-                    grouplist.append(acl70auth)
-                else:
-                    metrics_logger.info(f"ACL 70 auth ({self.IPAddress}) - Incorrect")
-                    grouplist.append(acl70auth)
-            else:
-                metrics_logger.info(f"ACL 70 auth ({self.IPAddress}) - Missing")
-
-            if acl71priv:
-                if acl71priv.RW and acl71priv.name == 'NOCGrv3RW' and acl71priv.viewname == 'NOCViewRW':
-                    metrics_logger.info(f"ACL 71 priv ({self.IPAddress}) - Corrrect")
-                    acl71priv.correct = True
-                    grouplist.append(acl71priv)
-                else:
-                    metrics_logger.info(f"ACL 71 priv ({self.IPAddress}) - Incorrect")
-                    grouplist.append(acl71priv)
-            else:
-                metrics_logger.info(f"ACL 71 priv ({self.IPAddress}) - Missing")
-
-            if acl70priv:
-                if acl70priv.RO and acl70priv.name == 'NOCGrv3RO' and acl70priv.viewname == 'NOCViewRO':
-                    metrics_logger.info(f"ACL 70 ({self.IPAddress}) - Corrrect")
-                    acl70priv.correct = True
-                    grouplist.append(acl70priv)
-                else:
-                    metrics_logger.info(f"ACL 70 ({self.IPAddress}) - Incorrect")
-                    grouplist.append(acl70priv)
-            else:
-                metrics_logger.info(f"ACL 70 ({self.IPAddress}) - Missing")
-
-            if acl76priv:
-                if acl76priv.RO and acl76priv.name == 'PFGrv3RO' and acl76priv.viewname == 'PFViewRO':
-                    metrics_logger.info(f"ACL 76 priv ({self.IPAddress}) - Corrrect")
-                    acl76priv.correct = True
-                    grouplist.append(acl76priv)
-                else:
-                    metrics_logger.info(f"ACL 76 priv ({self.IPAddress}) - Incorrect")
-                    grouplist.append(acl76priv)
-            else:
-                metrics_logger.info(f"ACL 76 priv ({self.IPAddress}) - Missing")
-
-            # checking SNMP Views
-            ROviewline = False
-            RWviewline = False
-            PFviewline = False
-            for snmp_view in self.SNMP.views:
-                if RWview:
-                    if snmp_view.name == 'NOCViewRW':
-                        metrics_logger.info(f"SNMP RWView ({self.IPAddress}) - Present")
-                        RWviewline = snmp_view
-                if ROview:
-                    if snmp_view.name == 'NOCViewRO':
-                        metrics_logger.info(f"SNMP ROView ({self.IPAddress}) - Present")
-                        ROviewline = snmp_view
-                if PFview:
-                    if snmp_view.name == 'PFViewRO':
-                        metrics_logger.info(f"SNMP PFView ({self.IPAddress}) - Present")
-                        PFviewline = snmp_view
-
-            viewlist = []
-
-            if ROviewline:
-                if ROviewline.included and ROviewline.mibfamily == 'internet':
-                    metrics_logger.info(f"SNMP ROView ({self.IPAddress}) - Correct")
-                    ROviewline.correct = True
-                    viewlist.append(ROviewline)
-                else:
-                    metrics_logger.info(f"SNMP ROView ({self.IPAddress}) - Incorrect")
-                    viewlist.append(ROviewline)
-            else:
-                metrics_logger.info(f"SNMP ROView ({self.IPAddress}) - Missing")
-
-            if RWviewline:
-                if RWviewline.included and RWviewline.mibfamily == 'internet':
-                    metrics_logger.info(f"SNMP RWView ({self.IPAddress}) - Correct")
-                    RWviewline.correct = True
-                    viewlist.append(RWviewline)
-                else:
-                    metrics_logger.info(f"SNMP RWView ({self.IPAddress}) - Incorrect")
-                    viewlist.append(RWviewline)
-            else:
-                metrics_logger.info(f"SNMP RWView ({self.IPAddress}) - Missing")
-
-            if PFviewline:
-                if PFviewline.included and PFviewline.mibfamily == 'internet':
-                    metrics_logger.info(f"SNMP PFView ({self.IPAddress}) - Correct")
-                    PFviewline.correct = True
-                    viewlist.append(PFviewline)
-                else:
-                    metrics_logger.info(f"SNMP PFView ({self.IPAddress}) - Incorrect")
-                    viewlist.append(PFviewline)
-            else:
-                metrics_logger.info(f"SNMP PFView ({self.IPAddress}) - Missing")
-
-        except Exception as e:
-            logger.info(f"Checking SNMP v3 ({self.IPAddress}) - Failed ")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info(f"Checking SNMP v3 ({self.IPAddress}) - Success ")
-            self.SNMP.groups = grouplist
-            self.SNMP.views = viewlist
 
     def assignattributes(self, con=None):
         """
         takes the responses from get switch info, and applies those responses to the object attributes
 
         """
-        logger.info(f"Assigning Data to Router Object - Starting")
+        logging.info(f"Assigning Data to Router Object - Starting")
         try:
             self.sortVersion(versionresult=self.version_result)
             self.sort_acl()
@@ -491,12 +255,12 @@ class ASA(Router):
             self.sortsnmp()
 
         except Exception as e:
-            logger.info(f"Assigning Data to Router Object - Failed")
-            logger.error(e, exc_info=True)
+            logging.info(f"Assigning Data to Router Object - Failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info(f"Assigning Data to Router Object - Success")
+            logging.info(f"Assigning Data to Router Object - Success")
 
     def getSwitchInfo(self):
         """
@@ -506,9 +270,9 @@ class ASA(Router):
             con (Connection): an active Parimko Connection to a switch
 
         """
-        logger.info(f"Scraping Router Data - Starting")
+        logging.info(f"Scraping Router Data - Starting")
         try:
-            self.conn.enable_cisco(password=Switch_access.password)
+            self.conn.enable_cisco(password=SSH.password)
             self.hostname = re.sub("hostname", "", self.conn.send_command('show run | inc hostname', manypages=True))
             self.hostname = re.sub(" ", "", self.hostname)
             self.hostname = self.hostname.rstrip("\r")
@@ -518,10 +282,10 @@ class ASA(Router):
             self.snmp_result = self.conn.send_command('show run snmp-server', manypages=True)
 
         except Exception as e:
-            logger.info(f"Scraping Router Data - Failed")
-            logger.error(e, exc_info=True)
+            logging.info(f"Scraping Router Data - Failed")
+            logging.error(e, exc_info=True)
         else:
-            logger.info(f"Scraping Router Data - Success")
+            logging.info(f"Scraping Router Data - Success")
 
     def sortVersion(self, versionresult):
         """
@@ -531,7 +295,7 @@ class ASA(Router):
             versionresult (str): A response from running 'show version' on a switch
         """
         assert isinstance(versionresult, str), f'versionresult: must be str, but got {type(versionresult)}'
-        logger.info("Sorting 'show Version' - Starting")
+        logging.info("Sorting 'show Version' - Starting")
         try:
             # run code here
             # search through response to gather the indivigual info
@@ -558,9 +322,9 @@ class ASA(Router):
                     pass
 
         except Exception as e:
-            logger.info("Sorting 'show Version' - failed")
-            logger.error(e, exc_info=True)
+            logging.info("Sorting 'show Version' - failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show Version' - Success")
+            logging.info("Sorting 'show Version' - Success")

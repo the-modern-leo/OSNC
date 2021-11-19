@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 import orionsdk # requires package installation via pip
 from . import settings
 from dateutil import parser
-from auth import OrionAPI
+from auth import Orionapi
 
 class Orion(object):
     """
@@ -142,7 +142,7 @@ class Orion(object):
         Fetches development status.
 
         Returns:
-            str: Returns "Production" if url is sys.utah.edu, returns 
+            str: Returns "Production" if url is sys.utah.edu, returns
             "Development" otherwise.
         """
         return ("Production" if "sys.utah.edu" in self.swis.url
@@ -151,7 +151,7 @@ class Orion(object):
     def get_switch(self, ip=None, proptag=None, barcode=None, dns_name=None):
         """
         Get switch information by either IP, property tag, or barcode. This will
-        return switch information. Note that all arguments are optional; 
+        return switch information. Note that all arguments are optional;
         however, at least one must be used to filter results.
 
         Args:
@@ -192,7 +192,7 @@ class Orion(object):
 
     def get_vlans(self, switch_id):
         """
-        Get switch VLAN information (name and ID) by Node ID. If the Node ID is 
+        Get switch VLAN information (name and ID) by Node ID. If the Node ID is
         not available (but IP, DNS name, etc. is), run get_switch() before using
         this function.
 
@@ -235,13 +235,13 @@ class Orion(object):
         that instead.
 
         Args:
-            ip (str): Optional - IP address of the device. If this  is left as 
+            ip (str): Optional - IP address of the device. If this  is left as
                 None, dbid must be defined.
-            dbid (int): Optional - Node ID of the device. If this is left as 
+            dbid (int): Optional - Node ID of the device. If this is left as
                 None, ip must be defined.
             item (str): Optional - Item/property name to change.
             value (str): Optional - Value the property should be changed to.
-        
+
         Raises:
             ValueError: Caused if not enough arguments are provided.
         """
@@ -332,7 +332,7 @@ class Orion(object):
             bool: True if the discovery is complete, False otherwise.
 
         Raises:
-            OrionObjectException: Caused if there are issues communicating with 
+            OrionObjectException: Caused if there are issues communicating with
                 Orion.
         """
         result = self.swis.invoke('Orion.Discovery', 'GetDiscoveryProgress',
@@ -364,11 +364,11 @@ class Orion(object):
     def add_custom_properties(self, nodeid, building_name, tier):
         """
         Add custom properties to a particular switch. This includes all building
-        data, notification/alert tier, routing node, etc. This will 
-        automatically generate/retrieve service date, asset and property tags, 
-        and serial number. This will also add the SNMPv3 RW string credentials, 
-        since this is not added during the discovery process. To add custom 
-        properties to a device with an IP address, use 
+        data, notification/alert tier, routing node, etc. This will
+        automatically generate/retrieve service date, asset and property tags,
+        and serial number. This will also add the SNMPv3 RW string credentials,
+        since this is not added during the discovery process. To add custom
+        properties to a device with an IP address, use
         add_custom_properties_by_ip() instead.
 
         Args:
@@ -377,7 +377,7 @@ class Orion(object):
             tier (int): Notification tier that the device should alert for.
 
         Raises:
-            OrionObjectException: Caused if switch is not discovered properly or 
+            OrionObjectException: Caused if switch is not discovered properly or
                 if properties are added unsucessfully.
         """
         logging.info("Adding custom properties for node " + str(nodeid))
@@ -480,15 +480,15 @@ class Orion(object):
         add custom properties to the Orion node (if discovery is successful).
 
         Args:
-            date (int): Date to schedule the discovery. Note that the date 
+            date (int): Date to schedule the discovery. Note that the date
                 format is an integer (seconds since Unix epoch).
             switchdata (Orion.SwitchData): Namedtuple for the discovered switch.
-            dbid (int): Database ID to pass to the callback function. (defined 
+            dbid (int): Database ID to pass to the callback function. (defined
                 with register_discovery_callback() ).
-            prop_delay (int): Optional - Custom properties delay, since custom 
-                properties can only be entered if the switch is registered in 
+            prop_delay (int): Optional - Custom properties delay, since custom
+                properties can only be entered if the switch is registered in
                 Orion. Default is 180 seconds.
-        
+
         Raises:
             ValueError: Caused by date being in the past.
         """

@@ -1,5 +1,5 @@
 import unittest, re
-from Tests.mactracker import examples
+from Tests.TestTracker import examples
 from Tracker import mactracker
 
 class TestSwitchAccess(object):

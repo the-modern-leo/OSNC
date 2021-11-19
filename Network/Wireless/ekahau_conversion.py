@@ -1,15 +1,3 @@
-#!/usr/bin/env python
-#
-# ekahau_conversion.py
-#
-# This script converts an Ekahau site survey/project XML file to Cisco WLC
-# configuration commands. Options are available for saving to a file, printing
-# to stdout, as well as including/excluding comments and setting disabled APs
-# to monitor mode.
-# This script is Python 2.7 and 3 compatible.
-#
-# by Danial Ebling - danial.ebling@utah.edu
-#
 from datetime import datetime
 from bisect import bisect_left
 import argparse
@@ -28,9 +16,9 @@ def power_level_lookup(model, channel, dbm):
         dbm (int): dBm power level.
 
     Returns:
-        int: Cisco power level from 1 to 8, or 0 if dbm is zero 
+        int: Cisco power level from 1 to 8, or 0 if dbm is zero
         (radio is disabled).
-    
+
     Raises:
         ValueError: Caused from invalid channel and dbm information.
     """
@@ -80,7 +68,7 @@ def generate_commands(name, apmodel, freq_type, chan, power, monitormode=False):
         freq_type (str): Frequency type as an 802.11 type (a/n, b/g/n, etc.)
         chan (int): Radio channel
         power (int): Radio Power as dBm.
-        monitormode (bool): Optional - If True, set APs with transmit power 0 to 
+        monitormode (bool): Optional - If True, set APs with transmit power 0 to
             monitor mode instead of disabling them.
 
     Returns:
@@ -110,7 +98,7 @@ def generate_commands(name, apmodel, freq_type, chan, power, monitormode=False):
     # save WLC config commands
     commands.append(disable_command)
     if power == 0:
-        if monitormode and (apmodel.upper() == 'AP3802I' 
+        if monitormode and (apmodel.upper() == 'AP3802I'
                 or apmodel.upper() == 'AP2802I'): # set to monitor mode
             commands.append(prefix + ' role ' + name +
                     ' manual monitor')
@@ -135,9 +123,9 @@ def ekahau_to_WLC(xml_data, comments=True, monitormode=False):
 
     Args:
         xml_data (str): XML data as a string.
-        comments (bool): Optional - If True, include comments in the result 
+        comments (bool): Optional - If True, include comments in the result
             (prepended with #)
-        monitormode (bool): Optional - If True, set APs with transmit power 0 to 
+        monitormode (bool): Optional - If True, set APs with transmit power 0 to
             monitor mode instead of disabling them.
 
     Returns:
