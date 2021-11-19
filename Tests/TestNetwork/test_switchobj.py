@@ -1,22 +1,26 @@
+### Local Imports ###
+from Network.Switch import Stack, Neighbor
+from Network.AccessList import ACL,ACL_Entry
+from Network.Port import Interface
+from SNMP.Objects import SNMP,SNMP_community, SNMP_contact,SNMP_view, SNMP_Group
+from Tacacs.Objects import TACACS
+
 #testing Frameworks
 import unittest
 from unittest.mock import patch
 
-
-#Script functions
-from Network.Switch import Stack, Neighbor
-from Network.AccessList import ACL, ACL_Entry
-from SNMP.Objects import SNMP, SNMP_community
-from Network.Port import Interface
-from Tacacs.Objects import TACACS
-
-##packacges
-from ipaddress import IPv4Address
-from netaddr import EUI
-
+### Test Imports ###
 from Tests.TestNetwork.device_list.Switches_syntax_compatability.cisco.catalyst import ws_c3560cx_8pc_s,\
     c29xx,c36xx,c38xx,c9407r,c4510r_e_,c94010r,c3560cg_8pc_s,c3560x_24_poe,c3650_48pq_e,c9300_series
 from Tests.TestNetwork.device_list.Switches_syntax_compatability.cisco.nexus import c9332pq,c93180yc_fx
+
+### global imports ###
+import unittest
+from unittest.mock import patch
+from ipaddress import IPv4Address
+from netaddr import EUI
+
+
 
 def mocked_creation_SSH_Netmiko(*args, **kwargs):
     """
@@ -51,7 +55,7 @@ def mocked_creation_SSH_paramiko_channel(*args, **kwargs):
     return MockResponse_ssh_paramiko_channel
 class TestSwitchCommands(unittest.TestCase):
     """
-    This is for Testing compatibility of Switch Devices accross multiple platforms
+    This is for Testing compatibility of Stack Devices accross multiple platforms
     """
     def test_Catalyst_2960(self):
         """
@@ -59,7 +63,7 @@ class TestSwitchCommands(unittest.TestCase):
         Model: WS-C2960G-24TC-L
         Software Version: 12.2(44)SE6
         """
-        s = Switch(ipaddress="172.20.71.105")
+        s = Stack(ipaddress="172.20.71.105")
         s.login()
         s.getSwitchInfo()
 
@@ -88,7 +92,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(s.buildnumber, "3574")
         self.assertEqual(s.buildingname, 'ddc')
         self.assertEqual(s.racknumber, 'd11')
-        self.assertEqual(s.description, 'Datacenter Sub Access Layer Switch')
+        self.assertEqual(s.description, 'Datacenter Sub Access Layer Stack')
         self.assertEqual(s.IPAddress, '172.20.71.105')
         self.assertEqual(s.portcount, 24)
         self.assertEqual(s.serial[0], 'FOC1427X55R')
@@ -167,7 +171,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertIsInstance(s.cdpneighbors[0], Neighbor)
         self.assertEqual(s.cdpneighbors[0].deviceid, 'dcx1-ddc-d11.net.utah.edu(FOX1530G7M4)')
         self.assertEqual(str(s.cdpneighbors[0].ip), '172.28.65.64')
-        self.assertIsInstance(s.cdpneighbors[0].ip, ipaddress.IPv4Address)
+        self.assertIsInstance(s.cdpneighbors[0].ip, IPv4Address)
         self.assertEqual(s.cdpneighbors[0].platform, 'N5K-C5596UP')
         self.assertIsInstance(s.cdpneighbors[0].interface, Interface)
         self.assertEqual(s.cdpneighbors[0].interface.fullname, 'GigabitEthernet0/21')
@@ -185,7 +189,7 @@ class TestSwitchCommands(unittest.TestCase):
         logging = ['155.100.122.16','155.98.253.244','155.98.204.52','172.24.29.14','10.70.24.10']
         for log in s.logging_data:
             self.assertIn(str(log[1]),logging)
-            self.assertIsInstance(log[1],ipaddress.IPv4Address)
+            self.assertIsInstance(log[1],IPv4Address)
 
         #check vlans
         self.assertEqual(len(s.vlans),8)
@@ -212,9 +216,9 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertIsInstance(s.tacacs, list)
         self.assertEqual(len(s.tacacs),2)
         self.assertIsInstance(s.tacacs[0], TACACS)
-        self.assertIsInstance(s.tacacs[0].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[0].server, IPv4Address)
         self.assertEqual(str(s.tacacs[0].server),'172.31.17.180')
-        self.assertIsInstance(s.tacacs[1].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[1].server, IPv4Address)
         self.assertEqual(str(s.tacacs[1].server), '10.64.32.5')
 
     def test_Nexus_3064T(self):
@@ -222,7 +226,7 @@ class TestSwitchCommands(unittest.TestCase):
         Model:WS-C3560X-48P
         Software Version: 12.2(53)SE2
         """
-        s = Switch(ipaddress='172.31.7.151')
+        s = Stack('172.31.7.151')
         s.login()
         s.getSwitchInfo()
 
@@ -249,7 +253,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(s.buildnumber, '0521')
         self.assertEqual(s.buildingname, 'SOM')
         self.assertEqual(s.roomnumber, 'AC141C')
-        self.assertEqual(s.description, 'Sub Access Layer Switch')
+        self.assertEqual(s.description, 'Sub Access Layer Stack')
         self.assertEqual(s.IPAddress, '172.20.66.109')
         self.assertEqual(s.portcount, 54)
         self.assertEqual(s.serial[0], 'FDO1424P1BT')
@@ -369,7 +373,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(len(s.cdpneighbors), 4)
         for neighbor in s.cdpneighbors:
             self.assertIsInstance(neighbor, Neighbor)
-            self.assertIsInstance(neighbor.ip, ipaddress.IPv4Address)
+            self.assertIsInstance(neighbor.ip, IPv4Address)
             self.assertIsInstance(neighbor.interface, Interface)
         self.assertEqual(s.cdpneighbors[0].deviceid, 'dx1-521-bc001.net.utah.edu')
         self.assertEqual(str(s.cdpneighbors[0].ip), '172.20.66.4')
@@ -382,7 +386,7 @@ class TestSwitchCommands(unittest.TestCase):
         logging = ['155.98.253.244', '155.98.204.52', '172.24.29.14', '10.70.24.10']
         for log in s.logging_data:
             self.assertIn(str(log[1]), logging)
-            self.assertIsInstance(log[1], ipaddress.IPv4Address)
+            self.assertIsInstance(log[1], IPv4Address)
 
         # check vlans
         self.assertEqual(len(s.vlans), 7)
@@ -399,9 +403,9 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertIsInstance(s.tacacs, list)
         self.assertEqual(len(s.tacacs), 2)
         self.assertIsInstance(s.tacacs[0], TACACS)
-        self.assertIsInstance(s.tacacs[0].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[0].server, IPv4Address)
         self.assertEqual(str(s.tacacs[0].server), '172.31.17.180')
-        self.assertIsInstance(s.tacacs[1].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[1].server, IPv4Address)
         self.assertEqual(str(s.tacacs[1].server), '10.64.32.5')
 
     def test_Catalyst_3560X_24_PoE(self):
@@ -410,7 +414,7 @@ class TestSwitchCommands(unittest.TestCase):
         Model: WS-C3560X-24P
         Software Version: 12.2(55)SE3
         """
-        s = Switch(ipaddress="155.97.253.188")
+        s = Stack("155.97.253.188")
         s.login()
         s.getSwitchInfo()
 
@@ -442,7 +446,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(s.buildnumber, '0619')
         self.assertEqual(s.buildingname, 'honors')
         self.assertEqual(s.racknumber, None)
-        self.assertEqual(s.description, 'Demarc (Access Layer Switch)')
+        self.assertEqual(s.description, 'Demarc (Access Layer Stack)')
         self.assertEqual(s.IPAddress, '155.97.253.188')
         self.assertEqual(s.portcount, 30)
         self.assertEqual(s.serial[0], 'FDO1522V0BF')
@@ -551,7 +555,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(len(s.cdpneighbors), 7)
         for neighbor in s.cdpneighbors:
             self.assertIsInstance(neighbor, Neighbor)
-            self.assertIsInstance(neighbor.ip, ipaddress.IPv4Address)
+            self.assertIsInstance(neighbor.ip, IPv4Address)
             self.assertIsInstance(neighbor.interface, Interface)
         self.assertEqual(s.cdpneighbors[0].deviceid, 'ap-0619-0-office')
         self.assertEqual(str(s.cdpneighbors[0].ip), '155.97.210.200')
@@ -564,7 +568,7 @@ class TestSwitchCommands(unittest.TestCase):
         logging = ['155.98.253.244', '155.98.204.52', '172.24.29.14', '10.70.24.10']
         for log in s.logging_data:
             self.assertIn(str(log[1]), logging)
-            self.assertIsInstance(log[1], ipaddress.IPv4Address)
+            self.assertIsInstance(log[1], IPv4Address)
 
         # check vlans
         self.assertEqual(len(s.vlans), 6)
@@ -588,9 +592,9 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertIsInstance(s.tacacs, list)
         self.assertEqual(len(s.tacacs), 2)
         self.assertIsInstance(s.tacacs[0], TACACS)
-        self.assertIsInstance(s.tacacs[0].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[0].server, IPv4Address)
         self.assertEqual(str(s.tacacs[0].server), '172.31.17.180')
-        self.assertIsInstance(s.tacacs[1].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[1].server, IPv4Address)
         self.assertEqual(str(s.tacacs[1].server), '10.64.32.5')
 
     def test_Catalyst_3560X_48_PoE(self):
@@ -598,7 +602,7 @@ class TestSwitchCommands(unittest.TestCase):
         Model:WS-C3560X-48P
         Software Version: 12.2(53)SE2
         """
-        s = Switch(ipaddress="172.20.66.109")
+        s = Stack("172.20.66.109")
         s.login()
         s.getSwitchInfo()
 
@@ -629,7 +633,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(s.buildnumber, '0521')
         self.assertEqual(s.buildingname, 'SOM')
         self.assertEqual(s.roomnumber, 'AC141C')
-        self.assertEqual(s.description, 'Sub Access Layer Switch')
+        self.assertEqual(s.description, 'Sub Access Layer Stack')
         self.assertEqual(s.IPAddress, '172.20.66.109')
         self.assertEqual(s.portcount, 54)
         self.assertEqual(s.serial[0], 'FDO1424P1BT')
@@ -749,7 +753,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(len(s.cdpneighbors), 4)
         for neighbor in s.cdpneighbors:
             self.assertIsInstance(neighbor, Neighbor)
-            self.assertIsInstance(neighbor.ip, ipaddress.IPv4Address)
+            self.assertIsInstance(neighbor.ip, IPv4Address)
             self.assertIsInstance(neighbor.interface, Interface)
         self.assertEqual(s.cdpneighbors[0].deviceid, 'dx1-521-bc001.net.utah.edu')
         self.assertEqual(str(s.cdpneighbors[0].ip), '172.20.66.4')
@@ -762,7 +766,7 @@ class TestSwitchCommands(unittest.TestCase):
         logging = ['155.98.253.244', '155.98.204.52', '172.24.29.14', '10.70.24.10']
         for log in s.logging_data:
             self.assertIn(str(log[1]), logging)
-            self.assertIsInstance(log[1], ipaddress.IPv4Address)
+            self.assertIsInstance(log[1], IPv4Address)
 
         # check vlans
         self.assertEqual(len(s.vlans), 7)
@@ -779,14 +783,14 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertIsInstance(s.tacacs, list)
         self.assertEqual(len(s.tacacs), 2)
         self.assertIsInstance(s.tacacs[0], TACACS)
-        self.assertIsInstance(s.tacacs[0].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[0].server, IPv4Address)
         self.assertEqual(str(s.tacacs[0].server), '172.31.17.180')
-        self.assertIsInstance(s.tacacs[1].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[1].server, IPv4Address)
         self.assertEqual(str(s.tacacs[1].server), '10.64.32.5')
 
     def Cisco_Catalyst_3650_24TD(self):
         pass
-        s = Switch(ipaddress="172.20.66.109")
+        s = Stack("172.20.66.109")
         s.login()
         s.getSwitchInfo()
 
@@ -817,7 +821,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(s.buildnumber, '0521')
         self.assertEqual(s.buildingname, 'SOM')
         self.assertEqual(s.roomnumber, 'AC141C')
-        self.assertEqual(s.description, 'Sub Access Layer Switch')
+        self.assertEqual(s.description, 'Sub Access Layer Stack')
         self.assertEqual(s.IPAddress, '172.20.66.109')
         self.assertEqual(s.portcount, 54)
         self.assertEqual(s.serial[0], 'FDO1424P1BT')
@@ -937,7 +941,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(len(s.cdpneighbors), 4)
         for neighbor in s.cdpneighbors:
             self.assertIsInstance(neighbor, Neighbor)
-            self.assertIsInstance(neighbor.ip, ipaddress.IPv4Address)
+            self.assertIsInstance(neighbor.ip, IPv4Address)
             self.assertIsInstance(neighbor.interface, Interface)
         self.assertEqual(s.cdpneighbors[0].deviceid, 'dx1-521-bc001.net.utah.edu')
         self.assertEqual(str(s.cdpneighbors[0].ip), '172.20.66.4')
@@ -950,7 +954,7 @@ class TestSwitchCommands(unittest.TestCase):
         logging = ['155.98.253.244', '155.98.204.52', '172.24.29.14', '10.70.24.10']
         for log in s.logging_data:
             self.assertIn(str(log[1]), logging)
-            self.assertIsInstance(log[1], ipaddress.IPv4Address)
+            self.assertIsInstance(log[1], IPv4Address)
 
         # check vlans
         self.assertEqual(len(s.vlans), 7)
@@ -967,14 +971,14 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertIsInstance(s.tacacs, list)
         self.assertEqual(len(s.tacacs), 2)
         self.assertIsInstance(s.tacacs[0], TACACS)
-        self.assertIsInstance(s.tacacs[0].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[0].server, IPv4Address)
         self.assertEqual(str(s.tacacs[0].server), '172.31.17.180')
-        self.assertIsInstance(s.tacacs[1].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[1].server, IPv4Address)
         self.assertEqual(str(s.tacacs[1].server), '10.64.32.5')
 
     def Cisco_Catalyst_3650_48PD(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack("")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -1056,7 +1060,7 @@ class TestSwitchCommands(unittest.TestCase):
         """
         Returns:
         """
-        s = Switch(ipaddress="172.31.7.159")
+        s = Stack("172.31.7.159")
         s.login()
         s.getSwitchInfo()
 
@@ -1083,7 +1087,7 @@ class TestSwitchCommands(unittest.TestCase):
         # self.assertEqual(s.buildnumber, 521)
         # self.assertEqual(s.buildingname, 'SOM')
         # self.assertEqual(s.roomnumber, 'AC141C')
-        # self.assertEqual(s.description, 'Sub Access Layer Switch')
+        # self.assertEqual(s.description, 'Sub Access Layer Stack')
         # self.assertEqual(s.IPAddress, '172.20.66.109')
         # self.assertEqual(s.portcount, 54)
         # self.assertEqual(s.serial[0], 'FDO1424P1BT')
@@ -1203,7 +1207,7 @@ class TestSwitchCommands(unittest.TestCase):
         # self.assertEqual(len(s.cdpneighbors), 4)
         # for neighbor in s.cdpneighbors:
         #     self.assertIsInstance(neighbor, Neighbor)
-        #     self.assertIsInstance(neighbor.ip, ipaddress.IPv4Address)
+        #     self.assertIsInstance(neighbor.ip, IPv4Address)
         #     self.assertIsInstance(neighbor.interface, Interface)
         # self.assertEqual(s.cdpneighbors[0].deviceid, 'dx1-521-bc001.net.utah.edu')
         # self.assertEqual(str(s.cdpneighbors[0].ip), '172.20.66.4')
@@ -1216,7 +1220,7 @@ class TestSwitchCommands(unittest.TestCase):
         # logging = ['155.98.253.244', '155.98.204.52', '172.24.29.14', '10.70.24.10']
         # for log in s.logging_data:
         #     self.assertIn(str(log[1]), logging)
-        #     self.assertIsInstance(log[1], ipaddress.IPv4Address)
+        #     self.assertIsInstance(log[1], IPv4Address)
         #
         # # check vlans
         # self.assertEqual(len(s.vlans), 7)
@@ -1233,14 +1237,14 @@ class TestSwitchCommands(unittest.TestCase):
         # self.assertIsInstance(s.tacacs, list)
         # self.assertEqual(len(s.tacacs), 2)
         # self.assertIsInstance(s.tacacs[0], TACACS)
-        # self.assertIsInstance(s.tacacs[0].server, ipaddress.IPv4Address)
+        # self.assertIsInstance(s.tacacs[0].server, IPv4Address)
         # self.assertEqual(str(s.tacacs[0].server), '172.31.17.180')
-        # self.assertIsInstance(s.tacacs[1].server, ipaddress.IPv4Address)
+        # self.assertIsInstance(s.tacacs[1].server, IPv4Address)
         # self.assertEqual(str(s.tacacs[1].server), '10.64.32.5')
 
     def Catalyst_37xx_Stack(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack(ipaddress="")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -1320,7 +1324,7 @@ class TestSwitchCommands(unittest.TestCase):
 
     def Catalyst_3850(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack(ipaddress="")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -1400,7 +1404,7 @@ class TestSwitchCommands(unittest.TestCase):
 
     def Catalyst_4500X(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack(ipaddress="")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -1479,7 +1483,7 @@ class TestSwitchCommands(unittest.TestCase):
         # self.assertEqual(s.mgmt_vlan, )
 
     def test_Catalyst_4500XP(self):
-        s = Switch(ipaddress="172.30.133.197")
+        s = Stack(ipaddress="172.30.133.197")
         s.login()
         s.getSwitchInfo()
 
@@ -1506,7 +1510,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(s.buildnumber, '0012')
         self.assertEqual(s.buildingname, 'sutton')
         self.assertEqual(s.roomnumber, '119')
-        self.assertEqual(s.description, 'Demarc (Access Layer Switch)')
+        self.assertEqual(s.description, 'Demarc (Access Layer Stack)')
         self.assertEqual(s.IPAddress, '172.30.133.197')
         self.assertEqual(s.portcount, 32)
         self.assertEqual(s.serial[0], 'JAE202003BF')
@@ -1668,7 +1672,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(len(s.cdpneighbors), 9)
         for neighbor in s.cdpneighbors:
             self.assertIsInstance(neighbor, Neighbor)
-            self.assertIsInstance(neighbor.ip, ipaddress.IPv4Address)
+            self.assertIsInstance(neighbor.ip, IPv4Address)
             self.assertIsInstance(neighbor.interface, Interface)
         self.assertEqual(s.cdpneighbors[0].deviceid, 'r2-park-park(JAF1721ACLG)')
         self.assertEqual(str(s.cdpneighbors[0].ip), '172.29.1.13')
@@ -1681,7 +1685,7 @@ class TestSwitchCommands(unittest.TestCase):
         logging = ['155.98.253.244', '155.98.204.52', '172.24.29.14', '10.70.24.10','10.71.24.11']
         for log in s.logging_data:
             self.assertIn(str(log[1]), logging)
-            self.assertIsInstance(log[1], ipaddress.IPv4Address)
+            self.assertIsInstance(log[1], IPv4Address)
 
         # check vlans
         self.assertEqual(len(s.vlans), 36)
@@ -1698,16 +1702,16 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertIsInstance(s.tacacs, list)
         self.assertEqual(len(s.tacacs), 2)
         self.assertIsInstance(s.tacacs[0], TACACS)
-        self.assertIsInstance(s.tacacs[0].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[0].server, IPv4Address)
         self.assertEqual(str(s.tacacs[0].server), '172.31.17.180')
         self.assertEqual(str(s.tacacs[0].name), 'TAC-EBC')
-        self.assertIsInstance(s.tacacs[1].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[1].server, IPv4Address)
         self.assertEqual(str(s.tacacs[1].server), '10.64.32.5')
         self.assertEqual(str(s.tacacs[1].name), 'TAC-SECONDARY')
 
     def Catalyst_C4507R(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack("")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -1787,7 +1791,7 @@ class TestSwitchCommands(unittest.TestCase):
 
     def Cisco_Catalyst_4506(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack("")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -1866,7 +1870,7 @@ class TestSwitchCommands(unittest.TestCase):
         # self.assertEqual(s.mgmt_vlan, )
 
     def test_Cisco_Catalyst_4510R(self):
-        s = Switch(ipaddress="172.31.16.7")
+        s = Stack("172.31.16.7")
         s.login()
         s.getSwitchInfo()
 
@@ -1893,7 +1897,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(s.buildnumber, '0102')
         self.assertEqual(s.buildingname, 'tower')
         self.assertEqual(s.roomnumber, None)
-        self.assertEqual(s.description, 'Sub Access Layer Switch')
+        self.assertEqual(s.description, 'Sub Access Layer Stack')
         self.assertEqual(s.IPAddress, '172.31.16.7')
         self.assertEqual(s.portcount, 392)
         self.assertEqual(s.serial[0], 'JAD204703HR')
@@ -2060,7 +2064,7 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertEqual(len(s.cdpneighbors), 10)
         for neighbor in s.cdpneighbors:
             self.assertIsInstance(neighbor, Neighbor)
-            self.assertIsInstance(neighbor.ip, ipaddress.IPv4Address)
+            self.assertIsInstance(neighbor.ip, IPv4Address)
             self.assertIsInstance(neighbor.interface, Interface)
         self.assertEqual(s.cdpneighbors[0].deviceid, 'r1-102tower.net.utah.edu')
         self.assertEqual(str(s.cdpneighbors[0].ip), '10.104.97.1')
@@ -2073,7 +2077,7 @@ class TestSwitchCommands(unittest.TestCase):
         logging = ['155.98.253.244', '172.24.29.14', '10.71.24.11']
         for log in s.logging_data:
             self.assertIn(str(log[1]), logging)
-            self.assertIsInstance(log[1], ipaddress.IPv4Address)
+            self.assertIsInstance(log[1], IPv4Address)
 
         # check vlans
         self.assertEqual(len(s.vlans), 12)
@@ -2090,16 +2094,16 @@ class TestSwitchCommands(unittest.TestCase):
         self.assertIsInstance(s.tacacs, list)
         self.assertEqual(len(s.tacacs), 2)
         self.assertIsInstance(s.tacacs[0], TACACS)
-        self.assertIsInstance(s.tacacs[0].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[0].server, IPv4Address)
         self.assertEqual(str(s.tacacs[0].server), '172.31.17.180')
         self.assertEqual(str(s.tacacs[0].name), 'TAC-EBC')
-        self.assertIsInstance(s.tacacs[1].server, ipaddress.IPv4Address)
+        self.assertIsInstance(s.tacacs[1].server, IPv4Address)
         self.assertEqual(str(s.tacacs[1].server), '10.64.32.5')
         self.assertEqual(str(s.tacacs[1].name), 'TAC-SECONDARY')
 
     def Catalyst_4948(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack(ipaddress="")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -2179,7 +2183,7 @@ class TestSwitchCommands(unittest.TestCase):
 
     def Catalyst_6880(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack(ipaddress="")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -2259,7 +2263,7 @@ class TestSwitchCommands(unittest.TestCase):
 
     def Catalyst_9300(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack(ipaddress="")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -2339,7 +2343,7 @@ class TestSwitchCommands(unittest.TestCase):
 
     def Catalyst_94010R(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack(ipaddress="")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -2419,7 +2423,7 @@ class TestSwitchCommands(unittest.TestCase):
 
     def Catalyst_9407R(self):
         pass
-        # s = Switch(ipaddress="")
+        # s = Stack(ipaddress="")
         # s.login()
         # s.getSwitchInfo()
         #
@@ -2496,6 +2500,7 @@ class TestSwitchCommands(unittest.TestCase):
         # self.assertEqual(s.logging_data, )
         # self.assertEqual(s.should_overwrite_logging, )
         # self.assertEqual(s.mgmt_vlan, )
+
 
 class TestSwitchObject(unittest.TestCase):
     # @patch('paramiko.SSHClient.connect', side_effect=mocked_creation_SSH_paramiko)

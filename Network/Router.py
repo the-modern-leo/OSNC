@@ -1,4 +1,30 @@
-class Router(Switch):
+### Local Package ###
+from Network.Switch import Stack, Blade, Neighbor
+from Network.Port import SFP, Interface,PortChannel
+from Network.Network import Network_Object
+from Network.Vlan import vlan
+
+
+### Global Packages ###
+import logging
+import re
+from ipaddress import IPv4Network,ip_network,ip_address
+from dateutil import relativedelta
+from datetime import datetime
+
+
+def _exception(e):
+    logging.error(e,exc_info=True)
+    raise
+
+def RepresentsInt(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+class Router(Stack):
     """
     A router Object that extends the function of a Switch object
     """
@@ -19,7 +45,7 @@ class Router(Switch):
             con (Connection): an active Parimko Connection to a switch
 
         """
-        logger.info(f"Scraping Router Data - Starting")
+        logging.info(f"Scraping Router Data - Starting")
         try:
             try:
                 teststring = self.conn.send_command('enable', manypages=True)
@@ -52,19 +78,19 @@ class Router(Switch):
             self.module_result = self.conn.send_command('show module', manypages=True)
 
         except Exception as e:
-            logger.info(f"Scraping Router Data - Failed")
-            logger.error(e, exc_info=True)
+            logging.info(f"Scraping Router Data - Failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info(f"Scraping Router Data - Success")
+            logging.info(f"Scraping Router Data - Success")
 
     def assignattributes(self):
         """
         takes the responses from get switch info, and applies those responses to the object attributes
 
         """
-        logger.info(f"Assigning Data to Router Object - Starting")
+        logging.info(f"Assigning Data to Router Object - Starting")
         try:
             self.sortVersion(versionresult=self.version_result)
             self.sortInventory(self.inv_result)
@@ -79,12 +105,12 @@ class Router(Switch):
             self.sortportcounters(self.portcount_result)
 
         except Exception as e:
-            logger.info(f"Assigning Data to Router Object - Failed")
-            logger.error(e, exc_info=True)
+            logging.info(f"Assigning Data to Router Object - Failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info(f"Assigning Data to Router Object - Success")
+            logging.info(f"Assigning Data to Router Object - Success")
 
     def sortInventory(self, invresult='', ):
         """
@@ -96,7 +122,7 @@ class Router(Switch):
         Returns ():
         """
         assert isinstance(invresult, str), f'invresult: must be str, but got {type(invresult)}'
-        logger.info("Sorting 'show Inventory' - Starting")
+        logging.info("Sorting 'show Inventory' - Starting")
         try:
             inv = invresult.split('NAME:')
             serial = []
@@ -114,14 +140,14 @@ class Router(Switch):
                         if 'SN:' in line:
                             switchserial = line.split(':')[1].rstrip()
                             serial.append(switchserial)
-                            logger.info("Sorting 'show Inventory' - Success")
+                            logging.info("Sorting 'show Inventory' - Success")
 
                 elif 'System' in hdevice:
                     for line in hdeviceparts:
                         if 'SN:' in line:
                             switchserial = line.split(':')[1].rstrip()
                             serial.append(switchserial)
-                            logger.info("Sorting 'show Inventory' - Success")
+                            logging.info("Sorting 'show Inventory' - Success")
 
                 # get the sfps that are in this device
                 elif 'Transceiver' in hdevice:
@@ -179,12 +205,12 @@ class Router(Switch):
                 raise ValueError("blades not assigned")
 
         except Exception as e:
-            logger.info("Sorting 'show Inventory' - Failed")
-            logger.error(e, exc_info=True)
+            logging.info("Sorting 'show Inventory' - Failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show Inventory' - Success")
+            logging.info("Sorting 'show Inventory' - Success")
             self.serial = serial
             self.SFPs = SFPs
             self.blades = blades
@@ -194,7 +220,7 @@ class Router(Switch):
         This function sorts through every single interface on the device, and applies those interfaces to the blade object
         :param interface_result (str) a response from the command "show run | section interface":
         """
-        logger.info("Sorting 'show run | section interface | section Ethernet' - Starting")
+        logging.info("Sorting 'show run | section interface | section Ethernet' - Starting")
         assert isinstance(interface_result, str), f"interface results must be str, got {type(interface_result)} instead"
         assert hasattr(self, 'blades'), f'the blades have not been set on this object'
         assert self.blades is not None, f'the blades have not been set on this object'
@@ -216,12 +242,12 @@ class Router(Switch):
                         b.interfaces[interface.portnumber] = interface
 
         except Exception as e:
-            logger.info("Sorting 'show run | section interface | section Ethernet' - failed")
-            logger.error(e, exc_info=True)
+            logging.info("Sorting 'show run | section interface | section Ethernet' - failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show run | section interface | section Ethernet' - Success")
+            logging.info("Sorting 'show run | section interface | section Ethernet' - Success")
 
     def sort_object_groups(self):
         """
@@ -264,7 +290,7 @@ class Router(Switch):
                         l = l.rstrip('\r')
                         nobj.subnet.append(IPv4Network(l))
                 except Exception as e:
-                    logger.error(e, exc_info=True)
+                    logging.error(e, exc_info=True)
                     _exception(e)
                     raise
         return nobj
@@ -339,7 +365,7 @@ class Router(Switch):
                         interface.subnet = subnet
 
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -364,11 +390,11 @@ class Router(Switch):
                 ipline = re.sub(" ","/",line)
             else: # ip is probably a network not an ip address
                 ipline = re.sub(" ", "", line)
-            subnet = ipaddress.ip_network(ipline,strict=False)
+            subnet = ip_network(ipline,strict=False)
             ip = list(subnet.hosts())[1]
         except Exception as e:
-            logger.info("Sorting 'show run | section interface | section Vlan' - failed")
-            logger.error(e, exc_info=True)
+            logging.info("Sorting 'show run | section interface | section Vlan' - failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -379,7 +405,7 @@ class Router(Switch):
         This function sorts through every single interface on the device, and applies those interfaces to the blade object
         :param vlan_interface_result (str) a response from the command "show run | section interface":
         """
-        logger.info("Sorting 'show run | section interface | section Vlan' - Starting")
+        logging.info("Sorting 'show run | section interface | section Vlan' - Starting")
         try:
             vlan_interface_result = vlan_interface_result.split('interface ')
 
@@ -398,13 +424,13 @@ class Router(Switch):
             if vlans == []:
                 raise
         except Exception as e:
-            logger.info("Sorting 'show run | section interface | section Vlan' - failed")
-            logger.error(e, exc_info=True)
+            logging.info("Sorting 'show run | section interface | section Vlan' - failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
             self.vlansints = vlans
-            logger.info("Sorting 'show run | section interface | section Vlan' - Success")
+            logging.info("Sorting 'show run | section interface | section Vlan' - Success")
 
     def _get_vlan(self, vlanstr,V=None):
         """
@@ -448,12 +474,12 @@ class Router(Switch):
                     line = re.sub("ip helper-address ", "", line)
                     line = re.sub(" ", "", line)
                     line = re.sub("global", "", line)
-                    v.helperip.append(ipaddress.ip_address(line))
+                    v.helperip.append(ip_address(line))
                 elif "shutdown" in line and "no" not in line:
                     v.shutdown = True
 
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -469,7 +495,7 @@ class Router(Switch):
         Returns (Switch): a switch object with the blade objects
                             having been added
         """
-        logger.info("Sorting 'show module all' - Starting")
+        logging.info("Sorting 'show module all' - Starting")
         try:
             # create blade list if not already done
             if not self.blades:
@@ -505,12 +531,12 @@ class Router(Switch):
                 elif "Online Diag Status" in m:
                     pass
         except Exception as e:
-            logger.info("Sorting 'show module all' - failed")
-            logger.error(e, exc_info=True)
+            logging.info("Sorting 'show module all' - failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show module all' - Success")
+            logging.info("Sorting 'show module all' - Success")
             return
 
     def _get_mod_card(self, modeline):
@@ -558,7 +584,7 @@ class Router(Switch):
                 blade = b
 
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -608,7 +634,7 @@ class Router(Switch):
                 blade = b
 
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -623,7 +649,7 @@ class Router(Switch):
             :param chassislist (list): A List of models that are switch chassis
         """
         assert isinstance(versionresult, str), f'versionresult: must be str, but got {type(versionresult)}'
-        logger.info("Sorting 'show Version' - Starting")
+        logging.info("Sorting 'show Version' - Starting")
         try:
             # run code here
             # search through response to gather the indivigual info
@@ -677,12 +703,12 @@ class Router(Switch):
             self.modelnumber = self._get_modelnumber(self.modelnumber)
 
         except Exception as e:
-            logger.info("Sorting 'show Version' - failed")
-            logger.error(e, exc_info=True)
+            logging.info("Sorting 'show Version' - failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show Version' - Success")
+            logging.info("Sorting 'show Version' - Success")
 
     def _get_serial(self, line):
         """
@@ -699,7 +725,7 @@ class Router(Switch):
             line = re.sub(':', '', line)
             line = re.sub(' ', '', line)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -726,7 +752,7 @@ class Router(Switch):
                 line = re.sub('system:', '', line)
                 line = re.sub(' ', '', line)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -761,7 +787,7 @@ class Router(Switch):
             lastrestart = datetime.now() - delta
 
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -800,7 +826,7 @@ class Router(Switch):
                     deltadict["minutes"] = int(re.sub("minute", "", t))
 
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -822,7 +848,7 @@ class Router(Switch):
                 line = line.split(" ")
                 line = line[1]
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -840,7 +866,7 @@ class Router(Switch):
         """
         assert isinstance(cdpnei, str), f'cdpnei must be a str, got {type(cdpnei)}'
         assert cdpnei is not None, f'cdpnei is an empty string. please pass through response from "show cdp nei detail"'
-        logger.info("Sorting 'show cdp nei detail' - Starting")
+        logging.info("Sorting 'show cdp nei detail' - Starting")
         try:
             # seperate out all the CDP Sections
             cdpneidetail = cdpnei.split('-------------------------')
@@ -852,12 +878,12 @@ class Router(Switch):
                 neighbors.append(neighborobj)
 
         except Exception as e:
-            logger.info("Sorting 'show cdp nei detail' - Failed")
-            logger.error(e, exc_info=True)
+            logging.info("Sorting 'show cdp nei detail' - Failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show cdp nei detail' - Success")
+            logging.info("Sorting 'show cdp nei detail' - Success")
             self.cdpneighbors = neighbors
 
     def _get_neighbor(self, neighborstr):
@@ -884,7 +910,7 @@ class Router(Switch):
                     line = re.sub("\r", "", line)
                     line = line.split(" ")
                     line = [x for x in line if x]
-                    n.ip = ipaddress.ip_address(line[0])
+                    n.ip = ip_address(line[0])
                 elif "Device ID:" in line:
                     n.deviceid = re.sub("Device ID: ", "", line)
                 elif "Platform:" in line:
@@ -937,7 +963,7 @@ class Router(Switch):
                         localint = blade.interfaces[localportnumber]
                         localint.neighbor = n
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
@@ -960,82 +986,17 @@ class Router(Switch):
             intstr = re.sub("Ethernet", "", intstr)
             intstr = re.sub(" ", "", intstr)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
             return intstr
 
-    def check_orion_migration(self):
-        """
-        A function that checks the logging. ACL, and SNMP for the switch against policy standards.
-        """
-        logger.info("Orion Migration: Checking - Starting ")
-        try:
-            # self.check_ACL()
-            self.check_network_objects()
-            # self.check_Logging()
-            self.check_SNMP()
-
-        except Exception as e:
-            logger.info("Orion Migration: Checking - Failed ")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info("Orion Migration: Checking - Success ")
-
-    def check_SNMP(self):
-        """
-        Takes the SNMP Information stored in self.SNMP, and checks it against our standards
-        """
-        logger.info(f"Checking SNMP ({self.IPAddress}) - Starting ")
-        try:
-
-            # look for all the SNMP properties to determing what is missing
-            if 3 in self.SNMP.version:
-                self.check_SNMP_v3()
-
-            if 2 in self.SNMP.version:
-                self.check_SNMP_v2()
-
-            # check SNMP Traps
-            if self.SNMP.traps:
-                if settings.SNMP_traps.monitoring == self.SNMP.traps:
-                    self.SNMP.trapscorrect = True
-
-            # check SNMP Logging
-            log = False
-            if self.SNMP.loggingips:
-                for ipaddress in self.SNMP.loggingips:
-                    if str(ipaddress) == settings.SNMP_logging.neworion:
-                        log = True
-                        self.SNMP.loggingcorrect = True
-
-        except Exception as e:
-            logger.info(f"Checking SNMP ({self.IPAddress}) - Failed ")
-            logger.error(e, exc_info=True)
-        else:
-            logger.info(f"Checking SNMP ({self.IPAddress}) - Success ")
-
-    def check_network_objects(self):
-        """
-        Checks the network objects for anything named Monitoring. If one is found than the subnet/ipaddresses are checked
-        Returns:
-        """
-        for object in self.network_objects:
-            if 'Monitoring' in object.name.lower():
-                for subnet in object.subnet:
-                    if isinstance(subnet,IPv4Network):
-                        if subnet == settings.old_orion_subnet: #old Monitoring servers
-                            self.network_object_wrong = True
-                            subnet = settings.new_orion_subnet
-                    else:
-                        pass
-
     def update_orion_migration(self, switch_connection):
         """
         Update logging, SNMP, and ACL for the Orion migration.
         """
-        logger.info("Orion Migration: Updating - Starting ")
+        logging.info("Orion Migration: Updating - Starting ")
         try:
             if self.network_objects_wrong:
                 for object in self.network_objects:
@@ -1050,10 +1011,10 @@ class Router(Switch):
             if self.snmp_logging_wrong:
                 pass
         except Exception as e:
-            logger.info("Orion Migration: Updating - Failed ")
-            logger.error(e, exc_info=True)
+            logging.info("Orion Migration: Updating - Failed ")
+            logging.error(e, exc_info=True)
         else:
-            logger.info("Orion Migration: Updating - Success ")
+            logging.info("Orion Migration: Updating - Success ")
 
     def _update_SNMP(self, object):
         """
@@ -1111,8 +1072,13 @@ class Router(Switch):
             v = self._get_vlan(self.conn.send_command(f"show run int Vlan {str(v.number)}"),v)
             self.logout(self.conn)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
             return v
+
+
+class VRF():
+    def __init__(self):
+        pass

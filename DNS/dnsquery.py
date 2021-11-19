@@ -1,11 +1,11 @@
 import dns.query
 import dns.zone
 import dns.resolver
-import re, threading, os, time, logging
+import re, threading, time, logging
 
 class DNSQuery(object):
     """
-    This class is designed to query the DNS server, and return useful 
+    This class is designed to query the DNS server, and return useful
     results for TOAST
 
     Args:
@@ -23,7 +23,7 @@ class DNSQuery(object):
         # set the most popular zones at the top if using anycast
         if self.dns_server == "":
             self.zones = []
-        else: 
+        else:
             self.zones = []
         # Update the Zones that are in the DNS Server
         UpdateThread(self).start()
@@ -32,7 +32,7 @@ class DNSQuery(object):
 
     def search_dns(self, thread_id, query, zone, hostnames):
         """
-        This method performs a dig on the dns server in the given zone, 
+        This method performs a dig on the dns server in the given zone,
         and searches for the keyword in the zone entries. It returns
         a list of the hostnames and their related items, a CNAME or an IP.
 
@@ -50,15 +50,15 @@ class DNSQuery(object):
         self.update(thread_id, 'Parsing ' + zone + '...', None, False)
         for key in dig_keys:
             line = str(dig[key].to_text(key))
-            # exclude TXT entries and the inital entry for the search 
+            # exclude TXT entries and the inital entry for the search
             if query in line and '\"' not in line and "@" not in line:
                 line = line.split()
                 hostnames[self.format_data(line[0], zone)] = self.format_data(
                         line[-1], zone)
 
-        self.update(thread_id, 'Finished Searching ' + zone + '...', None, 
+        self.update(thread_id, 'Finished Searching ' + zone + '...', None,
                 False)
-        
+
     def format_data(self, data, zone):
         """
         This method formats output from the dns query to look how
@@ -67,7 +67,7 @@ class DNSQuery(object):
         Arguments:
             data (str): The data from the query.
             zone (str): The zone the query was in.
-            
+
         Returns:
             str: An IP address or a formatted host name.
         """
@@ -81,7 +81,7 @@ class DNSQuery(object):
         """
         This method searches utah.edu and finds all of the unique
         name server entries and adds them to the assets text file,
-        if the are not already in it. 
+        if the are not already in it.
         """
         dig = dns.zone.from_xfr(dns.query.xfr(self.dns_server, ''))
         dig_keys = list(dig.nodes.keys())
@@ -99,7 +99,7 @@ class DNSQuery(object):
 
     def update(self, thread_id, message, data, error):
         """
-        This method updates the dictionary that is tied to a specific 
+        This method updates the dictionary that is tied to a specific
         thread id that is a part of the threads dictionary. If it does
         not exist, it will add it to the threads dictionary.
 
@@ -110,14 +110,14 @@ class DNSQuery(object):
             error (bool): True if there is an error, False otherwise.
         """
         self.threadlock.acquire()
-        self.threads[thread_id] = {'message': message, 'data': data, 
+        self.threads[thread_id] = {'message': message, 'data': data,
                 'error': error, }
         self.threadlock.release()
-    
+
     def status(self, thread_id):
         """
         This method queries the threads dictionary and retrieves what
-        is currently stored as its value. It will delete threads and 
+        is currently stored as its value. It will delete threads and
         manage errors if there are any
 
         Arguments:
@@ -132,7 +132,7 @@ class DNSQuery(object):
         if not thread_current:
             logging.error('warning: thread_id ' + str(thread_id) +' is invalid')
             return {'error': 'Invalid thread ID'}
-        if thread_current and (not thread_current['message'] or 
+        if thread_current and (not thread_current['message'] or
                 thread_current['error']):
             self.threadlock.acquire()
             del self.threads[int(thread_id)]
@@ -140,21 +140,21 @@ class DNSQuery(object):
         if thread_current['error']:
             return {'error': thread_current['message']}
         else:
-            return {'result': {'message': thread_current['message'], 
+            return {'result': {'message': thread_current['message'],
                     'data': thread_current['data']}}
 
     def dig(self, query, zone=None, get_thread=False):
         """
-        This is the main method of external use. It starts a thread that 
+        This is the main method of external use. It starts a thread that
         will search the given zone or all zones if one is not given.
 
         Arguments:
             query (str): The string that you want to query the dns server with.
             zone (str): The zone to search in.
-            get_thread (bool): True if you want the thread, false if you only 
+            get_thread (bool): True if you want the thread, false if you only
                 want the result.
         Returns:
-            int or dict: The thread id if get_thread is True; the result 
+            int or dict: The thread id if get_thread is True; the result
             dictionary if thread_id is false.
         """
         thread_id = int(round(time.time() * 1000))
@@ -185,7 +185,7 @@ class DQThread(threading.Thread):
         self.dq = dq
         self.hostnames = hostnames
         self.zone = zone
-    
+
     def run(self):
         """
         Runs the thread.
@@ -195,7 +195,7 @@ class DQThread(threading.Thread):
             self.dq.update(self.threadID, 'Searching all zones...', None, False)
             threadlist = []
             for zone in self.dq.get_zones():
-                thr = DigThread(self.threadID, self.query, self.dq, 
+                thr = DigThread(self.threadID, self.query, self.dq,
                         self.hostnames, zone)
                 threadlist.append(thr)
                 thr.start()
@@ -204,10 +204,10 @@ class DQThread(threading.Thread):
                 thr.join()
             self.dq.update(self.threadID, None, self.hostnames, False)
         # start a thread with the given DNS zone
-        else: 
-            self.dq.update(self.threadID, 'Searching ' + self.zone + '...', 
+        else:
+            self.dq.update(self.threadID, 'Searching ' + self.zone + '...',
                     None, False)
-            thr = DigThread(self.threadID, self.query, self.dq, self.hostnames, 
+            thr = DigThread(self.threadID, self.query, self.dq, self.hostnames,
                     self.zone)
             thr.start()
             thr.join()
@@ -216,7 +216,7 @@ class DQThread(threading.Thread):
 class DigThread(threading.Thread):
     """
     Class thread for performing a dig on the dns server.
-    
+
     Args:
         threadID (int): The thread_id key for the threads dictionary.
         query (str): What to search for in the dig.
@@ -231,7 +231,7 @@ class DigThread(threading.Thread):
         self.dq = dq
         self.hostnames = hostnames
         self.zone = zone
-    
+
     def run(self):
         """
         Runs the dig.

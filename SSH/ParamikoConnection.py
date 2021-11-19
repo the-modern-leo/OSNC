@@ -141,12 +141,12 @@ class Connection(object):
             raise
         except OSError as O:
             logger.error(O, exc_info=True)
-            if client is not None:
-                client.close()
+            if self.client is not None:
+                self.client.close()
             raise
         except Exception as e:
-            if client is not None:
-                client.close()
+            if self.client is not None:
+                self.client.close()
             logger.error(e, exc_info=True)
             _exception(e)
             raise

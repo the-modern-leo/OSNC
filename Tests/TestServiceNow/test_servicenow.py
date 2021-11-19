@@ -1,6 +1,6 @@
 import unittest
 from servicenow import servicenow
-from auth import ServiceNowAPI
+from auth import ServiceNowapi
 
 
 class TestServiceNow(unittest.TestCase):
