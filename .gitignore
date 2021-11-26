@@ -1,5 +1,4 @@
 *.pyc
-*.log
 webserver.cer
 webserver.key
 certs/*.pem
