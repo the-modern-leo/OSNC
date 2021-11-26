@@ -5,7 +5,7 @@ FROM python:3.9-slim as build
 WORKDIR /opt/project
 
 #move the requirements to the app directory
-COPY requirements.txt /opt/project
+COPY ../requirements.txt /opt/project
 
 # install OS and python packages, then clean up
 RUN apt-get -y update && apt-get -y install gcc graphviz-dev libsasl2-dev pkg-config \
@@ -16,11 +16,11 @@ FROM python:3.9-slim
 WORKDIR /opt/project
 COPY --from=build /root /root
 COPY --from=build /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
-COPY requirements.txt /opt/project
+COPY ../requirements.txt /opt/project
 RUN apt-get -y update && apt-get -y install gcc graphviz-dev libsasl2-dev pkg-config \
     && pip install -r requirements.txt
 
-COPY . /opt/project
+COPY .. /opt/project
 
 EXPOSE 8443
 
