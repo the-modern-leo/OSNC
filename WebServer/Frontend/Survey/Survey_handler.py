@@ -1,6 +1,5 @@
 from tornado.web import RequestHandler
 
-
 class SurveyHandler(RequestHandler):
     def get(self):
         self.write("")

@@ -1,0 +1,10 @@
+<html>
+  <head>
+    <title>{% block title %}Default title{% end %}</title>
+  </head>
+  <body>
+    {% block title2 %}
+      <li>{{ escape(title2) }}</li>
+    {% end %}
+  </body>
+</html>
