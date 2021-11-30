@@ -2,13 +2,8 @@ from tornado.web import RequestHandler
 
 class SurveyHandler(RequestHandler):
     def get(self):
-        self.write("")
-
-    def post(self):
-        self.write("")
-
+        self.render("survey.html")
 
 handlers = [
-    (r"/survey/.*", SurveyHandler),
-    (r"/survey/datacenter", SurveyHandler),
+    (r"/survey", SurveyHandler),
 ]
