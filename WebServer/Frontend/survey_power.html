@@ -1,0 +1,72 @@
+<html>
+  <head>
+    {% module HeaderHtml() %}
+  </head>
+  <body>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col">
+    {% module HeaderNav() %}
+      </div>
+    </div>
+
+    <!--end of Navigation bar-->
+    {% module SideNav() %}
+
+      <div class="col">
+          <!-- Main body container -->
+        <!-- Outlets -->
+          <h1 class="display-6 text-center">Outlets</h1>
+        <div class="row">
+          <!-- Outlets Selection -->
+          <div class="col-8 col-sm-6">
+            <h2 class="display-6 text-center">Selection</h2>
+            <div class="mb-3">
+              <label for="exampleFormControlInput1" class="form-label">Email address</label>
+              <input type="email" class="form-control" id="exampleFormControlInput1" placeholder="name@example.com">
+            </div>
+            <div class="mb-3">
+              <label for="exampleFormControlTextarea1" class="form-label">Example textarea</label>
+              <textarea class="form-control" id="exampleFormControlTextarea1" rows="3"></textarea>
+            </div>
+          </div>
+          <!-- Preview Outlets -->
+          <div class="col-4 col-sm-6">
+            <h2 class="display-6 text-center">Preview</h2>
+          </div>
+        </div>
+        <!-- PDUs -->
+        <h1 class="display-6 text-center">PDUs</h1>
+        <div class="row">
+          <div class="col-8 col-sm-6">
+            Level 2: .col-8 .col-sm-6
+          </div>
+          <div class="col-4 col-sm-6">
+            Level 2: .col-4 .col-sm-6
+          </div>
+        </div>
+        <!-- UPSs -->
+        <h1 class="display-6 text-center">UPS</h1>
+        <div class="row">
+          <div class="col-8 col-sm-6">
+            Level 2: .col-8 .col-sm-6
+          </div>
+          <div class="col-4 col-sm-6">
+            Level 2: .col-4 .col-sm-6
+          </div>
+        </div>
+        <!-- Cablings -->
+        <h1 class="display-6 text-center">Cabling</h1>
+        <div class="row">
+          <div class="col-8 col-sm-6">
+            Level 2: .col-8 .col-sm-6
+          </div>
+          <div class="col-4 col-sm-6">
+            Level 2: .col-4 .col-sm-6
+          </div>
+        </div>
+      </div>
+  </div>
+
+  </body>
+</html>
