@@ -1,5 +1,96 @@
 class Hardware:
     chassis = ['WS-C4506-E', 'WS-C4507R-E','WS-C4510R+E','WS-C4500X','WS-C4500X',
-               'C6880-X','C6816-X-LE', 'C6816-X-LE','C9410R','WS-X45-SUP7L-E']
-    line_card_pids = ['C9400-LC-48UX', 'C9400-LC-48U', 'C9400-SUP-1XL']
-    sfp_descriptions = ["SFP+ 10GBASE-SR", "GE LX", "SFP+ 10GBASE-LR", "QSFP 40GE LR4", "QSFP 40GE LR4"]
+               'C6880-X','C6816-X-LE', 'C6816-X-LE','C9410R','WS-X45-SUP7L-E',
+               'Nexus7700 C7710',
+               "N77-C7702",
+               "N77-C7706",
+               "N77-C7710",
+               "N77-C7718",
+               "N77-C7009",
+               "N77-C7004",
+               "N77-C7010",
+               "N77-C7018",
+               "C6880-X-LE",
+               "C6880-X"]
+
+    line_card_pids = ['C9400-LC-48UX', 'C9400-LC-48U', 'C9400-SUP-1XL','C9600-SUP-1',
+                      'C9600-LC-24C',
+                      'C9600-LC-48YL',
+                      'C9600-LC-48TX',
+                      'C9600-LC-48S',
+                      "N77-C7706-FAB-2",
+                      "N77-C7710-FAB-2",
+                      "N77-C7718-FAB-2",
+                      "N77-SUP2E",
+                      "N77-M324FQ-25L",
+                      "N77-SUP3E",
+                      "N77-C7706-FAB-3",
+                      "N77-C7710-FAB-3",
+                      "N7K-SUP2",
+                      "N7K-SUP2E",
+                      "N7K-C7009-FAB-2",
+                      "N7K-C7010-FAB-2",
+                      "N7K-C7018-FAB-2",
+                      "N7K-SUP1",
+                      "N7K-M348XP-25L",
+                      "N7K-M324FQ-25L",
+                      "N7K-F348XP-25",
+                      "N7K-FCOE-F348XP",
+                      "C6880-X-16P10G",
+                      "C6880-X-LE-16P10G",
+                      "C6880-X-SUP",
+                      ]
+    fan_modeules = ["N77-C7702-FAN",
+                      "N77-C7706-FAN",
+                      "N77-C7710-FAN",
+                      "N77-C7718-FAN",
+                    "N77-C7009-FAN",
+                    "N77-C7004-FAN",
+                    "N77-C7010-FAN",
+                    "N77-C7018-FAN",
+                    ]
+    Memory_modeules = ["N7K-CPF-2GB",
+                      "N7K-CPF-8GB",
+                       "N7K-USB-8GB",
+                       "N77-USB-2GB",
+                       ]
+    power_supplies = ["N77-AC-3KW",
+                      "N77-DC-3KW",
+                      "C6880-X-3KW-AC",
+                      "C6880-X-3KW-DC",
+                      ]
+
+    sfp_descriptions = ["SFP+ 10GBASE-SR",
+                        "GE LX",
+                        "SFP+ 10GBASE-LR",
+                        "QSFP 40GE LR4",
+                        "QSFP 40GE LR4",
+                        "SFP-10G-SR",
+                        "SFP-10G-LRM",
+                        "SFP-10G-LR",
+                        "SFP-10G-ER",
+                        "SFP-10G-ZR",
+                        "DWDM-SFP10G",
+                        "SFP-H10GB-CU1M",
+                        "SFP-H10GB-CU3M",
+                        "SFP-H10GB-CU5M",
+                        "SFP-H10GB-ACU7M",
+                        "SFP-H10GB-ACU10M",
+                        "GLC-SX-MM",
+                        "GLC-SX-MMD",
+                        "GLC-LH-SM",
+                        "GLC-LH-SMD",
+                        "GLC-EX-SMD",
+                        "GLC-ZX-SM",
+                        "GLC-ZX-SMD",
+                        "GLC-BX-D",
+                        "GLC-BX-U",
+                        "GLC-T",
+                        "GLC-GE-100FX"]
+
+
+
+
+
+
+

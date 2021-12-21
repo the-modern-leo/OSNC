@@ -1,7 +1,6 @@
-
 ### Local Packages ###
 from Network.Switch import Stack
-from Network.Router import Router
+from Network.Routing import Router
 
 ### Package imports
 import re

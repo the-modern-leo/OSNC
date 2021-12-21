@@ -6,7 +6,6 @@ from builtins import object
 from builtins import str
 from past.builtins import basestring
 
-
 class vlan:
     """
     This object is for gathering information about multiple vlans that are attached to a device

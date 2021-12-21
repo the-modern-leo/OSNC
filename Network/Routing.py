@@ -1,7 +1,6 @@
 ### Local Package ###
 from Network.Switch import Stack, Blade, Neighbor
 from Network.Port import SFP, Interface,PortChannel
-from Network.Network import Network_Object
 from Network.Vlan import vlan
 
 
@@ -9,12 +8,14 @@ from Network.Vlan import vlan
 import logging
 import re
 from ipaddress import IPv4Network,ip_network,ip_address
-from dateutil import relativedelta
+from dateutil.relativedelta import relativedelta
 from datetime import datetime
+import traceback
 
 
 def _exception(e):
     logging.error(e,exc_info=True)
+    traceback.print_exc()
     raise
 
 def RepresentsInt(s):
@@ -112,109 +113,6 @@ class Router(Stack):
         else:
             logging.info(f"Assigning Data to Router Object - Success")
 
-    def sortInventory(self, invresult='', ):
-        """
-        takes the string for Invresults, and grabs the serial numbers, SFPs, and blades for the system out of it.
-        This assigns those values to Self.serial, self.SFPs, and self.blades
-        Args:
-            invresult (str): a result for 'show inventory'
-
-        Returns ():
-        """
-        assert isinstance(invresult, str), f'invresult: must be str, but got {type(invresult)}'
-        logging.info("Sorting 'show Inventory' - Starting")
-        try:
-            inv = invresult.split('NAME:')
-            serial = []
-            SFPs = []
-            blades = []
-            # get the serial number for the whole system
-            for hdevice in inv:
-                hdeviceparts = hdevice.split(',')
-                # collect the blades in a Chassis
-                name = hdeviceparts[0].replace('\"', '')
-                name = name.replace('\"', '')
-                name = name.replace('Slot ', '')
-                if 'Switch System' in hdevice:
-                    for line in hdeviceparts:
-                        if 'SN:' in line:
-                            switchserial = line.split(':')[1].rstrip()
-                            serial.append(switchserial)
-                            logging.info("Sorting 'show Inventory' - Success")
-
-                elif 'System' in hdevice:
-                    for line in hdeviceparts:
-                        if 'SN:' in line:
-                            switchserial = line.split(':')[1].rstrip()
-                            serial.append(switchserial)
-                            logging.info("Sorting 'show Inventory' - Success")
-
-                # get the sfps that are in this device
-                elif 'Transceiver' in hdevice:
-                    Transceiver = SFP()
-                    Transceiver.port = re.sub("Transceiver ", "", hdeviceparts[0].replace("\"", ""))
-                    Transceiver.port = re.sub(" ", "", Transceiver.port.replace("\"", ""))
-                    for line in hdeviceparts:
-                        if 'DESCR:' in line:
-                            word = line.split(" ")
-                            for w in word:
-                                if 'base' in w or "Base" in w:
-                                    Transceiver.speed = w
-                        if 'SN:' in line:
-                            line = re.sub(" SN: ", "", line)
-                            line = re.sub("SN: ", "", line)
-                            line = line.replace('\r', '')
-                            line = line.replace('\n', '')
-                            line = re.sub(" ", "", line)
-                            Transceiver.SN = re.sub("SN:", "", line.rstrip(""))
-                    SFPs.append(Transceiver)
-
-                elif 'N77-M348XP-23L' in hdevice:
-                    serialnumber = None
-                    for line in hdeviceparts:
-                        if 'SN:' in line:
-                            line = re.sub(" SN: ", "", line)
-                            line = re.sub("SN: ", "", line)
-                            line = line.replace('\"', '')
-                            line = line.replace('\r', '')
-                            line = line.replace('\n', '')
-                            line = re.sub(" ", "", line)
-                            serialnumber = re.sub("SN:", "", line.rstrip('\"'))
-                    b = Blade(serialnumber)
-                    b.stacknumber = int(name)
-                    blades.append(b)
-                elif 'N77-M324FQ-25L' in hdevice:
-                    pass
-                # get the blades in this chassis
-                elif RepresentsInt(name):
-                    serialnumber = None
-                    for line in hdeviceparts:
-                        if 'SN:' in line:
-                            line = re.sub(" SN: ", "", line)
-                            line = re.sub("SN: ", "", line)
-                            line = line.replace('\"', '')
-                            line = line.replace('\r', '')
-                            line = line.replace('\n', '')
-                            line = re.sub(" ", "", line)
-                            serialnumber = re.sub("SN:", "", line.rstrip('\"'))
-                    b = Blade(serialnumber)
-                    b.stacknumber = int(name)
-                    blades.append(b)
-
-            if blades == set():
-                raise ValueError("blades not assigned")
-
-        except Exception as e:
-            logging.info("Sorting 'show Inventory' - Failed")
-            logging.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logging.info("Sorting 'show Inventory' - Success")
-            self.serial = serial
-            self.SFPs = SFPs
-            self.blades = blades
-
     def sortinterfaces(self, interface_result):
         """
         This function sorts through every single interface on the device, and applies those interfaces to the blade object
@@ -233,9 +131,13 @@ class Router(Stack):
                 if re.match('(?:(?:Ethernet|FastEthernet|GigabitEthernet|TwoGigabitEthernet|TenGigabitEthernet|FortyGigabitEthernet)(?:[\d][\/][\d]{0,2}[^\S]|[\d][\/][\d][\/][\d]{0,2}))',st):
                     if 'both' in st:
                         continue
+                    elif 'GigabitEthernet0/0 ' in st:
+                        continue
                     interface = self._get_interface_physical(st)
                     interfaces.append(interface)
 
+            if interfaces == {}:
+                raise Exception("No Interfaces assigned")
             for interface in interfaces:  # add the interface to the correct blade
                 for b in self.blades:
                     if interface.blade == b.stacknumber:
@@ -502,7 +404,6 @@ class Router(Stack):
                 self.blades = set()
             # splits the response by breakdown
             module = module.split('Mod ')
-            modulelist = []
             for m in module:
                 if "Card Type" in m:
                     for line in m.split("\r\n"):
@@ -514,22 +415,32 @@ class Router(Stack):
                             pass
                         else:
                             blade = self._get_mod_card(line)
-                            modulelist.append(blade)
+                            self.blades.add(blade)
                 elif "MAC addres" in m:
                     for line in m.split("\r\n"):
                         if "---" in line:
+                            pass
+                        elif 'Redundancy'in line and 'Role'in line and 'Operating'in line and 'Redundancy'in line \
+                                and 'Mode'in line and 'Configured'in line and 'Redundancy'in line and 'Mode' in line:
+                            pass
+                        elif ('Active' in line or 'Standby' in line) and 'sso' in line and 'sso' in line:
                             pass
                         elif "MAC" in line:
                             pass
                         elif "" == line:
                             pass
+                        elif re.match("^\\r$",line):
+                            pass
                         else:
                             blade = self._get_mod_mac(line)
-                            modulelist.append(blade)
+                            self.blades.add(blade)
                 elif "Sub-Module" in m:
                     pass
                 elif "Online Diag Status" in m:
                     pass
+            if not self.modelnumber == 'Nexus7700 C7710':
+                if self.blades == set():
+                    raise Exception("blades were not assigned")
         except Exception as e:
             logging.info("Sorting 'show module all' - failed")
             logging.error(e, exc_info=True)
@@ -569,7 +480,6 @@ class Router(Stack):
                         b.cardtype = " ".join(modeline)
                         blade = b
                         break
-
             else:  # create a blade, and add the information
                 b = Blade(modeline[len(modeline) - 1])
                 b.stacknumber = int(modeline[0])
@@ -619,18 +529,24 @@ class Router(Stack):
                         blade = b
                         break
             else:
-                b = Blade()
-                b.stacknumber = int(macline[0])
-                b.hwversion = macline[len(macline) - 4]
-                b.fwversion = macline[len(macline) - 3]
-                b.ISOversion = macline[len(macline) - 2]
-                b.status = macline[len(macline) - 1]
+
+                stacknumber = int(macline[0])
+                hwversion = macline[len(macline) - 4]
+                fwversion = macline[len(macline) - 3]
+                ISOversion = macline[len(macline) - 2]
+                status = macline[len(macline) - 1]
                 macline.remove(macline[len(macline) - 1])
                 macline.remove(macline[len(macline) - 1])
                 macline.remove(macline[len(macline) - 1])
                 macline.remove(macline[len(macline) - 1])
                 macline.remove(macline[0])
-                b.macaddresses = " ".join(macline)
+                macaddresses = " ".join(macline)
+                b = Blade(macaddresses)
+                b.stacknumber = stacknumber
+                b.hwversion = hwversion
+                b.fwversion = fwversion
+                b.ISOversion = ISOversion
+                b.status = status
                 blade = b
 
         except Exception as e:
@@ -664,6 +580,8 @@ class Router(Stack):
 
             # Begin the looping to gather all the information needed
             for count, line in enumerate(ver):
+                if re.match("^\\r$",line):
+                    continue
                 # locate Nexus Info
                 if self.nexus:
                     if "system:" in line:
@@ -687,7 +605,7 @@ class Router(Stack):
                     elif "uptime is" in line:
                         self.uptime = line
                     # get Model # info
-                    elif "processor" in line and "Cisco" in line:
+                    elif "processor" in line and "cisco" in line.lower():
                         self.modelnumber = line
 
             # process Serial Number
@@ -777,8 +695,7 @@ class Router(Stack):
             deltadic = self._create_time(line.split(","))
             # create a time object
             delta = None
-            delta = relativedelta(year=-deltadic["years"],
-                                  months=-deltadic["months"],
+            delta = relativedelta(months=-deltadic["months"],
                                   weeks=-deltadic["days"],
                                   hours=-deltadic["hours"],
                                   minutes=-deltadic["minutes"])
@@ -789,7 +706,7 @@ class Router(Stack):
         except Exception as e:
             logging.error(e, exc_info=True)
             _exception(e)
-            raise
+            pass
         else:
             return (delta, lastrestart)
 
@@ -934,7 +851,7 @@ class Router(Stack):
                     remoteport = re.sub("PortID(outgoingport):", "", line[1])
                     remoteport = self._get_interface_numbers(remoteport)
                     remoteport = remoteport.split("/")
-                    if len(localport) > 2:
+                    if len(remoteport) > 2:
                         remoteportnumber = remoteport[2]
                     else:
                         remoteportnumber = remoteport[1]
@@ -944,11 +861,12 @@ class Router(Stack):
                     i.rawdata = line[1]
                     n.remote_interface = i
                     if localportnumber != 'mgmt0':
-                        for blade in self.blades:  # assign the interface obj to the neighbor object
-                            if blade.stacknumber == int(localport[0]):
-                                localint = blade.interfaces[int(localportnumber)]
-                                n.interface = localint
-                                break
+                        for blade in self.blades:# assign the interface obj to the neighbor object
+                            if blade.interfaces:
+                                if blade.stacknumber == int(localport[0]):
+                                    localint = blade.interfaces[int(localportnumber)]
+                                    n.interface = localint
+                                    break
                 elif "VTP Management Domain:" in line or "VTP Management Domain Name:":
                     n.VTPDomain = re.sub("VTP Management Domain: ", "", line)
                     n.VTPDomain = re.sub(" ", "", n.VTPDomain)
@@ -979,6 +897,8 @@ class Router(Stack):
         """
         try:
             intstr = re.sub("FortyGigabitEthernet", "", intstr)
+            intstr = re.sub("TwentyFiveGigE", "", intstr)
+            intstr = re.sub("TwentyFiveGig", "", intstr)
             intstr = re.sub("TenGigabitEthernet", "", intstr)
             intstr = re.sub("TwoGigabitEthernet", "", intstr)
             intstr = re.sub("GigabitEthernet", "", intstr)
@@ -1077,7 +997,6 @@ class Router(Stack):
             raise
         else:
             return v
-
 
 class VRF():
     def __init__(self):

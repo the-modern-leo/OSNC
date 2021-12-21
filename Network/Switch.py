@@ -1775,6 +1775,10 @@ class Stack():
             hdeviceparts = linelist.split(',')
             stacknumber = None
             supervisor = None
+            hde = re.sub("\"","",hdeviceparts[0]).rstrip()
+            hde = re.sub(" ","",hde)
+            if hde.isnumeric():
+                stacknumber = hde
             if 'Slot' in hdeviceparts[0] and 'Linecard' in hdeviceparts[0]:
                 stacknumber = re.sub('Slot','',hdeviceparts[0])
                 stacknumber = re.sub('Linecard', '', stacknumber)
