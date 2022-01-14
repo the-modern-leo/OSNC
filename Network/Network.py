@@ -1,18 +1,23 @@
-
 ### Local Packages ###
-from Network.Switch import Stack
-from Network.Router import Router
+from Switch import Stack
+from Router import Router
 
 ### Package imports
 import re
 import logging
 import datetime
-from .settings import cisco
+from settings import cisco
 from datetime import datetime
 from collections import defaultdict
 import concurrent
 from concurrent.futures import ThreadPoolExecutor
 import logging
+import paramiko
+import socket
+from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
+import traceback
+from openpyxl import load_workbook
 
 def RepresentsInt(s):
     try:
@@ -1053,3 +1058,77 @@ class Network():
                 logging.error(e, exc_info=True)
             else:
                 pass
+
+    def check_ssh_connection_status_threaded(self,network_device_list):
+        """
+        This fucntion is used mainly to report the connection status to all the devices from the list provided,
+        and append the status of that ssh connection. Current Status includes authentication, and being returned a prompt
+
+        :param network_device_list (list[dict]):
+        :return:
+            (list[dict]): A dictionary of the same entries with the status key added to each
+        """
+        with concurrent.futures.ThreadPoolExecutor() as executer:
+            network_device_list_status = executer.map(self.check_ssh_connection_status_single,network_device_list)
+        final_network_device_list_status = []
+        for network_device in network_device_list_status:
+            final_network_device_list_status.append(network_device)
+        return final_network_device_list_status
+
+    def check_ssh_connection_status_single(self,network_dict):
+        """
+        For checking 1 device's status
+        :return:
+        """
+        global s
+        ip_address = network_dict["ip_address"]
+        try:
+            s = Stack(ip_address)
+            s.login(quick=True)
+            # s.logout()
+        except socket.gaierror as g:
+            network_dict["Status"] = "Failed"
+        except paramiko.ssh_exception.NoValidConnectionsError as v:
+            network_dict["Status"] = "Failed"
+        except paramiko.ssh_exception.AuthenticationException as a:
+            network_dict["Status"] = "Connected"
+        except socket.timeout as o:
+            network_dict["Status"] = "Failed"
+        except OSError as o:
+            if 'Connection timed out' in str(o):
+                network_dict["Status"] = "Failed"
+            elif '(TACACS user expired?)' in str(o):
+                network_dict["Status"] = "Connected"
+            else:
+                network_dict["Status"] = "Failed"
+        except EOFError as f:
+            network_dict["Status"] = "Connected"
+        except IOError as i:
+            if '(TACACS user expired?)' in str(i):
+                network_dict["Status"] = "Connected"
+            elif 'Connection timed out' in str(i):
+                network_dict["Status"] = "Failed"
+            else:
+                network_dict["Status"] = "Failed"
+        except Exception as e:
+            if 'Cisco prompt not reached' in str(e):
+                network_dict["Status"] = "Connected"
+            elif 'Negotiation failed.' in str(e):
+                network_dict["Status"] = "Connected"
+            elif 'Channel closed.' in str(e):
+                network_dict["Status"] = "Connected"
+            elif 'Error reading SSH protocol banner[Errno 9] Bad file descriptor' in str(e):
+                network_dict["Status"] = "Connected"
+            elif 'Unable to open channel.' in str(e):
+                network_dict["Status"] = "Connected"
+            else:
+                traceback.print_exc()
+                network_dict["Status"] = "Failed"
+        else:
+            network_dict["Status"] = "Connected"
+        finally:
+            try:
+                s.logout()
+            except Exception as e:
+                traceback.print_exc()
+        return network_dict
