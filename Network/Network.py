@@ -1,12 +1,19 @@
 ### Local Packages ###
-from Switch import Stack
-from Router import Router
+try: #packaged library code
+    from Network.Switch import Stack
+    from Network.Router import Router
+    from Network.settings import cisco
+except ModuleNotFoundError as m: #for running as local script
+    from Switch import Stack
+    from Router import Router
+    from settings import cisco
+
 
 ### Package imports
 import re
 import logging
 import datetime
-from settings import cisco
+import traceback
 from datetime import datetime
 from collections import defaultdict
 import concurrent
@@ -17,6 +24,7 @@ import socket
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 import traceback
+from netaddr import ip
 from openpyxl import load_workbook
 
 def RepresentsInt(s):
@@ -41,6 +49,7 @@ def remove_byte_strings(result):
 
 def _exception(e):
     logging.error(e,exc_info=True)
+    traceback.print_tb(e)
     raise
 
 class Network_Object:
@@ -553,41 +562,79 @@ class Node():
     """
 
     def __init__(self, r1_ipaddress=None, r2_ipaddress=None):
-        self.r1_ipaddress = r1_ipaddress
-        self.r2_ipaddress = r2_ipaddress
+        """
+
+        :param r1_ipaddress (str): a string type of one of the ip addresses of the pair of devices
+        :param r2_ipaddress (str): a string type of one of the ip addresses of the pair of devices
+        """
+        try:
+            self.r1_ipaddress = ip.IPAddress(r1_ipaddress)
+            self.r2_ipaddress = ip.IPAddress(r2_ipaddress)
+        except Exception as e:
+            raise ("Not a valid IP address")
+
         self.r1 = None
         self.r2 = None
+        self._r1 = None
+        self._r2 = None
         self.edgedevices = []
         self.touchingdevices = []
 
+    def __eq__(self, other):
+        if isinstance(other,Node):
+                return (self.r2.ip,self.r1.ip) == (other.r2.ip,other.r1.ip)
+        return False
+
     def assign_routers(self):
         """
+        Run this function after: GetNodeInfoForNodePair
         Takes the ip addresses from self.r1_ipaddress, self.r2_ipaddress and creates Router Objects for each than
         assigns them to self.R1, and self.R2
         Returns:
         """
         logging.info(f'Contacting Both Routers in Node, and Assigning attributes - Starting')
         try:
-            r1 = Router(self.r1_ipaddress)
-            r1.login()
-            r1.getSwitchInfo()
-            r1.assignattributes()
-            self.r1 = r1
-            r1.logout(r1.conn)
+            self.r1.assignattributes()
+            self._r1 = self.r1
 
-            r2 = Router(self.r2_ipaddress)
-            r2.login()
-            r2.getSwitchInfo()
-            r2.assignattributes()
-            self.r2 = r2
-            r2.logout(r2.conn)
+            self.r2.assignattributes()
+            self._r2 = self.r2
         except Exception as e:
             logging.info(f'Contacting Both Routers in Node, and Assigning attributes - Failed')
             logging.error(e, exc_info=True)
             _exception(e)
+            traceback.print_tb(e)
             raise
         else:
             logging.info(f'Contacting Both Routers in Node, and Assigning attributes - Success')
+
+    def GetNodeInfoForNodePair(self):
+        """
+        This function is for reaching out to the device over ssh, and collecting a batch of different information that
+        is assigned to internal variables, and external variables for use in other functions in this object. This
+        function also assigns the information to the router objects for the node.
+        :return: Nothing
+        """
+        try:
+            self.r1 = Router(str(self.r1_ipaddress))
+            self.r1.login()
+            self.r1.getSwitchInfo()
+            self.r1.logout()
+            self._r1 = self.r1
+        except Exception as e:
+            logging.error(e,exc_info=True)
+            raise("Error with Getting information from R1")
+
+        try:
+            self.r2 = Router(str(self.r2_ipaddress))
+            self.r2.login()
+            self.r2.getSwitchInfo()
+            self.r2.logout()
+            self._r2 = self.r2
+        except Exception as e:
+            logging.error(e, exc_info=True)
+            raise("Error with Getting information from R2")
+
 
     def get_all_vlans(self):
         """

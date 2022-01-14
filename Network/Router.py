@@ -1,19 +1,28 @@
 ### Local Package ###
-from Switch import Stack, Blade, Neighbor
-from Port import SFP, Interface,PortChannel
-from Vlan import vlan
+try:
+    from Network.Switch import Stack, Blade, Neighbor
+    from Network.Port import SFP, Interface,PortChannel
+    from Network.Vlan import vlan
+    from Network.settings import cisco
+except ModuleNotFoundError as m:
+    from Switch import Stack, Blade, Neighbor
+    from Port import SFP, Interface, PortChannel
+    from Vlan import vlan
+    from settings import cisco
 
 
 ### Global Packages ###
 import logging
 import re
+from traceback import print_tb
 from ipaddress import IPv4Network,ip_network,ip_address
-from dateutil import relativedelta
+from dateutil.relativedelta import relativedelta
 from datetime import datetime
 
 
 def _exception(e):
     logging.error(e,exc_info=True)
+    print_tb(e)
     raise
 
 def RepresentsInt(s):
@@ -35,6 +44,11 @@ class Router(Stack):
         self.network_objects = None
         self.network_object_wrong = False
         super(Router, self).__init__(*args, **kwargs)
+
+    def __eq__(self, other):
+        if isinstance(other,Router):
+                return (self.ip,self.hostname) == (other.ip,other.hostname)
+        return False
 
     def getSwitchInfo(self):
         """
@@ -638,6 +652,65 @@ class Router(Stack):
             raise
         else:
             return blade
+    def _sort_table_format(self,line,role_table,mac_address_table,model_and_serial_table):
+        """
+        For sorting the module results in table format seen mostly in cisco 9600
+        """
+
+        nline = line.split(" ")  # should only be rows of the table left by now
+        nline = [x for x in nline if x != ""]
+        if role_table:
+            mod = nline[0]
+            Redundancy_Role = nline[1]
+            OperatingRedundancyMode = nline[2]
+            ConfiguredRedundancyMode = nline[3]
+            if self.blades:
+                for blade in self.blades:
+                    if int(blade.stacknumber) == int(mod):
+                        blade.Redundancy_Role = Redundancy_Role
+                        blade.OperatingRedundancyMode = OperatingRedundancyMode
+                        blade.ConfiguredRedundancyMode = ConfiguredRedundancyMode
+        if mac_address_table:
+            mod = nline[0]
+            start_mac = nline[1]
+            to = nline[2]
+            end_mac = nline[3]
+            hw_version = nline[4]
+            firmware_version = nline[5]
+            software_version = nline[6]
+            status = nline[7]
+            self.version = software_version
+            if self.blades:
+                for blade in self.blades:
+                    if int(blade.stacknumber) == int(mod):
+                        blade.hwversion = hw_version
+                        blade.fwversion = firmware_version
+                        blade.status = status
+                        blade.softwareVersion = software_version
+        if model_and_serial_table:
+            mod = nline[0]
+            Ports = nline[1]
+            Card = nline[2]
+            Model = nline[len(nline) - 2]
+            Serial = nline[len(nline) - 1]
+
+            if self.blades:
+                for blade in self.blades:
+                    if int(blade.stacknumber) == int(mod):
+                        blade.serialnumber(Serial)
+                        blade.stacknumber = mod
+                        blade.portcount = Ports
+                        if Model in cisco.line_card_pids:
+                            blade.SUP = True
+                        blade.modelnumber = Model
+            else:
+                b = Blade(Serial)
+                b.stacknumber = mod
+                b.portcount = Ports
+                if Model in cisco.line_card_pids:
+                    b.SUP = True
+                b.modelnumber = Model
+                self.blades.add(b)
 
     def sortVersion(self, versionresult=''):
         """
@@ -662,9 +735,37 @@ class Router(Stack):
             ver = versionresult.split('\r\n')
 
             # Begin the looping to gather all the information needed
+            tablefortmat = False
+            mac_address_table = False
+            role_table = False
+            model_and_serial_table = False
             for count, line in enumerate(ver):
                 # locate Nexus Info
-                if self.nexus:
+                line.rstrip()
+                if line == "\r":
+                    continue
+                elif "Chassis Type:" in line:
+                    self.modelnumber = re.sub("Chassis Type: ","",line).rstrip()
+                elif tablefortmat: # grab, and assign information in table format
+                    if "------" in line:
+                        continue
+                    elif line == " ":
+                        continue
+                    elif "Chassis MAC address range:" in line:
+                        continue
+                    elif ("Mod" in line and "MAC addresses" in line and
+                          "Hw" in line and "Fw" in line and "Sw" in line and "Status"):
+                        mac_address_table = True
+                        continue
+                    elif ("Mod" in line and "Redundancy Role" in line and
+                          "Operating Redundancy Mode" in line and "Configured Redundancy Mode"):
+                        role_table = True
+                        continue
+                    self._sort_table_format(line,role_table,mac_address_table,model_and_serial_table)
+                elif ("Mod" in line and "Ports" in line and "Card Type" in line and "Model" in line and "Serial No."):
+                    model_and_serial_table = True
+                    tablefortmat = True
+                elif self.nexus:
                     if "system:" in line:
                         self.version = line
                     elif "Hardware" in line:
@@ -688,6 +789,12 @@ class Router(Stack):
                     # get Model # info
                     elif "processor" in line and "Cisco" in line:
                         self.modelnumber = line
+            if self.serial is None:
+                raise ValueError("Serial number not assigned")
+            if self.version is None:
+                raise ValueError("version number not assigned")
+            if self.modelnumber is None:
+                raise ValueError("modelnumber number not assigned")
 
             # process Serial Number
             self.serial = self._get_serial(self.serial)

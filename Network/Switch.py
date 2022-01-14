@@ -1,9 +1,16 @@
 ### Network Imports ###
-from Vlan import vlan
-from settings.cisco import Hardware as chw
-from settings import router as router_settings
-from Port import Interface, PortChannel, SFP
-from AccessList import Access_Lists, ACL, ACL_Entry
+try:
+    from Network.Vlan import vlan
+    from Network.settings.cisco import Hardware as chw
+    from Network.settings import router as router_settings
+    from Network.Port import Interface, PortChannel, SFP
+    from Network.AccessList import Access_Lists, ACL, ACL_Entry
+except ModuleNotFoundError as m:
+    from Vlan import vlan
+    from settings.cisco import Hardware as chw
+    from settings import router as router_settings
+    from Port import Interface, PortChannel, SFP
+    from AccessList import Access_Lists, ACL, ACL_Entry
 
 ### OSNC Application Imports ###
 from SSH.NetmikoConnection import connection
@@ -16,6 +23,7 @@ from Tacacs.Objects import TACACS
 import logging
 import os
 from pathlib import Path
+from traceback import print_tb
 import re
 from collections import namedtuple
 import ipaddress
@@ -43,6 +51,7 @@ logger.addHandler(fh)
 
 def _exception(e):
     logger.error(e,exc_info=True)
+    print_tb(e)
     raise
 
 class Neighbor():
@@ -56,9 +65,11 @@ class Neighbor():
         self.duplex = None
 
     def __eq__(self, other):
-        if not isinstance(other, Neighbor):
-            return NotImplemented
-        return self.deviceid == other.deviceid and self.ip == other.ip
+        if isinstance(other, Neighbor):
+            return self.deviceid == other.deviceid and self.ip == other.ip
+        if isinstance(other,Stack):
+            return (self.ip, self.deviceid) == (other.ip, other.hostname)
+        return NotImplemented
 
     def __hash__(self):
         return hash(self.deviceid)
@@ -410,9 +421,11 @@ class Stack():
         self.acl_result))
 
     def __eq__(self, other):
-        if not isinstance(other, type(self)):
-            return NotImplemented
-        return self.ip == other.ip
+        if isinstance(other, Neighbor):
+            return self.hostname == other.deviceid and self.ip == other.ip
+        if isinstance(other, Stack):
+            return (self.ip, self.hostname) == (other.ip, other.hostname)
+        return NotImplemented
 
     def check_for_errors_in_send_command(self,results):
         """
@@ -3570,6 +3583,10 @@ class Chassis(Stack):
 
 class Blade:
     def __init__(self,serialnumber):
+        self.softwareVersion = None
+        self.SupervisorRedundancyRole = None
+        self.OperatingRedundancyMode = None
+        self.ConfiguredRedundancyMode = None
         self.serialnumber = serialnumber
         self.modelnumber = ''
         self.ISOversion = ''
