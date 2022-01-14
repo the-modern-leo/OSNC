@@ -1,8 +1,7 @@
 ### Local Package ###
-from Network.Switch import Stack, Blade, Neighbor
-from Network.Port import SFP, Interface,PortChannel
-from Network.Network import Network_Object
-from Network.Vlan import vlan
+from Switch import Stack, Blade, Neighbor
+from Port import SFP, Interface,PortChannel
+from Vlan import vlan
 
 
 ### Global Packages ###

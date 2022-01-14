@@ -1,9 +1,9 @@
 ### Network Imports ###
-from Network.Vlan import vlan
-from Network.settings.cisco import Hardware as chw
-from Network.settings import router as router_settings
-from Network.Port import Interface, PortChannel, SFP
-from Network.AccessList import Access_Lists, ACL, ACL_Entry
+from Vlan import vlan
+from settings.cisco import Hardware as chw
+from settings import router as router_settings
+from Port import Interface, PortChannel, SFP
+from AccessList import Access_Lists, ACL, ACL_Entry
 
 ### OSNC Application Imports ###
 from SSH.NetmikoConnection import connection
@@ -3059,7 +3059,7 @@ class Stack():
         """
         try:
             self.conn = Pconn(self.ip)
-            self.conn.login()
+            self.conn.login(quick)
         except Exception as e:
             _exception(e)
         else:

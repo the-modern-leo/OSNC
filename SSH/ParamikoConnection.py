@@ -16,7 +16,16 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 logger.addHandler(ch)
 
+def close_socket(transport):
+    """
 
+    :param transport:
+    :return:
+    """
+    if transport:
+        sock = transport.sock
+        if sock:
+            sock.close()
 def _exception(e):
     logging.error(e)
     return
@@ -78,7 +87,8 @@ class Connection(object):
                 try:
                     self.client.connect(self.ip, username=self.username,
                                    password=self.password, look_for_keys=False,
-                                   allow_agent=True, timeout=(30 if quick else 240),auth_timeout=240,banner_timeout=240)
+                                   allow_agent=True, timeout=(30 if quick else 240),auth_timeout=240,
+                                        banner_timeout=240)
                     break  # successful
 
                 except socket.timeout:
@@ -93,6 +103,7 @@ class Connection(object):
                         time.sleep(2)
                     else:
                         logger.error('Password incorrect: ' + str(a))
+                        close_socket(self.client.get_transport())
                         raise IOError("Cannot log in to device (" + str(a) + ")")
                 # except paramiko.ssh_exception as g:
                 #     if "Illegal info request from server" in g:
@@ -104,29 +115,44 @@ class Connection(object):
                     logger.error(g, exc_info=True)
                     _exception(g)
                     raise
-
+                except EOFError as f: #Chipher issues, or algorithms to use for connection
+                    logger.error(f, exc_info=True)
+                    _exception(f)
+                    raise
                 except Exception as e:
                     logger.error(e, exc_info=True)
                     _exception(e)
                     raise
 
             if auth_retry >= 2:
+                close_socket(self.client.get_transport())
                 raise IOError(f"Cannot log in to device: {self.ip} (TACACS user expired?)")
 
             self.channel = self.client.invoke_shell(height=60, width=120)
             self.channel.settimeout((30 if quick else 240))
             header = self.channel.recv(4096)  # clear self.channel
             header = header.decode("utf-8")
+            timeout = 480
+            count = 0
             while ('#' not in header and '>' not in header and
                    not self.channel.recv_ready()):
+                count += 1
+                if count > timeout: # timeout for unknown prompts
+                    break
                 time.sleep(0.1)  # wait for login to be successful
+                if 'Duo two-factor login for' in header: #
+                    break
+                header += self.channel.recv(4096).decode("utf-8")
             if self.channel.recv_ready():
                 header = self.channel.recv(4096).decode("utf-8")
 
             if '#' not in header and '>' not in header:  # invalid prompt
                 time.sleep(2)  # prompt may have not loaded yet
                 header += self.channel.recv(4096).decode("utf-8")
+                if "Duo two-factor login for" in header:
+                    return
                 if '#' not in header and '>' not in header:
+
                     logger.info(header)
                     if self.channel is not None:
                         self.channel.close()
@@ -141,12 +167,8 @@ class Connection(object):
             raise
         except OSError as O:
             logger.error(O, exc_info=True)
-            if self.client is not None:
-                self.client.close()
             raise
         except Exception as e:
-            if self.client is not None:
-                self.client.close()
             logger.error(e, exc_info=True)
             _exception(e)
             raise
@@ -157,14 +179,19 @@ class Connection(object):
         Args:
             connection: Connection object to close.
         """
+        if self.channel is not None:
+            self.channel.send("exit\n")
+            self.channel.close()
+        if self.client is not None:
+            self.client.close()
+            transport = self.client.get_transport()
+            if transport:
+                sock = transport.sock
+                if sock:
+                    sock.close()
         if not self.conn:
             return
-        if self.conn.channel is not None:
-            self.conn.channel.send("exit\n")
-            self.conn.channel.close()
-        if self.conn.client is not None:
-            self.conn.client.close()
-
+        return
     def update_prompts(self,prompt):
         try:
             self.prompt = prompt + '#'
