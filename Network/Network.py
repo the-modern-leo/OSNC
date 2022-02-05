@@ -49,7 +49,6 @@ def remove_byte_strings(result):
 
 def _exception(e):
     logging.error(e,exc_info=True)
-    traceback.print_tb(e)
     raise
 
 class Network_Object:
@@ -635,7 +634,6 @@ class Node():
             logging.error(e, exc_info=True)
             raise("Error with Getting information from R2")
 
-
     def get_all_vlans(self):
         """
 
@@ -1076,7 +1074,36 @@ def interfaceupdatetask(ip):
 
 class Network():
     def __init__(self):
+        self.nodes = {}
         pass
+
+    def get_all_node_information(self,nodes):
+        """
+        Will ssh into the dictionary of router pairs, or nodes provided, and gather information from them.
+        :param nodes(dict{tuple}): a dict of tuples for nodes in the network
+        :return:
+        """
+        try:
+            for node_name,node in nodes.items():
+                if len(node) == 1:
+                    n = Node(r1_ipaddress=node[0])
+                else:
+                    n = Node(r1_ipaddress=node[0], r2_ipaddress=node[1])
+                n.GetNodeInfoForNodePair()
+                self.nodes["node_name"] = n
+        except Exception as e:
+            logging.error(e, exc_info=True)
+
+    def assign_all_node_information(self):
+        """
+        For assigning all the router attributes to the routers from the text information.
+        :return:
+        """
+        try:
+            for node in self.nodes:
+                node.
+        except Exception as e:
+            logging.error(e, exc_info=True)
 
     def Get_All_devices(self):
         for distnode in cisco.distrobution_layer_ip:
@@ -1105,6 +1132,13 @@ class Network():
                 logging.error(e, exc_info=True)
             else:
                 pass
+
+    def search_all_switch_configurations(self,searchterm):
+        """
+        This will look for the configuration lines in all the configurations of the switches in the network.
+        :param searchterm (str): a block of text that you want to look for in the configuration.
+        :return:
+        """
 
     def check_ssh_connection_status_threaded(self,network_device_list):
         """
@@ -1169,7 +1203,6 @@ class Network():
             elif 'Unable to open channel.' in str(e):
                 network_dict["Status"] = "Connected"
             else:
-                traceback.print_exc()
                 network_dict["Status"] = "Failed"
         else:
             network_dict["Status"] = "Connected"
@@ -1177,5 +1210,14 @@ class Network():
             try:
                 s.logout()
             except Exception as e:
-                traceback.print_exc()
+                pass
         return network_dict
+
+    def batch_update_interface_labels(self):
+        """
+        for updating interfaces descriptions with adjaceny information
+        :return:
+        """
+
+
+

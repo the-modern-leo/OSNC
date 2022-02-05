@@ -55,7 +55,7 @@ def mocked_creation_SSH_paramiko_channel(*args, **kwargs):
     return MockResponse_ssh_paramiko_channel
 class TestSwitchCommands(unittest.TestCase):
     """
-    This is for Testing compatibility of Stack Devices accross multiple platforms
+    This is for Testing compatibility of Stack Devices across multiple platforms
     """
     def test_Catalyst_2960(self):
         """
@@ -2501,8 +2501,7 @@ class TestSwitchCommands(unittest.TestCase):
         # self.assertEqual(s.should_overwrite_logging, )
         # self.assertEqual(s.mgmt_vlan, )
 
-
-class TestSwitchObject(unittest.TestCase):
+class TestStackObject(unittest.TestCase):
     # @patch('paramiko.SSHClient.connect', side_effect=mocked_creation_SSH_paramiko)
     @patch('paramiko.channel.Channel.recv', side_effect=mocked_creation_SSH_paramiko_channel)
     def test_read_to_write_config(self,test_send):
@@ -2527,6 +2526,9 @@ class TestSwitchObject(unittest.TestCase):
         for s in switches_info:
             switch = Stack(s.ip_address)
             switch.login()
+
+    def test_allinterfaces(self):
+
 
 class assign_attributes():
     def WS_C3560CX_8PC_S(self):
@@ -4041,7 +4043,6 @@ end"""
         self.assertEqual(str(s.tacacs[0].server), '172.31.17.180')
         self.assertIsInstance(s.tacacs[1].server, IPv4Address)
         self.assertEqual(str(s.tacacs[1].server), '10.64.32.5')
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -8,12 +8,11 @@ import re
 command_fails = ['nvalid command at','% Incomplete command.','FAILED:']
 # global helper functions
 
-
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+ch.setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 def close_socket(transport):
@@ -90,13 +89,6 @@ class Connection(object):
                                    allow_agent=True, timeout=(30 if quick else 240),auth_timeout=240,
                                         banner_timeout=240)
                     break  # successful
-
-                except socket.timeout:
-                    raise IOError("Connection timed out")
-                except paramiko.ssh_exception.NoValidConnectionsError as N:
-                    logger.error("username not exists")
-                    logger.error(N, exc_info=True)
-                    raise
                 except paramiko.ssh_exception.AuthenticationException as a:
                     if auth_retry < 2:
                         auth_retry += 1
@@ -105,24 +97,6 @@ class Connection(object):
                         logger.error('Password incorrect: ' + str(a))
                         close_socket(self.client.get_transport())
                         raise IOError("Cannot log in to device (" + str(a) + ")")
-                # except paramiko.ssh_exception as g:
-                #     if "Illegal info request from server" in g:
-                #         raise ConnectionError(
-                #             f"Cannot log into device {self.ip} You might need to change your password\r\n"
-                #             f"{g}")
-                except socket.gaierror as g:
-                    logger.info(f'Router Value was not found on network: {self.ip}')
-                    logger.error(g, exc_info=True)
-                    _exception(g)
-                    raise
-                except EOFError as f: #Chipher issues, or algorithms to use for connection
-                    logger.error(f, exc_info=True)
-                    _exception(f)
-                    raise
-                except Exception as e:
-                    logger.error(e, exc_info=True)
-                    _exception(e)
-                    raise
 
             if auth_retry >= 2:
                 close_socket(self.client.get_transport())
@@ -163,15 +137,40 @@ class Connection(object):
             prompt = header.splitlines()[-1].strip()
             self.prompt = prompt
             self.update_prompts(self.prompt)
-        except paramiko.ssh_exception.NoValidConnectionsError as N:
+        except socket.gaierror as g:
+            raise (f'device ip was not found on network: {self.ip}')
+        except paramiko.ssh_exception.NoValidConnectionsError as v:
             raise
-        except OSError as O:
-            logger.error(O, exc_info=True)
+        except paramiko.ssh_exception.AuthenticationException as a:
             raise
+        except socket.timeout as o:
+            raise
+        except OSError as o:
+            if 'Connection timed out' in str(o):
+                raise (f"Unable to connect to Device: Connection timed out. You sure you can ssh into this device?")
+            else:
+                raise
+        except EOFError as f:
+            error = str(f)
+            raise (f"Problem With SSH Ciphers, are you using outdated Ciphers?")
+        except IOError as i:
+            if 'Connection timed out' in str(i):
+                raise
+            else:
+                raise
         except Exception as e:
             logger.error(e, exc_info=True)
-            _exception(e)
-            raise
+            if 'Negotiation failed.' in str(e):
+                raise
+            elif 'Channel closed.' in str(e):
+                raise
+            elif 'Error reading SSH protocol banner[Errno 9] Bad file descriptor' in str(e):
+                raise
+            elif 'Unable to open channel.' in str(e):
+                raise
+            else:
+                _exception(e)
+
 
     def logout(self):
         """Log out of a router and clean up (close channel and socket).

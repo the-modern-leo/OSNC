@@ -14,7 +14,6 @@ except ModuleNotFoundError as m:
 ### Global Packages ###
 import logging
 import re
-from traceback import print_tb
 from ipaddress import IPv4Network,ip_network,ip_address
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
@@ -22,7 +21,6 @@ from datetime import datetime
 
 def _exception(e):
     logging.error(e,exc_info=True)
-    print_tb(e)
     raise
 
 def RepresentsInt(s):

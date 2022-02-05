@@ -23,7 +23,6 @@ from Tacacs.Objects import TACACS
 import logging
 import os
 from pathlib import Path
-from traceback import print_tb
 import re
 from collections import namedtuple
 import ipaddress
@@ -51,7 +50,6 @@ logger.addHandler(fh)
 
 def _exception(e):
     logger.error(e,exc_info=True)
-    print_tb(e)
     raise
 
 class Neighbor():
@@ -3577,6 +3575,20 @@ class Stack():
                 continue
             vlans.append(vlan)
         self.vlans = vlans
+
+    def label_cdp_neighbor_interfaces(self):
+        """
+        This function will take the information of the actively connected neighbor at this time,
+        and add their information to the interface description
+        :return:
+        """
+        try:
+            pass
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            _exception(e)
+            raise
+
 
 class Chassis(Stack):
     pass
