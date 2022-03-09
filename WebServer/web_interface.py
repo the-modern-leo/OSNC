@@ -1,6 +1,7 @@
 ### local imports ###
 from Frontend.Base import BaseHandler
 from Frontend.Survey import Survey_handler
+from Frontend.Hardware import LifeCycle_handler
 from Frontend import uimodules
 
 ### global imports ###
@@ -23,6 +24,7 @@ handlers.extend([
         (r"/", BaseHandler.MainHandler),
     ])
 handlers.extend(Survey_handler.handlers)
+handlers.extend(LifeCycle_handler.handlers)
 
 settings = {
     "ui_modules": uimodules,
