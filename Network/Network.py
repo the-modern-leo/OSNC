@@ -1101,7 +1101,7 @@ class Network():
         """
         try:
             for node in self.nodes:
-                node.
+                pass
         except Exception as e:
             logging.error(e, exc_info=True)
 
@@ -1180,10 +1180,15 @@ class Network():
                 network_dict["Status"] = "Failed"
             elif '(TACACS user expired?)' in str(o):
                 network_dict["Status"] = "Connected"
+            elif "Unable to connect to Device: Connection timed out. You sure you can ssh into this device?" in str(o):
+                network_dict["Status"] = "Connected"
             else:
                 network_dict["Status"] = "Failed"
         except EOFError as f:
-            network_dict["Status"] = "Connected"
+            if "Problem With SSH Ciphers, are you using outdated Ciphers?" in str(f):
+                network_dict["Status"] = "Connected"
+            else:
+                network_dict["Status"] = "Failed"
         except IOError as i:
             if '(TACACS user expired?)' in str(i):
                 network_dict["Status"] = "Connected"

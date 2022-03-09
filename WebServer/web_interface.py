@@ -3,9 +3,12 @@ import tornado.web
 from tornado.web import Application
 from tornado.template import Loader
 import logging
+from logging import INFO
 import os
 from WebServer.API.Survey import survey_handler
 from WebServer.API.Base import BaseHandler
+
+
 
 handlers = []
 handlers.extend(survey_handler.handlers)
@@ -17,7 +20,6 @@ class MultiTemplateLoader(Loader):
     """Custom template loader that manages multiple template directories.
     """
     def _create_template(self, name):
-
         return super(MultiTemplateLoader, self)._create_template(name)
 
 def make_app():

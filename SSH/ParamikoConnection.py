@@ -147,17 +147,21 @@ class Connection(object):
             raise
         except OSError as o:
             if 'Connection timed out' in str(o):
-                raise (f"Unable to connect to Device: Connection timed out. You sure you can ssh into this device?")
+                raise OSError(f"Unable to connect to Device: Connection timed out. You sure you can ssh into this device?")
             else:
                 raise
         except EOFError as f:
             error = str(f)
-            raise (f"Problem With SSH Ciphers, are you using outdated Ciphers?")
+            raise EOFError(f"Problem With SSH Ciphers, are you using outdated Ciphers?")
+
         except IOError as i:
             if 'Connection timed out' in str(i):
                 raise
             else:
                 raise
+        # except paramiko.ssh_exception as ssh:
+        #     if 'Negotiation failed.' in str(ssh):
+        #         raise
         except Exception as e:
             logger.error(e, exc_info=True)
             if 'Negotiation failed.' in str(e):

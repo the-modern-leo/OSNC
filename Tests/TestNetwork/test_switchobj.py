@@ -2527,8 +2527,6 @@ class TestStackObject(unittest.TestCase):
             switch = Stack(s.ip_address)
             switch.login()
 
-    def test_allinterfaces(self):
-
 
 class assign_attributes():
     def WS_C3560CX_8PC_S(self):

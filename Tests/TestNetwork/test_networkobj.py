@@ -44,7 +44,7 @@ class NetworkObject(unittest.TestCase):
             network_device["device_name"] = row[0].value
             network_device["system_name"] = row[1].value
             network_device["ip_address"] = row[2].value
-            network_device["status"] = row[7].value
+            network_device["Status"] = row[7].value
             network_device["row_obj"] = row
             network_device_list.append(network_device)
         n = Network()
