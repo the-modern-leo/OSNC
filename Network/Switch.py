@@ -3196,34 +3196,35 @@ class Stack():
             portinfo (List): A list of 2 long or 3 long
         """
         try:
-            Inter = None
             if len(portinfo) == 2:
                 for blade in self.blades:
                     if int(portinfo[0]) == 0:
                         if blade.stacknumber == 1:
                             for portnumber, interface in blade.interfaces.items():
-                                if portinfo[1] == portnumber:
-                                    Inter = interface
+                                if int(portinfo[1]) == int(interface.portnumber):
+                                    return interface
                     elif int(portinfo[0]) == blade.stacknumber:
                         for portnumber, interface in blade.interfaces.items():
-                            if portinfo[1] == portnumber:
-                                Inter = interface
+                            if int(portinfo[1]) == int(interface.portnumber):
+                                return interface
 
             elif len(portinfo) == 3:
                 for blade in self.blades:
                     if int(portinfo[1]) != 0:
-                        pass
+                        for portnumber, interface in blade.moduleinterfaces.items():
+                            if int(portinfo[2]) == int(interface.portnumber):
+                                return interface
                     elif int(portinfo[0]) == blade.stacknumber:
                         for portnumber, interface in blade.interfaces.items():
-                            if int(portinfo[2]) == portnumber:
-                                Inter = interface
+                            if int(portinfo[2]) == int(interface.portnumber):
+                                return interface
         except Exception as e:
             logger.error(e, exc_info=True)
             print(e)
             _exception(e)
             raise
         else:
-            return Inter
+            pass
 
     def _get_interface_numbers(self, intstr):
         """
@@ -3583,7 +3584,46 @@ class Stack():
         :return:
         """
         try:
-            pass
+            interface_list = []
+            for neighbor in self.cdpneighbors:
+                interface_tuple = {"Ip address":str(self.ip),"Interface":None,"Status":None,"Error Message":None,"config":None}
+                if neighbor.interface == None:
+                    interface_tuple["Error Message"] = "Missing Interface"
+                    interface_tuple["Status"] = "Failed"
+                    continue
+                elif not hasattr(neighbor, "deviceid"):
+                    interface_tuple["Error Message"] = "Missing remote Hostname"
+                    interface_tuple["Status"] = "Failed"
+                    continue
+                elif not hasattr(neighbor, "remote_interface"):
+                    interface_tuple["Error Message"] = "Missing remote interface"
+                    interface_tuple["Status"] = "Failed"
+                    continue
+                elif not hasattr(neighbor, "interface"):
+                    interface_tuple["Error Message"] = "Missing Interface"
+                    interface_tuple["Status"] = "Failed"
+                    continue
+                else:
+                    interface_tuple["Interface"] = neighbor.interface
+                    interface_menu = f"int {neighbor.interface.shortname()}"
+                    if "ap" in neighbor.deviceid.lower():
+                        neighbor.interface.description = f"Wireless:{neighbor.deviceid}:{neighbor.remote_interface}<->{neighbor.interface.shortname()}:{self.hostname}"
+                    elif "sx-" in neighbor.deviceid.lower() or "dx-" in neighbor.deviceid.lower():
+                        neighbor.interface.description = f"key:{neighbor.deviceid}:{neighbor.remote_interface}<->{neighbor.interface.shortname()}:{self.hostname}"
+                    elif "r1-" in neighbor.deviceid.lower() or "r2-" in neighbor.deviceid.lower():
+                        if "r1-" in self.hostname or "r2-" in self.hostname.lower():
+                            neighbor.interface.description = f"peerlink:{neighbor.deviceid}:{neighbor.remote_interface}<->{neighbor.interface.shortname()}:{self.hostname}"
+                        else:
+                            neighbor.interface.description = f"key:{neighbor.deviceid}:{neighbor.remote_interface}<->{neighbor.interface.shortname()}:{self.hostname}"
+                    else:
+                        interface_tuple["Error Message"] = f"No filtering for: {neighbor.deviceid.lower()}"
+                        interface_tuple["Status"] = "Skipped"
+                        continue
+                    if interface_menu and neighbor.interface.description:
+                        interface_tuple["config"] = [interface_menu,neighbor.interface.description]
+                        interface_tuple["Status"] = "Generated Descripton"
+                interface_list.append(interface_tuple)
+            return interface_list
         except Exception as e:
             logger.error(e, exc_info=True)
             _exception(e)
