@@ -17,8 +17,6 @@ responses
 setuptools
 tetpyclient
 xlrd
-yelpapi
-coverage
 future
 xmltodict
 pyopenssl
@@ -29,3 +27,4 @@ openpyxl
 cython
 cryptography
 tornado
+PyMySQL
