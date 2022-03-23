@@ -396,10 +396,10 @@ class Stack():
         self.old_orion_ips_71 = False
         self.new_orion_ips_71 = False
         self.remove_acl = []
-        date_name = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        stack_fh = logging.FileHandler(f"{logging_file_name}/{ip}_{date_name}.log", mode="a+")
-        stack_fh.setLevel(logging.DEBUG)
-        logger.addHandler(stack_fh)
+        # date_name = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        # stack_fh = logging.FileHandler(f"{logging_file_name}/{ip}_{date_name}.log", mode="a+")
+        # stack_fh.setLevel(logging.DEBUG)
+        # logger.addHandler(stack_fh)
 
     def __repr__(self):
         return str(self.ip)
@@ -3168,7 +3168,9 @@ class Stack():
                     remoteport = re.sub("PortID", "", remoteport)
                     remoteport = re.sub('\(outgoingport\)', "", remoteport)
                     remoteport = re.sub("PortID:", "", remoteport)
-                    n.remote_interface = remoteport
+                    i = Interface()
+                    i.fullname = remoteport
+                    n.remote_interface = i
                 elif "VTP Management Domain:" in line:
                     n.VTPDomain = re.sub("VTP Management Domain: ", "", line)
                     n.VTPDomain = re.sub(" ", "", n.VTPDomain)
@@ -3427,6 +3429,7 @@ class Stack():
     def _remove_domain_name(self,name):
         name = re.sub('.net.utah.edu','',name)
         name = re.sub('.med.utah.edu', '', name)
+        name = re.sub('\([A-Za-z]{0,10}[\d]{0,10}[A-Za-z]{0,10}[\d]{0,10}[A-Za-z]{0,10}\)', '', name)
         return name
 
     def get_hostname(self):
@@ -3485,6 +3488,7 @@ class Stack():
             logger.error(e, exc_info=True)
         else:
             return total_used_power, power_supplies
+
     def check_hostname(self):
         """
         Checks the device hostname against our naming standards
@@ -3533,9 +3537,6 @@ class Stack():
                               f"{room if room else self.roomnumber}-" \
                               f"{Rack if Rack else self.racknumber}-" \
                               f"{distro_node if distro_node else self.distrobution_node}"
-
-
-
         except Exception as e:
             logger.error(e, exc_info=True)
             _exception(e)
@@ -3586,49 +3587,90 @@ class Stack():
         try:
             interface_list = []
             for neighbor in self.cdpneighbors:
-                interface_tuple = {"Ip address":str(self.ip),"Interface":None,"Status":None,"Error Message":None,"config":None}
+                interface_tuple = {"Ip address":str(self.ip), "Hostname":str(self.hostname),"Interface":None,"Status":None,"Error Message":None,"config":None}
                 if neighbor.interface == None:
                     interface_tuple["Error Message"] = "Missing Interface"
                     interface_tuple["Status"] = "Failed"
+                    interface_list.append(interface_tuple)
                     continue
                 elif not hasattr(neighbor, "deviceid"):
                     interface_tuple["Error Message"] = "Missing remote Hostname"
                     interface_tuple["Status"] = "Failed"
+                    interface_list.append(interface_tuple)
                     continue
                 elif not hasattr(neighbor, "remote_interface"):
                     interface_tuple["Error Message"] = "Missing remote interface"
                     interface_tuple["Status"] = "Failed"
+                    interface_list.append(interface_tuple)
                     continue
                 elif not hasattr(neighbor, "interface"):
                     interface_tuple["Error Message"] = "Missing Interface"
                     interface_tuple["Status"] = "Failed"
+                    interface_list.append(interface_tuple)
                     continue
                 else:
                     interface_tuple["Interface"] = neighbor.interface
-                    interface_menu = f"int {neighbor.interface.shortname()}"
-                    if "ap" in neighbor.deviceid.lower():
-                        neighbor.interface.description = f"Wireless:{neighbor.deviceid}:{neighbor.remote_interface}<->{neighbor.interface.shortname()}:{self.hostname}"
-                    elif "sx-" in neighbor.deviceid.lower() or "dx-" in neighbor.deviceid.lower():
-                        neighbor.interface.description = f"key:{neighbor.deviceid}:{neighbor.remote_interface}<->{neighbor.interface.shortname()}:{self.hostname}"
-                    elif "r1-" in neighbor.deviceid.lower() or "r2-" in neighbor.deviceid.lower():
-                        if "r1-" in self.hostname or "r2-" in self.hostname.lower():
-                            neighbor.interface.description = f"peerlink:{neighbor.deviceid}:{neighbor.remote_interface}<->{neighbor.interface.shortname()}:{self.hostname}"
+                    interface_menu = f"int {self._remove_domain_name(neighbor.interface.shortname())}"
+                    description = f"{self._remove_domain_name(neighbor.deviceid)}:{neighbor.remote_interface.shortname()}<->{neighbor.interface.shortname()}:{self._remove_domain_name(self.hostname)}"
+                    if ("scx1-" in self.hostname.lower() or
+                            "dcx2-" in self.hostname.lower() or
+                            "dcx1-" in self.hostname.lower() or
+                            "dcx3-" in self.hostname.lower() or
+                            "scx2-" in self.hostname.lower() or
+                            "scx3-" in self.hostname.lower()):
+                        no_key_abv = ["wr-","scx1-","wlc","r1-","dcx","r2-","dcx2-","dcx1-","scx2-","scx3-","cr-",
+                                      "fbr-","ibr-"]
+                        description = f"{self._remove_domain_name(neighbor.deviceid)}:{neighbor.remote_interface.shortname()}"
+                        if any([True for k in no_key_abv if k in neighbor.deviceid.lower()]):
+                            neighbor.interface.description = f"{description}"
+                        elif "mgmt" in neighbor.interface.fullname:
+                            f"mgmt:{description}"
                         else:
-                            neighbor.interface.description = f"key:{neighbor.deviceid}:{neighbor.remote_interface}<->{neighbor.interface.shortname()}:{self.hostname}"
-                    else:
-                        interface_tuple["Error Message"] = f"No filtering for: {neighbor.deviceid.lower()}"
-                        interface_tuple["Status"] = "Skipped"
-                        continue
-                    if interface_menu and neighbor.interface.description:
-                        interface_tuple["config"] = [interface_menu,neighbor.interface.description]
-                        interface_tuple["Status"] = "Generated Descripton"
+                            interface_tuple["Error Message"] = f"No filtering for: {neighbor.deviceid.lower()}"
+                            interface_tuple["Status"] = "Skipped"
+                            interface_list.append(interface_tuple)
+                            continue
+                    elif "r1-" in self.hostname.lower() or "r2-" in self.hostname.lower():
+                        key_abv = ["wr-", "scx1-", "wlc", "dcx", "dcx2-", "dcx1-", "scx2-", "scx3-","cr-",
+                                    "fbr-", "ibr-"]
+
+                        if "r1-" in neighbor.deviceid.lower() or "r2-" in neighbor.deviceid.lower():
+                            neighbor.interface.description = f"peerlink:{description}"
+                        elif any([True for k in key_abv if k in neighbor.deviceid.lower()]):
+                            neighbor.interface.description = f"key:{description}"
+                        elif "fw" in neighbor.deviceid.lower():
+                            neighbor.interface.description = f"{self._remove_domain_name(neighbor.deviceid)}:{neighbor.remote_interface.shortname()}"
+                        else:
+                            interface_tuple["Error Message"] = f"No filtering for: {neighbor.deviceid.lower()}"
+                            interface_tuple["Status"] = "Skipped"
+                            interface_list.append(interface_tuple)
+                            continue
+                    elif ("sx1-" in self.hostname.lower() or
+                          "dx2-" in self.hostname.lower() or
+                          "dx1-" in self.hostname.lower() or
+                          "dx3-" in self.hostname.lower() or
+                          "sx2-" in self.hostname.lower() or
+                          "sx3-" in self.hostname.lower()):
+                        key_abv = ["sx1-","dx2-","dx1-","sx2-","sx3-","scx1-", "dcx", "dcx2-", "dcx1-", "scx2-",
+                                   "scx3-", "r1-","r2-"]
+                        if "ap" in self._remove_domain_name(neighbor.deviceid).lower():
+                            neighbor.interface.description = f"wireless:{description}"
+                        elif any([True for k in key_abv if k in neighbor.deviceid.lower()]):
+                            neighbor.interface.description = f"key:{description}"
+                        else:
+                            interface_tuple["Error Message"] = f"No filtering for: {neighbor.deviceid.lower()}"
+                            interface_tuple["Status"] = "Skipped"
+                            interface_list.append(interface_tuple)
+                            continue
+                if interface_menu and neighbor.interface.description:
+                    interface_tuple["config"] = [interface_menu,neighbor.interface.description]
+                    interface_tuple["Status"] = "Generated Descripton"
                 interface_list.append(interface_tuple)
             return interface_list
         except Exception as e:
             logger.error(e, exc_info=True)
             _exception(e)
             raise
-
 
 class Chassis(Stack):
     pass
