@@ -10,6 +10,11 @@ Support is only on Mac, Linux.
 Future improvements will be running the service as a single docker container for support on all platforms. 
 Possible improvements will also see the application 
 
-Downloading code: 
+Install:
 pip install onsc
 
+Intended Consumable Packages are located under the Network Package:
+
+from Network.Switch import Stack
+from Network.Vlan import vlan
+from Network.Port import Interface
