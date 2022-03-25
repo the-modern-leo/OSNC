@@ -13,3 +13,4 @@ auth.py
 *.xlsx
 *.bin
 *.yml
+venv
