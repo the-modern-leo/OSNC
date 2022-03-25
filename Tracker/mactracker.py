@@ -4,6 +4,7 @@ from builtins import object
 import re, traceback, threading, time, logging, copy
 import sys
 from collections import namedtuple
+import netaddr as na
 
 MacLocation = namedtuple('MacLocation', ['switchname', 'switchip', 'port',
         'message', 'simple_config', 'config', 'current_ip'])
@@ -47,7 +48,7 @@ class MacFinder(object):
     def parse_mac(self, mac):
         """
         Takes in a mac address and converts it to Cisco Style formatting.
-        Throws a SyntaxError if the mac is not 12 characters without formatting.
+        Throws a Error if the mac is not 12 characters without formatting.
 
         Args:
             mac (str): The MAC address to format.
@@ -55,15 +56,9 @@ class MacFinder(object):
         Returns:
             str: mac formatted Cisco style.
         """
-        mac = mac.lower()
-        # Strips everything but the hexadecimal characters.
-        if mac == "no associated mac":
-            raise SyntaxError("No associated MAC address found")
-        mac = ''.join(char for char in mac if char in 'abcdef0123456789')
-        if len(mac) != 12:
-            raise SyntaxError('MAC Address needs to be 12 characters')
-        # Places periods between every 4 characters.
-        mac = '.'.join(mac[i:i+4] for i in range(0, len(mac), 4))
+        mac = na.EUI(mac)
+        mac.dialect = na.mac_cisco
+        
         return mac
 
     def search_switch(self, mac, switch, device_ip, keep_connection=None):

@@ -8,9 +8,8 @@ import paramiko
 import logging
 import auth
 from logging import FileHandler, Formatter
-from Network.Network import Switch
-from Network import Switch.settings as nwsettings
-import Switch.settings
+from Network.Switch import Stack
+from Network.settings import cisco as csettings
 import os
 from datetime import datetime
 import json

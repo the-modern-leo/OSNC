@@ -1,11 +1,23 @@
+### Local Packages ###
+from Switch import Stack
+from Router import Router
+
+### Package imports
 import re
 import logging
 import datetime
-from .settings import cisco
+from settings import cisco
 from datetime import datetime
 from collections import defaultdict
 import concurrent
 from concurrent.futures import ThreadPoolExecutor
+import logging
+import paramiko
+import socket
+from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
+import traceback
+from openpyxl import load_workbook
 
 def RepresentsInt(s):
     try:
@@ -28,7 +40,7 @@ def remove_byte_strings(result):
     return '\r\n'.join(new_result)
 
 def _exception(e):
-    logger.error(e,exc_info=True)
+    logging.error(e,exc_info=True)
     raise
 
 class Network_Object:
@@ -58,7 +70,7 @@ class Building:
 
         """
         try:
-            s = Switch(str(ipad))
+            s = Stack(str(ipad))
             s.login()
             s.getSwitchInfo()
             s.assignattributes()
@@ -79,10 +91,10 @@ class Building:
             for switch in self.switches:
                 for neigbhor in switch.cdpneighbors:
                     if 'dx1' in neigbhor.deviceid.lower():
-                        s = Switch(str(neigbhor.ip))
+                        s = Stack(str(neigbhor.ip))
                         dx1 = s
                     if 'dx2' in neigbhor.deviceid.lower():
-                        s = Switch(str(neigbhor.ip))
+                        s = Stack(str(neigbhor.ip))
                         dx2 = s
 
             if not dx1 and not dx2:
@@ -90,7 +102,7 @@ class Building:
                 for switch in self.switches:
                     for neigbhor in switch.cdpneighbors:
                         if 'sx' in neigbhor.deviceid.lower():
-                            s = Switch(str(neigbhor.ip))
+                            s = Stack(str(neigbhor.ip))
                             s.getSwitchInfo()
                             s.assignattributes()
                             switches.add(s)
@@ -190,7 +202,7 @@ class Building:
             final_ipaddresses = set().union(ipaddresses, ipaddresses_2, ipaddresses_3)
 
             for ipad in final_ipaddresses:
-                self.switches.append(Switch(str(ipad)))
+                self.switches.append(Stack(str(ipad)))
 
             self.switches = []
             with ThreadPoolExecutor(max_workers=20) as executor:
@@ -226,16 +238,15 @@ class Building:
         assert isinstance(ipaddress, str), f"ipaddress must be str, but got {type(ipaddress)}"
         assert isinstance(hostname, str), f"hostname must be str, but got {type(hostname)}"
         if remote == '' or local == '' or ipaddress == '' or hostname == '':
-            _exception(e)
             raise ValueError
-        logger.info(f'Correcting {remote} on {ipaddress} - Starting')
+        logging.info(f'Correcting {remote} on {ipaddress} - Starting')
         try:
             pass
             # # c = SwitchAccess(Switch_access.username, Switch_access.password)
             # # c = c.login(ipaddress)
             # # result = c.send_command(f'show run Interface {remote}')
             # # full_result = result
-            # # logger.debug(result)
+            # # logging.debug(result)
             #
             # if remote in result:
             #     result = result.split('\r\n')
@@ -264,10 +275,10 @@ class Building:
             #             # Tests the description currently on the demark uplink interface
             #
             #             if descriptionchallenge == description:
-            #                 logger.info(f'Description:{description} on {remote} - Correct')
+            #                 logging.info(f'Description:{description} on {remote} - Correct')
             #                 metrics_logger.info(f'Device:{ipaddress} Description:{description} on {remote} - Correct')
             #             else:
-            #                 logger.info(f'Description:{description} on {remote} - Incorrect')
+            #                 logging.info(f'Description:{description} on {remote} - Incorrect')
             #                 metrics_logger.info(f'Device:{ipaddress} Description:{description} on {remote} - Incorrect')
             #                 newdescrip = f'description {descriptionchallenge}'
             #                 corret = False
@@ -278,7 +289,7 @@ class Building:
             #
             #     # handle for missing Description line
             #     if 'description' not in full_result:
-            #         logger.info(f'Description on {remote} - missing')
+            #         logging.info(f'Description on {remote} - missing')
             #         metrics_logger.info(f'Device:{ipaddress} Description on {remote} - missing')
             #         corret = False
             #         newdescrip = f'description {descriptionchallenge}'
@@ -290,13 +301,13 @@ class Building:
             #     if not corret:
             #         for command in response:
             #             result = c.send_command(command)
-            #             logger.debug(f'response from device: {result}')
+            #             logging.debug(f'response from device: {result}')
 
         except Exception as e:
-            logger.info(f'Correcting {remote} on {ipaddress} - Failed')
-            logger.error(e, exc_info=True)
+            logging.info(f'Correcting {remote} on {ipaddress} - Failed')
+            logging.error(e, exc_info=True)
         else:
-            logger.info(f'Correcting {remote} on {ipaddress} - Success')
+            logging.info(f'Correcting {remote} on {ipaddress} - Success')
 
     def correctlinkinterfaces(self):
         """
@@ -305,21 +316,21 @@ class Building:
         on the demark leading to the routers, and the interface descriptions leading to the Switches_syntax_compatability. It repeats this
         one last time with the remaining switches altering their interface descriptions.
         """
-        logger.info(f'Correcting Interfaces to Network Devices - Starting')
+        logging.info(f'Correcting Interfaces to Network Devices - Starting')
         # TODO Handle for remote sites that start with routers instead of DX
-        # TODO Handle for Switch hanging off other switches
+        # TODO Handle for Stack hanging off other switches
         try:
             # perform description update on dx2
             if self.dx2:
                 # perform description update on R devices
                 for switch in self.dx2.cdpneighbors:
                     if 'r1' in switch.hostname or 'r2' in switch.hostname:
-                        logger.debug(f'testing interfaces on {switch.hostname}')
+                        logging.debug(f'testing interfaces on {switch.hostname}')
                         self.changedescription(switch.link["remote"], switch.link["local"],
                                                switch.ip, hostname=self.dx2.hostname)
 
                 # perform description update on dx2
-                logger.debug(f'testing interfaces on {self.dx2.hostname}')
+                logging.debug(f'testing interfaces on {self.dx2.hostname}')
                 for switch in self.dx2.cdpneighbors:
                     self.changedescription(switch.link["local"], switch.link["remote"], self.dx2.ip,
                                            hostname=switch.hostname)
@@ -327,7 +338,7 @@ class Building:
                 # perform description update on Sx devices
                 for switch in self.dx2.cdpneighbors:
                     if 'sx' in switch.hostname:
-                        logger.debug(f'testing interfaces on {switch.hostname}')
+                        logging.debug(f'testing interfaces on {switch.hostname}')
                         self.changedescription(switch.link["remote"], switch.link["local"],
                                                switch.ip, hostname=self.dx2.hostname)
 
@@ -349,11 +360,11 @@ class Building:
                     self.changedescription(switch.link["remote"], switch.link["local"], switch.ip
                                            , hostname=self.dx1.hostname)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logging.error(e, exc_info=True)
         else:
-            logger.info(f'Correcting Interfaces to Network Devices - Sucess')
+            logging.info(f'Correcting Interfaces to Network Devices - Sucess')
 
-    def migratetonewhardware(self, oldswitch: Switch, newswitch: Switch):
+    def migratetonewhardware(self, oldswitch: Stack, newswitch: Stack):
         """
         This function takes in two devices and old switch currently active, and a switch that will replace it on
         the network also currently live on the network. It will handle sorting through the ports,
@@ -364,7 +375,7 @@ class Building:
         # TODO add an options for padding Vlans with Extra ports for future projects.
         assert hasattr(oldswitch, 'ip'), "new an ip address to log into oldswitch"
         assert hasattr(newswitch, 'ip'), "new an ip address to log into newswitch"
-        logger.info("Migration to new hardware - Starting")
+        logging.info("Migration to new hardware - Starting")
         try:
             # clean away all the unused interfaces for the oldswitch
             activeports = []
@@ -422,14 +433,14 @@ class Building:
             newswitch.write_portconfig()
 
         except Exception as e:
-            logger.info("Migration to new hardware - Failed")
-            logger.error(e, exc_info=True)
+            logging.info("Migration to new hardware - Failed")
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info("Migration to new hardware - Success")
+            logging.info("Migration to new hardware - Success")
 
-    def migrate_multiple_old_to_new_hardware(self, oldswitchs: list, newswitch: Switch):
+    def migrate_multiple_old_to_new_hardware(self, oldswitchs: list, newswitch: Stack):
         """
         This function takes in two devices and old switch currently active, and a switch that will replace it on
         the network also currently live on the network. It will handle sorting through the ports,
@@ -496,12 +507,11 @@ class Building:
             # newswitch.write_portconfig()
 
         except Exception as e:
-            logger.info("Migration to new hardware - Failed")
-            logger.error(e, exc_info=True)
+            logging.info("Migration to new hardware - Failed")
+            logging.error(e, exc_info=True)
         else:
-            logger.info("Migration to new hardware - Success")
+            logging.info("Migration to new hardware - Success")
             end_time = datetime.now()
-            metrics_logger.info(f'Finished moving vlans, and ports in: {end_time - start_time}')
 
     def portcountreport(self):
         """
@@ -556,7 +566,7 @@ class Node():
         assigns them to self.R1, and self.R2
         Returns:
         """
-        logger.info(f'Contacting Both Routers in Node, and Assigning attributes - Starting')
+        logging.info(f'Contacting Both Routers in Node, and Assigning attributes - Starting')
         try:
             r1 = Router(self.r1_ipaddress)
             r1.login()
@@ -572,12 +582,12 @@ class Node():
             self.r2 = r2
             r2.logout(r2.conn)
         except Exception as e:
-            logger.info(f'Contacting Both Routers in Node, and Assigning attributes - Failed')
-            logger.error(e, exc_info=True)
+            logging.info(f'Contacting Both Routers in Node, and Assigning attributes - Failed')
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info(f'Contacting Both Routers in Node, and Assigning attributes - Success')
+            logging.info(f'Contacting Both Routers in Node, and Assigning attributes - Success')
 
     def get_all_vlans(self):
         """
@@ -586,25 +596,25 @@ class Node():
 
         """
         try:
-            logger.info(f'Getting Vlans on: {self.r1.hostname} - Starting')
+            logging.info(f'Getting Vlans on: {self.r1.hostname} - Starting')
             vlans = set()
             for v1 in self.r1.vlansints:
                 vlans.add(v1)
-            logger.info(f'Getting Vlans on: {self.r2.hostname} - Starting')
+            logging.info(f'Getting Vlans on: {self.r2.hostname} - Starting')
             for v2 in self.r2.vlansints:
                 vlans.add(v2)
             return vlans
         except Exception as e:
-            logger.info(f'Getting Vlans on: {self.r2.hostname} - Failed')
-            logger.error(e, exc_info=True)
+            logging.info(f'Getting Vlans on: {self.r2.hostname} - Failed')
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info(f'Getting Vlans on: {self.r2.hostname} - Success')
+            logging.info(f'Getting Vlans on: {self.r2.hostname} - Success')
             return neighbors
 
     def get_all_downstream(self):
-        logger.info(f'Collecting Router information for R1:{self.r1_ipaddress} R2:{self.r2_ipaddress} - STARTING')
+        logging.info(f'Collecting Router information for R1:{self.r1_ipaddress} R2:{self.r2_ipaddress} - STARTING')
         try:
             self.r1 = Router(self.r1_ipaddress)
             self.r1.login()
@@ -827,10 +837,10 @@ class Node():
             final = second_draft.union(third_draft)
             acutal_final = final.union(set_list)
         except Exception as e:
-            logger.info(f'Collecting Router information for R1:{self.r1_ipaddress} R2:{self.r2_ipaddress} - FAILED')
-            logger.error(e, exc_info=True)
+            logging.info(f'Collecting Router information for R1:{self.r1_ipaddress} R2:{self.r2_ipaddress} - FAILED')
+            logging.error(e, exc_info=True)
         else:
-            logger.info(f'Collecting Router information for R1:{self.r1_ipaddress} R2:{self.r2_ipaddress} - Success')
+            logging.info(f'Collecting Router information for R1:{self.r1_ipaddress} R2:{self.r2_ipaddress} - Success')
             self.switchipaddresslist = acutal_final
 
     def _Get_ipaddress_list_thread(self):
@@ -867,27 +877,27 @@ class Node():
         Takes all the IP addresses in self.switchipaddresslist, logs into the device, creates a switch object for them
         gathers the ACL lists, creates an object for them, and checks the list of ACL against the standards
         """
-        logger.info(f'Collecting Edge ACL - Starting')
+        logging.info(f'Collecting Edge ACL - Starting')
         try:
             for ip in self.switchipaddresslist:
-                logger.debug(f'Gettting Edge Device: {ip} - Starting')
+                logging.debug(f'Gettting Edge Device: {ip} - Starting')
                 try:
-                    s = Switch(ip)
+                    s = Stack(ip)
                     s.login()
                     s.getSwitchInfo()
                     s.assignattributes()
                     s.sort_acl()
                 except Exception as e:
-                    logger.info(f'Gettting Edge Device: {ip} - Failed')
-                    logger.error(e, exc_info=True)
+                    logging.info(f'Gettting Edge Device: {ip} - Failed')
+                    logging.error(e, exc_info=True)
                 else:
-                    logger.debug(f'Gettting Edge Device: {ip} - Starting')
+                    logging.debug(f'Gettting Edge Device: {ip} - Starting')
 
         except Exception as e:
-            logger.info(f'Collecting Edge ACL - FAILED')
-            logger.error(e, exc_info=True)
+            logging.info(f'Collecting Edge ACL - FAILED')
+            logging.error(e, exc_info=True)
         else:
-            logger.info(f'Collecting Edge ACL - Success')
+            logging.info(f'Collecting Edge ACL - Success')
 
     def get_switch_adjecent_negibhors(self):
         """
@@ -896,21 +906,21 @@ class Node():
         """
 
         try:
-            logger.info(f'Getting All Switches_syntax_compatability Touching: {self.r1.hostname} - Starting')
+            logging.info(f'Getting All Switches_syntax_compatability Touching: {self.r1.hostname} - Starting')
             neighbors = set()
             for neighbor in self.r1.cdpneighbors:
                 neighbors.add(neighbor)
-            logger.info(f'Getting All Switches_syntax_compatability Touching: {self.r2.hostname} - Starting')
+            logging.info(f'Getting All Switches_syntax_compatability Touching: {self.r2.hostname} - Starting')
             for neighbor in self.r2.cdpneighbors:
                 neighbors.add(neighbor)
 
         except Exception as e:
-            logger.info(f'Getting All Switches_syntax_compatability Touching: {self.r1.hostname} - Failed')
-            logger.error(e, exc_info=True)
+            logging.info(f'Getting All Switches_syntax_compatability Touching: {self.r1.hostname} - Failed')
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.info(f'Getting All Switches_syntax_compatability Touching: {self.r1.hostname} - Success')
+            logging.info(f'Getting All Switches_syntax_compatability Touching: {self.r1.hostname} - Success')
             return neighbors
 
     def get_neibhors(self, ip):
@@ -918,12 +928,12 @@ class Node():
         This function is for threading the gathering of devices on the network.
         :return (set): A List of IP addresses
         """
-        logger.info(f'Getting Edge Device: {ip} - Starting')
+        logging.info(f'Getting Edge Device: {ip} - Starting')
         try:
             switchipaddresslist = set()
             ip = re.sub('\r', '', ip)
             ip = re.sub(' ', '', ip)
-            s = Switch(ip)
+            s = Stack(ip)
             s.login()
             s.cdpnei_result = s.send_command('show cdp nei detail')
             s.sortCdpNeiDetail(s.cdpnei_result)
@@ -942,12 +952,12 @@ class Node():
                 if any(x in switch2.hostname for x in cisco.distrobution_layer_descriptors):
                     switchipaddresslist.add((switch2.ip, switch2.hostname))
         except Exception as e:
-            logger.info(f'Getting Edge Device: {ip} - Failed')
-            logger.error(e, exc_info=True)
+            logging.info(f'Getting Edge Device: {ip} - Failed')
+            logging.error(e, exc_info=True)
             _exception(e)
             raise
         else:
-            logger.debug(f'Getting Edge Device: {ip} - Starting')
+            logging.debug(f'Getting Edge Device: {ip} - Starting')
             return switchipaddresslist
 
     def get_mgmt_vlans(self):
@@ -987,7 +997,7 @@ class Node():
             ip (str): An ip of the edge device
         Returns:
         """
-        s = Switch(ip)
+        s = Stack(ip)
         s.getSwitchInfo()
         s.assignattributes()
         s.check_ACL()
@@ -1001,6 +1011,22 @@ class Node():
         for ip in self.switchipaddresslist:
             self._update_single_switch_acl(ip)
 
+def interfaceupdatetask(ip):
+    try:
+        dx2 = Stack(ip)
+        dx2.login()
+        dx2.getSwitchInfo()
+        dx2.assignattributes()
+        b = Building(dx1=dx2)
+        b.correctlinkinterfaces()
+        time_end = datetime.now()
+    except Exception as e:
+        logging.info(f'Interface correction operation not complete on {ip}')
+        logging.error(e, exc_info=True)
+        # continue  # skip to next network device
+    else:
+        pass
+
 class Network():
     def __init__(self):
         pass
@@ -1013,10 +1039,10 @@ class Network():
             import concurrent.futures
             try:
                 batch = []
-                logger.debug(f"new Thread Pool - Starting")
+                logging.debug(f"new Thread Pool - Starting")
                 with ThreadPoolExecutor(max_workers=8) as executor:
                     for ipaddress in n.switchipaddresslist:
-                        logger.debug(f"New Thread - Starting")
+                        logging.debug(f"New Thread - Starting")
                         future_to_ipaddress = {executor.submit(interfaceupdatetask, ipaddress): ipaddress}
                     for future in concurrent.futures.as_completed(future_to_ipaddress):
                         ipaddress = future_to_ipaddress[future]
@@ -1025,10 +1051,84 @@ class Network():
                             if data:
                                 batch.append(data)
                         except Exception as e:
-                            logger.error(e, exc_info=True)
+                            logging.error(e, exc_info=True)
 
-                logger.debug(f"new Thread Pool - closed")
+                logging.debug(f"new Thread Pool - closed")
             except Exception as e:
-                logger.error(e, exc_info=True)
+                logging.error(e, exc_info=True)
             else:
                 pass
+
+    def check_ssh_connection_status_threaded(self,network_device_list):
+        """
+        This fucntion is used mainly to report the connection status to all the devices from the list provided,
+        and append the status of that ssh connection. Current Status includes authentication, and being returned a prompt
+
+        :param network_device_list (list[dict]):
+        :return:
+            (list[dict]): A dictionary of the same entries with the status key added to each
+        """
+        with concurrent.futures.ThreadPoolExecutor() as executer:
+            network_device_list_status = executer.map(self.check_ssh_connection_status_single,network_device_list)
+        final_network_device_list_status = []
+        for network_device in network_device_list_status:
+            final_network_device_list_status.append(network_device)
+        return final_network_device_list_status
+
+    def check_ssh_connection_status_single(self,network_dict):
+        """
+        For checking 1 device's status
+        :return:
+        """
+        global s
+        ip_address = network_dict["ip_address"]
+        try:
+            s = Stack(ip_address)
+            s.login(quick=True)
+            # s.logout()
+        except socket.gaierror as g:
+            network_dict["Status"] = "Failed"
+        except paramiko.ssh_exception.NoValidConnectionsError as v:
+            network_dict["Status"] = "Failed"
+        except paramiko.ssh_exception.AuthenticationException as a:
+            network_dict["Status"] = "Connected"
+        except socket.timeout as o:
+            network_dict["Status"] = "Failed"
+        except OSError as o:
+            if 'Connection timed out' in str(o):
+                network_dict["Status"] = "Failed"
+            elif '(TACACS user expired?)' in str(o):
+                network_dict["Status"] = "Connected"
+            else:
+                network_dict["Status"] = "Failed"
+        except EOFError as f:
+            network_dict["Status"] = "Connected"
+        except IOError as i:
+            if '(TACACS user expired?)' in str(i):
+                network_dict["Status"] = "Connected"
+            elif 'Connection timed out' in str(i):
+                network_dict["Status"] = "Failed"
+            else:
+                network_dict["Status"] = "Failed"
+        except Exception as e:
+            if 'Cisco prompt not reached' in str(e):
+                network_dict["Status"] = "Connected"
+            elif 'Negotiation failed.' in str(e):
+                network_dict["Status"] = "Connected"
+            elif 'Channel closed.' in str(e):
+                network_dict["Status"] = "Connected"
+            elif 'Error reading SSH protocol banner[Errno 9] Bad file descriptor' in str(e):
+                network_dict["Status"] = "Connected"
+            elif 'Unable to open channel.' in str(e):
+                network_dict["Status"] = "Connected"
+            else:
+                traceback.print_exc()
+                network_dict["Status"] = "Failed"
+        else:
+            network_dict["Status"] = "Connected"
+        finally:
+            try:
+                s.logout()
+            except Exception as e:
+                traceback.print_exc()
+        return network_dict

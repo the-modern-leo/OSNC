@@ -1,6 +1,7 @@
 from unittest import TestCase
+
 from SSH.NetmikoConnection import connection
-from openpyxl import load_workbook
+
 
 class Testconnection(TestCase):
     def test_simple_connection(self):

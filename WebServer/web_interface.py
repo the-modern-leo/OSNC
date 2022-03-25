@@ -17,7 +17,7 @@ class MultiTemplateLoader(Loader):
     """Custom template loader that manages multiple template directories.
     """
     def _create_template(self, name):
-        #TODO write code for locating all the html files
+
         return super(MultiTemplateLoader, self)._create_template(name)
 
 def make_app():
