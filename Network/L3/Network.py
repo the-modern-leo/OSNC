@@ -1,5 +1,5 @@
 ### Local Packages ###
-from Switch import Stack
+from L2 import Stack
 from Router import Router
 
 ### Package imports

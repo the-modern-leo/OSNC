@@ -1,7 +1,7 @@
 ### Local Package ###
-from Switch import Stack, Blade, Neighbor
-from Port import SFP, Interface,PortChannel
-from Vlan import vlan
+from L2 import Stack, Blade, Neighbor
+from Network.L1.Port import SFP, Interface,PortChannel
+from Network.L2.Vlan import vlan
 
 
 ### Global Packages ###
