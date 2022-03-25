@@ -4114,7 +4114,5 @@ class test_cdp_neigbhor_interface(unittest.TestCase):
             print(str(e))
             pass
 
-
-
 if __name__ == '__main__':
     unittest.main()
