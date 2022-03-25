@@ -1,14 +1,20 @@
 # OSNC
 Open Source Network Controller
 
-Step 1: 
-docker build '/Users/nickbradberry/PycharmProjects/OSNC/' -t onsc:latest
+This code Library is a work in progress library intended to be consumed by other developers working on 
+front end applications for Networking purposes. The library is being developed with the intended use as 
+part of a Devops environment. 
 
-Step2:
-docker run -v '/Users/nickbradberry/PycharmProjects/OSNC/':/opt/project -p 443:8443 onsc:latest 
+Application is currently working on being deployed on a single server directly from the server at the moment. 
+Support is only on Mac, Linux. 
+Future improvements will be running the service as a single docker container for support on all platforms. 
+Possible improvements will also see the application 
 
+Install:
+pip install onsc
 
+Intended Consumable Packages are located under the Network Package:
 
-
-Project is being built with the following features: 
-A containerized web server. The webserver python Tornado 
+from Network.Switch import Stack
+from Network.Vlan import vlan
+from Network.Port import Interface
