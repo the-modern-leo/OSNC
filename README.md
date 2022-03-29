@@ -15,9 +15,10 @@ Possible improvements will also see the application
 
 Intended Consumable Packages are located under the Network Package:
 
-- `from Network.Switch import Stack`
-- `from Network.Vlan import vlan`
-- `from Network.Port import Interface`
+- `from Network.L2.Switch import Stack`
+- `from Network.L2.Vlan import vlan`
+- `from Network.L1.Port import Interface`
+
 
 An example of the starting entry point would look like: 
 ```
