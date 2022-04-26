@@ -7,7 +7,7 @@ Jinja2>=2.9
 netaddr
 netmiko
 orionsdk
-paramiko>=2
+paramiko>=2.10.3
 pyOpenSSL
 python-cas
 python-dateutil

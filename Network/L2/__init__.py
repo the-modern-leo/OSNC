@@ -1,2 +1,2 @@
-from Switch import *
-from Vlan import *
+# from Switch import *
+# from Vlan import *

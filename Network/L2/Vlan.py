@@ -2,9 +2,6 @@ from __future__ import absolute_import
 import logging
 import re
 import time
-from builtins import object
-from builtins import str
-from past.builtins import basestring
 
 
 class vlan:

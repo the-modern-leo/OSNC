@@ -1,2 +1,2 @@
-from cisco import *
-from router import *
+# from cisco import *
+# from router import *
