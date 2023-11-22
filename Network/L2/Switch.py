@@ -1,16 +1,16 @@
 ### Network Imports ###
-from Vlan import vlan
-from settings.cisco import Hardware as chw
-from settings import router as router_settings
-from Port import Interface, PortChannel, SFP
-from AccessList import Access_Lists, ACL, ACL_Entry
+from Network.L2.Vlan import vlan
+from Network.settings.cisco import Hardware as chw
+from Network.settings import router as router_settings
+from Network.L1.Port import Interface, PortChannel, SFP
+from Network.L4.AccessList import Access_Lists, ACL, ACL_Entry
 
 ### OSNC Application Imports ###
 from SSH.NetmikoConnection import connection
 from SSH.ParamikoConnection import Connection as Pconn
-from SNMP.Objects import SNMP,SNMP_Group,SNMP_view,SNMP_contact,SNMP_User,\
-    SNMP_community, SNMP_Host_Group
-from Tacacs.Objects import TACACS
+# from SNMP.Objects import SNMP,SNMP_Group,SNMP_view,SNMP_contact,SNMP_User,\
+#     SNMP_community, SNMP_Host_Group
+# from Tacacs.Objects import TACACS
 
 ### Package Imports ###
 import logging
@@ -28,9 +28,10 @@ import itertools
 
 directory = os.path.realpath(__file__)
 path = Path(directory)
-parent_folder = path.parent.absolute()
-project_folder = parent_folder.parent.absolute()
-Logging_folder = [x for x in project_folder.iterdir() if x.is_dir() and x.name == "Logging"][0]
+project_folder = re.sub('OSNC(.*)','',str(path))
+project_folder = f"{project_folder}OSNC\\"
+path = Path(project_folder)
+Logging_folder = [x for x in path.iterdir() if x.is_dir() and x.name == "Logging"][0]
 Network_Logging_folder = [x for x in Logging_folder.iterdir() if x.is_dir() and x.name == "Network"][0]
 logging_file_name = str(Network_Logging_folder)
 
@@ -332,7 +333,6 @@ class Stack():
         self.SNMP = None
         self.access_lists = []
         self.nexus = None
-        self.SFPs = None
         self.vlansints = None
         self.conn = None
         self.node = None
@@ -356,38 +356,9 @@ class Stack():
 
         self.mgmt_vlan = None
 
-        #policy checkes
-            #SNMP
-                #groups
-        self.snmp_group_RW_wrong = False
-        self.snmp_group_RW_missing = False
-        self.snmp_group_remove = []
-        self.SNMP_context_wrong = False
-        self.SNMP_context_missing = False
-                #views
-        self.snmp_view_rw_wrong = False
-        self.snmp_view_rw_missing = False
-        self.snmp_view_remove = []
-                #users
-        self.snmp_user_RW_wrong = False
-        self.snmp_user_RW_missing = False
-        self.snmp_user_remove = []
 
-        self.snmp_version_mismatch = False
-        self.remove_SNMP_version_2 = False
 
-            #Monitoring
-        self.orion_encript_meth_wrong = False
-        self.orion_auth_meth_wrong = False
-        self.orion_version_wrong = False
-        self.orion_username_wrong = False
-            #access Lists
-        self.acl_71_missing = False
-        self.acl_199_missing = False
-        self.old_orion_ips_71 = False
-        self.new_orion_ips_71 = False
-        self.remove_acl = []
-        date_name = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        date_name = datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
         stack_fh = logging.FileHandler(f"{logging_file_name}/{ip}_{date_name}.log", mode="a+")
         stack_fh.setLevel(logging.DEBUG)
         logger.addHandler(stack_fh)
@@ -466,6 +437,9 @@ class Stack():
         """
         logger.info(f"Gathering Switch data - Starting")
         try:
+            self.hostname = re.sub("hostname", "", self.conn.send_command('show run | inc hostname', manypages=True))
+            self.hostname = re.sub(" ", "", self.hostname)
+            self.hostname = self.hostname.rstrip("\r")
             self.version_result = self.conn.send_command('show version', manypages=True)
             logger.debug(f"version_result={self.version_result}")
             self.run_result = self.conn.send_command('show run', manypages=True)
@@ -662,9 +636,9 @@ class Stack():
             # sort through interface results
             self.sortlogging(self.logging_data_result)
             # sort through interface results
-            self.sortsnmp()
+            # self.sortsnmp()
             # sort through interface results
-            self._sort_snmp_user()
+            # self._sort_snmp_user()
             # applies the port counters to the interfaces
             self.sortportcounters(self.portcount_result)
             # runs extra commands to gather the need informacisco_chassis switches.
@@ -672,8 +646,8 @@ class Stack():
                 self.chassis = True
                 # self.sortportdowntime(self.portdowntime_result)
             self.sort_mac_address(self.mac_address_result)
-            self.sort_tacacs()
-            self.sort_status()
+            # self.sort_tacacs()
+            # self.sort_status()
             self.sort_power_inline()
             self.sort_enviroment()
             if not self.portcount:
@@ -686,7 +660,6 @@ class Stack():
             logger.error(e, exc_info=True)
             _exception(e)
             raise
-
     def assignattributes_thread(self):
         """
         takes the responses from get switch info, and applies those responses to the object attributes
@@ -748,115 +721,6 @@ class Stack():
             _exception(e)
             raise
 
-    def sort_status(self):
-        """
-        Returns:
-        """
-        # TODO Finish building this method to get Copper/fiber types per port
-        status_response = self.status_result.split("\r\n")
-
-    def sort_tacacs(self):
-        """
-        applies the tacas command to the tacas object, and than to the switch object.
-        """
-        logger.info("Sorting 'show run | section tacacs' - Starting")
-        try:
-            if 'Invalid input detected at' in self.tacacs_result:
-                tacacslines = self.tacacs_result_in
-                tacacslines = tacacslines.split("\r\n")
-                tacacslines = [x for x in tacacslines if x]
-                newtaclines = []
-                for line in tacacslines:
-                    if "aaa" in line:  # skip Accounting, Authorization, and Authentication entries
-                        continue
-                    else:
-                        newtaclines.append(line)
-                for line in newtaclines:
-                    if "tacacs-server host" in line:
-                        t = TACACS()
-                        ip = re.sub("tacacs-server host ", "", line)
-                        ip = re.sub("tacacs-server ", "", ip)
-                        ip = re.sub("timeout 5", "", ip)
-                        ip = [x for x in ip if x]
-                        ip = ''.join([x for x in ip if x != ' '])
-                        t.server = ipaddress.IPv4Address(ip)
-                        self.tacacs.append(t)
-            else:
-                tacacslines = self.tacacs_result
-                tacacslines = tacacslines.split("\r\n")
-                tacacslines = [x for x in tacacslines if x]
-                newtaclines = []
-                v1tacacs = []
-                for line in tacacslines:
-                    if "aaa" in line:  # skip Accounting, Authorization, and Authentication entries
-                        continue
-                    if "feature tacacs+" in line:
-                        continue
-                    if "ip access-list copp-system-acl-tacacsradius" in line:
-                        continue
-                    if "permit tcp any" in line:
-                        continue
-                    if "source-interface" in line:
-                        continue
-                    if "match access-group name" in line:
-                        continue
-                    if "class copp-tacacsradius" in line:
-                        continue
-                    if "police pps 400" in line:
-                        continue
-                    if "tacacs-server" in line:  # Gather lines for v1 of tacacs
-                        v1tacacs.append(line)
-                    else:
-                        newtaclines.append(line)
-                newtaclines = "\r\n".join(newtaclines)
-                tacacservers = newtaclines.split("tacacs server ")
-                for line in v1tacacs:
-                    if "server name " in line:
-                        continue
-                    if " server " in line:
-                        continue
-                    if line == '':
-                        continue
-                    if "tacacs-server host " in line:
-                        t = TACACS()
-                        ip = re.sub("tacacs-server host ", "", line)
-                        ip = re.sub("timeout ", "", ip)
-                        ip = ip.split(" ")
-                        ip = [x for x in ip if x][0]
-                        ip = ''.join([x for x in ip if x != ' '])
-                        t.server = ipaddress.IPv4Address(ip)
-                        self.tacacs.append(t)
-                for tac in tacacservers:
-                    if "server name " in tac:
-                        continue
-                    if " server " in tac:
-                        continue
-                    if tac == '':
-                        continue
-                    t = TACACS()
-                    taclines = tac.split("\r\n")
-                    t.name = taclines[0]
-                    for line in tacacslines:
-                        if line == '':
-                            continue
-                        elif "key 7 " in line:
-                            t.key = re.sub("key 7 ", "", line)
-                        elif "address ipv4 " in line:
-                            ip = re.sub("address ipv4 ", "", line).rstrip()
-                            ip = ''.join([x for x in ip if x != ' '])
-                            t.server = ipaddress.IPv4Address(ip)
-                        else:
-                            pass
-                    self.tacacs.append(t)
-
-        except Exception as e:
-            logger.info("Sorting 'show run | section tacacs' - failed")
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            pass
-
     def sortinterfaces(self, interface_result=None):
         """
         This function sorts through every single interface on the device, and applies those interfaces to the blade object
@@ -906,6 +770,8 @@ class Stack():
                 if 'interface FastEthernet1' in line and "/" not in line:
                     pass
                 elif 'interface FastEthernet0' in line and "/" not in line:
+                    pass
+                elif 'no passive' in line:
                     pass
                 elif 'GigabitEthernet0/0' in line:
                     pass
@@ -993,10 +859,16 @@ class Stack():
                 if len(blandport) > 2:  # handle 3 long
                     i.blade = int(blandport[0])
                     i.module = int(blandport[1])
-                    i.portnumber = int(blandport[2])
+                    if "." in blandport[2]:
+                        continue
+                    else:
+                        i.portnumber = int(blandport[2])
                 else:
                     i.blade = int(blandport[0])
-                    i.portnumber = int(blandport[1])
+                    if "." in blandport[1]:
+                        continue
+                    else:
+                        i.portnumber = int(blandport[1])
                 for line in interf:
                     if 'switchport mode trunk' in line:
                         i.trunk = True
@@ -2063,6 +1935,33 @@ class Stack():
             raise
         else:
             logger.info("Sorting 'show Version' - Success")
+    def _sort_run_vlan(self,runresult=''):
+        """
+        sorts "show run" command for the switching vlans
+        """
+        vlans = []
+        matches = re.findall(
+            r"vlan(.*)\n.(name(.*)|remote-span|are|backupcrf|bridge|media|parent|private-vlan|ring|said|shutdown|state|ste|stp|tb-vlan1|tb-vlan2)",
+            runresult)
+        matches2 = re.findall(
+            r"vlan(.*)\n!",
+            runresult)
+        for m in matches:
+            vl = vlan(int(re.sub(r"\\r",'',m[0])))
+            if len(m) > 2:
+                vl.name = re.sub(r"\\r",'',m[0])
+            vlans.append(vl)
+        for m in matches2:
+            if "-" in m:
+                m = m.split("-")
+                for n in m:
+                    vl = vlan(int(re.sub(r"\\r", '', n)))
+                    vlans.append(vl)
+            else:
+                vl = vlan(int(re.sub(r"\\r",'',m)))
+                vlans.append(vl)
+        return vlans
+
     def sortRun(self, runresult=''):
         """
         This functions pulls out the hostname, Vlans, Port-channel Interface, Port interfaces, Ip address,
@@ -2089,7 +1988,7 @@ class Stack():
             aclnumberlist = []
             # removes any --More-- that were randomly added.
             run = [re.sub('--More--', '', x) for x in run]
-
+            self.vlans = self._sort_run_vlan(runresult=runresult)
             # collect switch information
             for line in run:
                 # put the system level name for the switch
@@ -2187,27 +2086,6 @@ class Stack():
                 elif 'access-list' in line:
                     aclnumberlist.append(line)
 
-            vlans = []
-            # create Vlan objects from the sorted run file
-            # TODO create handling for Vlans that have multiples, and ranges
-            # IE vlan 500,509-510 or vlan 841,844-845
-            for v in vlanindex:
-                name = re.sub('--More--', '', run[v + 1])
-                name = re.sub(',', '', name)
-                name = re.sub('name', '', name)
-                name = re.sub(' ', '', name)
-                number = re.sub('--More--', '', run[v]).split(' ')
-                number = [x for x in number if x != '']
-                vl = vlan(int(number[1]))
-                vl.name = name
-                vlans.append(vl)
-            self.vlans = vlans
-            if not self.vlans:
-                logger.error(f"Run Results:{run}")
-                logger.error(f"vlans list:{vlans}")
-                logger.error(f"vlans index numbers:{vlanindex}")
-                raise ValueError("Vlans were not assigned")
-
             # sepereate the interfaces
             sortedinterfaces = []
             for inter in sorted(interfaceindex):
@@ -2294,197 +2172,197 @@ class Stack():
         else:
             logger.info("Sorting 'show run | section looging' - Success")
             self.logging_data = logginglines
-    def sortsnmp(self):
-        """
-
-        :param snmp_result:
-        :return:
-        """
-        logger.info("Sorting 'show run | section snmp' - Starting")
-        try:
-            if "Invalid input detected at" not in self.snmp_result:
-                snmp_result = self.snmp_result
-            else:
-                snmp_result = self.snmp_result_in
-
-            snmp = snmp_result.split('\r\n')
-            s = SNMP()
-            for line in snmp:
-                if 'v3' in line:
-                    s.version.add(3)
-                elif 'v2' in line:
-                    s.version.add(2)
-                if 'snmp-server view' in line:
-                    part = line.split(' ')
-                    v = SNMP_view()
-                    v.name = part[2]
-                    v.mibfamily = part[3]
-                    if 'included' in line:
-                        v.included = True
-                    elif 'excluded' in line:
-                        v.excluded = True
-                    s.views.append(v)
-                if 'snmp-server community' in line:  # Collect SNMP V2 info
-                    s.version.add(2)
-                    c = SNMP_community()
-                    c.raw_data = line
-                    line = re.sub('snmp-server community ', '', line)
-                    line = line.split(' ')
-                    c.string = line[0]
-                    if 'RW' in line[1]:
-                        c.rw = True
-                    elif 'RO' in line[1]:
-                        c.ro = True
-                    if len(line) > 2:  # if an access list is present
-                        c.accesslist = int(line[2])
-                        if int(line[2]) in self.access_lists.numbers:
-                            for access_list in self.access_lists.standard_ip_lists:
-                                if access_list.number == int(line[2]):
-                                    c.accesslist = access_list
-                    s.communities.append(c)
-                if 'snmp-server enable traps' in line:  # Collet the Traps for this device
-                    line = re.sub('snmp-server enable traps ', '', line)
-                    line = line.split(' ')
-                    for t in line:
-                        s.traps.append(t)
-                if 'snmp-server host ' in line:  # collect the SNMP Logging hosts
-                    line = re.sub('snmp-server host ', '', line)
-                    line = line.split(' ')
-                    for l in line:
-                        try:
-                            ip = ipaddress.ip_address(re.sub('\r', '', l))
-                            s.loggingips.append(ip)
-                        except:
-                            continue
-                if 'snmp-server group' in line:  # create Group objects
-                    line = re.sub('snmp-server group ', '', line)
-                    if 'v3 auth context vlan- match prefix' in line:
-                        if 'PFGrv3RO' in line:
-                            s.contextPFG = True
-                            s.contextPFG_line = line.strip()
-                        elif 'NOCGrv3RO' in line:
-                            s.context = True
-                            s.context_line = line.strip()
-                        elif 'CliNOCGrv3RO' in line:
-                            s.contextClinical = True
-                            s.contextClinical_line = line.strip()
-                        continue
-                    g = SNMP_Group()
-                    g.line = line
-                    if '71' in line or '70' in line or '76' in line:
-                        part = line.split(' ')
-                        # look up ACL
-                        aclnumber = int(part[len(part) - 1])
-                        for acl in self.access_lists.standard_ip_lists:
-                            if int(acl.number) == aclnumber:
-                                g.acl = acl
-                        # assign Group Name
-                        g.name = part[0]
-                        # assign Version
-                        g.version = part[1]
-                        # Assign View name
-                        g.viewname = part[4]
-                        if 'read' in line:
-                            g.RO = True
-                        if 'write' in line:
-                            g.RW = True
-                        if 'auth' in line:
-                            g.securitylevel = 'auth'
-                        elif 'priv' in line:
-                            g.securitylevel = 'priv'
-                    s.groups.append(g)
-                if 'snmp-server user' in line:  # create Group objects
-                    line = re.sub('snmp-server user ', '', line)
-                    name = line.split(" ")
-                    name = [x for x in name if x!='']
-                    g = SNMP_User()
-                    g.name = name[0]
-                    s.user.append(g)
-                if 'snmp-server host-group' in line:  # create Group objects
-                    h = SNMP_Host_Group()
-                    line = re.sub('snmp-server host-group', '', line)
-                    line = re.sub('version 3', '', line)
-                    line = line.split(" ")
-                    line = [x for x in line if x!='']
-                    h.interface = line[0]
-                    h.network_object = line[1]
-                    h.user = line[len(line)-1]
-                    for count,l in enumerate(line):
-                        if "poll" in l:
-                            g.polling = True
-                    s.host_group = h
-                if 'snmp-server location' in line:
-                    part = line.split(' ')
-                    for count, p in enumerate(part):
-                        if 'Bldg.' in p:
-                            s.location_bldg = part[count + 1]
-                        if 'Rm.' in p:
-                            s.location_rm = re.sub('Rm.', '', p)
-                if 'snmp-server contact' in line:
-                    line = re.sub('snmp-server contact ', '', line)
-                    part = line.split(' ')
-                    if ',' in line:  # more than one Barcode/Assest Tag
-                        if "Y-" not in part[0] and "BC-" not in part[0]:  # handle tags without headers
-                            for p in part:
-                                c = SNMP_contact()
-                                c.tag = p
-                                s.contacts.append(c)
-                        else:
-                            bcs = part[0]
-                            bcs = re.sub('BC-', '', bcs)
-                            bcs = bcs.split(',')
-                            tags = part[1]
-                            tags = re.sub('Y-', '', tags)
-                            tags = tags.split(',')
-                            for bc, tag in zip(bcs, tags):
-                                c = SNMP_contact()
-                                c.bc = bc
-                                c.tag = tag
-                                s.contacts.append(c)
-                    elif ',' not in line and 'BC-' not in line and 'Y-' not in line:
-                        continue
-                    else:
-                        c = SNMP_contact()
-                        c.bc = re.sub('BC-', '', part[0])
-                        c.tag = re.sub('Y-', '', part[1])
-                        s.contacts.append(c)
-
-        except Exception as e:
-            logger.info("Sorting 'show run | section snmp' - Failed")
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logger.info("Sorting 'show run | section snmp' - Success")
-            self.SNMP = s
-    def _sort_snmp_user(self):
-        """
-        Sorts through the command "show run snmp"
-        """
-        try:
-            results = self.snmp_user_result.split('User name:')
-            for user in results:
-                if user == '':
-                    continue
-                lines = user.split('\r\n')
-                U = SNMP_User()
-                U.name = lines[0].strip()
-                for line in lines:
-                    if line == '':
-                        continue
-                    if "Authentication Protocol:" in line:
-                        U.Auth_proto = re.sub('Authentication Protocol: ','',line).strip()
-                    elif "Privacy Protocol: " in line:
-                        U.priv_proto = re.sub('Privacy Protocol: ','',line).strip()
-                    elif "Group-name: " in line:
-                        U.group = re.sub('Group-name: ','',line).strip()
-                self.SNMP.user.append(U)
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            pass
+    # def sortsnmp(self):
+    #     """
+    #
+    #     :param snmp_result:
+    #     :return:
+    #     """
+    #     logger.info("Sorting 'show run | section snmp' - Starting")
+    #     try:
+    #         if "Invalid input detected at" not in self.snmp_result:
+    #             snmp_result = self.snmp_result
+    #         else:
+    #             snmp_result = self.snmp_result_in
+    #
+    #         snmp = snmp_result.split('\r\n')
+    #         s = SNMP()
+    #         for line in snmp:
+    #             if 'v3' in line:
+    #                 s.version.add(3)
+    #             elif 'v2' in line:
+    #                 s.version.add(2)
+    #             if 'snmp-server view' in line:
+    #                 part = line.split(' ')
+    #                 v = SNMP_view()
+    #                 v.name = part[2]
+    #                 v.mibfamily = part[3]
+    #                 if 'included' in line:
+    #                     v.included = True
+    #                 elif 'excluded' in line:
+    #                     v.excluded = True
+    #                 s.views.append(v)
+    #             if 'snmp-server community' in line:  # Collect SNMP V2 info
+    #                 s.version.add(2)
+    #                 c = SNMP_community()
+    #                 c.raw_data = line
+    #                 line = re.sub('snmp-server community ', '', line)
+    #                 line = line.split(' ')
+    #                 c.string = line[0]
+    #                 if 'RW' in line[1]:
+    #                     c.rw = True
+    #                 elif 'RO' in line[1]:
+    #                     c.ro = True
+    #                 if len(line) > 2:  # if an access list is present
+    #                     c.accesslist = int(line[2])
+    #                     if int(line[2]) in self.access_lists.numbers:
+    #                         for access_list in self.access_lists.standard_ip_lists:
+    #                             if access_list.number == int(line[2]):
+    #                                 c.accesslist = access_list
+    #                 s.communities.append(c)
+    #             if 'snmp-server enable traps' in line:  # Collet the Traps for this device
+    #                 line = re.sub('snmp-server enable traps ', '', line)
+    #                 line = line.split(' ')
+    #                 for t in line:
+    #                     s.traps.append(t)
+    #             if 'snmp-server host ' in line:  # collect the SNMP Logging hosts
+    #                 line = re.sub('snmp-server host ', '', line)
+    #                 line = line.split(' ')
+    #                 for l in line:
+    #                     try:
+    #                         ip = ipaddress.ip_address(re.sub('\r', '', l))
+    #                         s.loggingips.append(ip)
+    #                     except:
+    #                         continue
+    #             if 'snmp-server group' in line:  # create Group objects
+    #                 line = re.sub('snmp-server group ', '', line)
+    #                 if 'v3 auth context vlan- match prefix' in line:
+    #                     if 'PFGrv3RO' in line:
+    #                         s.contextPFG = True
+    #                         s.contextPFG_line = line.strip()
+    #                     elif 'NOCGrv3RO' in line:
+    #                         s.context = True
+    #                         s.context_line = line.strip()
+    #                     elif 'CliNOCGrv3RO' in line:
+    #                         s.contextClinical = True
+    #                         s.contextClinical_line = line.strip()
+    #                     continue
+    #                 g = SNMP_Group()
+    #                 g.line = line
+    #                 if '71' in line or '70' in line or '76' in line:
+    #                     part = line.split(' ')
+    #                     # look up ACL
+    #                     aclnumber = int(part[len(part) - 1])
+    #                     for acl in self.access_lists.standard_ip_lists:
+    #                         if int(acl.number) == aclnumber:
+    #                             g.acl = acl
+    #                     # assign Group Name
+    #                     g.name = part[0]
+    #                     # assign Version
+    #                     g.version = part[1]
+    #                     # Assign View name
+    #                     g.viewname = part[4]
+    #                     if 'read' in line:
+    #                         g.RO = True
+    #                     if 'write' in line:
+    #                         g.RW = True
+    #                     if 'auth' in line:
+    #                         g.securitylevel = 'auth'
+    #                     elif 'priv' in line:
+    #                         g.securitylevel = 'priv'
+    #                 s.groups.append(g)
+    #             if 'snmp-server user' in line:  # create Group objects
+    #                 line = re.sub('snmp-server user ', '', line)
+    #                 name = line.split(" ")
+    #                 name = [x for x in name if x!='']
+    #                 g = SNMP_User()
+    #                 g.name = name[0]
+    #                 s.user.append(g)
+    #             if 'snmp-server host-group' in line:  # create Group objects
+    #                 h = SNMP_Host_Group()
+    #                 line = re.sub('snmp-server host-group', '', line)
+    #                 line = re.sub('version 3', '', line)
+    #                 line = line.split(" ")
+    #                 line = [x for x in line if x!='']
+    #                 h.interface = line[0]
+    #                 h.network_object = line[1]
+    #                 h.user = line[len(line)-1]
+    #                 for count,l in enumerate(line):
+    #                     if "poll" in l:
+    #                         g.polling = True
+    #                 s.host_group = h
+    #             if 'snmp-server location' in line:
+    #                 part = line.split(' ')
+    #                 for count, p in enumerate(part):
+    #                     if 'Bldg.' in p:
+    #                         s.location_bldg = part[count + 1]
+    #                     if 'Rm.' in p:
+    #                         s.location_rm = re.sub('Rm.', '', p)
+    #             if 'snmp-server contact' in line:
+    #                 line = re.sub('snmp-server contact ', '', line)
+    #                 part = line.split(' ')
+    #                 if ',' in line:  # more than one Barcode/Assest Tag
+    #                     if "Y-" not in part[0] and "BC-" not in part[0]:  # handle tags without headers
+    #                         for p in part:
+    #                             c = SNMP_contact()
+    #                             c.tag = p
+    #                             s.contacts.append(c)
+    #                     else:
+    #                         bcs = part[0]
+    #                         bcs = re.sub('BC-', '', bcs)
+    #                         bcs = bcs.split(',')
+    #                         tags = part[1]
+    #                         tags = re.sub('Y-', '', tags)
+    #                         tags = tags.split(',')
+    #                         for bc, tag in zip(bcs, tags):
+    #                             c = SNMP_contact()
+    #                             c.bc = bc
+    #                             c.tag = tag
+    #                             s.contacts.append(c)
+    #                 elif ',' not in line and 'BC-' not in line and 'Y-' not in line:
+    #                     continue
+    #                 else:
+    #                     c = SNMP_contact()
+    #                     c.bc = re.sub('BC-', '', part[0])
+    #                     c.tag = re.sub('Y-', '', part[1])
+    #                     s.contacts.append(c)
+    #
+    #     except Exception as e:
+    #         logger.info("Sorting 'show run | section snmp' - Failed")
+    #         logger.error(e, exc_info=True)
+    #         _exception(e)
+    #         raise
+    #     else:
+    #         logger.info("Sorting 'show run | section snmp' - Success")
+    #         self.SNMP = s
+    # def _sort_snmp_user(self):
+    #     """
+    #     Sorts through the command "show run snmp"
+    #     """
+    #     try:
+    #         results = self.snmp_user_result.split('User name:')
+    #         for user in results:
+    #             if user == '':
+    #                 continue
+    #             lines = user.split('\r\n')
+    #             U = SNMP_User()
+    #             U.name = lines[0].strip()
+    #             for line in lines:
+    #                 if line == '':
+    #                     continue
+    #                 if "Authentication Protocol:" in line:
+    #                     U.Auth_proto = re.sub('Authentication Protocol: ','',line).strip()
+    #                 elif "Privacy Protocol: " in line:
+    #                     U.priv_proto = re.sub('Privacy Protocol: ','',line).strip()
+    #                 elif "Group-name: " in line:
+    #                     U.group = re.sub('Group-name: ','',line).strip()
+    #             self.SNMP.user.append(U)
+    #     except Exception as e:
+    #         logger.error(e, exc_info=True)
+    #         _exception(e)
+    #         raise
+    #     else:
+    #         pass
     def _pad_building_number(self):
         self.buildnumber = str(self.buildnumber)
         self.buildnumber = self.buildnumber.zfill(4)
@@ -2982,42 +2860,42 @@ class Stack():
             logger.error(e, exc_info=True)
             _exception(e)
             raise
-    def _remove_snmp(self,snmpobj):
-        """
-
-        Args:
-            snmpobj:
-
-        Returns:
-
-        """
-        try:
-            if isinstance(snmpobj,SNMP_community):
-                result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"no {snmpobj.raw_data}")
-                result = self.conn.send_command(f"end")
-                result = self.conn.send_command(f"wri")
-            elif isinstance(snmpobj,SNMP_Group):
-                result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"no snmp-server group {snmpobj.line}")
-                result = self.conn.send_command(f"end")
-                result = self.conn.send_command(f"wri")
-            elif isinstance(snmpobj,SNMP_User):
-                result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"no snmp-server user {snmpobj.name} {snmpobj.group} v3")
-                result = self.conn.send_command(f"end")
-                result = self.conn.send_command(f"wri")
-            elif isinstance(snmpobj,SNMP_view):
-                result = self.conn.send_command('config t')
-                result = self.conn.send_command(f"no snmp-server view {snmpobj.name}")
-                result = self.conn.send_command(f"end")
-                result = self.conn.send_command(f"wri")
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            pass
+    # def _remove_snmp(self,snmpobj):
+    #     """
+    #
+    #     Args:
+    #         snmpobj:
+    #
+    #     Returns:
+    #
+    #     """
+    #     try:
+    #         if isinstance(snmpobj,SNMP_community):
+    #             result = self.conn.send_command('config t')
+    #             result = self.conn.send_command(f"no {snmpobj.raw_data}")
+    #             result = self.conn.send_command(f"end")
+    #             result = self.conn.send_command(f"wri")
+    #         elif isinstance(snmpobj,SNMP_Group):
+    #             result = self.conn.send_command('config t')
+    #             result = self.conn.send_command(f"no snmp-server group {snmpobj.line}")
+    #             result = self.conn.send_command(f"end")
+    #             result = self.conn.send_command(f"wri")
+    #         elif isinstance(snmpobj,SNMP_User):
+    #             result = self.conn.send_command('config t')
+    #             result = self.conn.send_command(f"no snmp-server user {snmpobj.name} {snmpobj.group} v3")
+    #             result = self.conn.send_command(f"end")
+    #             result = self.conn.send_command(f"wri")
+    #         elif isinstance(snmpobj,SNMP_view):
+    #             result = self.conn.send_command('config t')
+    #             result = self.conn.send_command(f"no snmp-server view {snmpobj.name}")
+    #             result = self.conn.send_command(f"end")
+    #             result = self.conn.send_command(f"wri")
+    #     except Exception as e:
+    #         logger.error(e, exc_info=True)
+    #         _exception(e)
+    #         raise
+    #     else:
+    #         pass
     def _add_entry_to_acl(self,acl,entries):
         pass
 

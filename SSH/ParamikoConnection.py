@@ -1,3 +1,4 @@
+import auth
 from auth import SSH
 import paramiko
 import socket
@@ -233,7 +234,7 @@ class Connection(object):
                 new_output.append(ch)
         return ''.join(new_output)
 
-    def enable_cisco(self, password):
+    def enable_cisco(self):
         """Raises enable privilege on a Cisco device.
 
         Args:
@@ -243,6 +244,7 @@ class Connection(object):
             ValueError if unknown output is encountered, or the enable
             command was not successful.
         """
+        password = auth.SSH.enable
         logger.info('Checking if in Enable Mode')
         try:
             self.channel.send("enable\n")

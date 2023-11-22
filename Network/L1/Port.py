@@ -47,6 +47,7 @@ class Interface:
         self.Class = None
         self.Max = None
         self.empty = True
+        self.arp = []
 
     def __repr__(self):
         return self.fullname
@@ -85,6 +86,62 @@ class Interface:
         # {'ip dhcp snooping trust' if self.trunk else 'spanning-tree portfast'}
         # !"""
         return interface_config
+    def assign_config_attributes_from_full_name(self):
+        """
+        if only self.fullname attribute set then get as much information
+        """
+        self.fullname = re.sub("interface", "", self.fullname)
+        namesplit = self.fullname.split(" ")
+        namesplit = [x for x in namesplit if x]  # remove spaces
+        self.fullname = " ".join(namesplit).rstrip()
+        blandport = self._get_interface_numbers(self.fullname)
+        blandport = blandport.split("/")
+        if len(blandport) > 2:  # handle 3 long
+            self.blade = int(blandport[0])
+            self.module = int(blandport[1])
+            if "." in blandport[2]:
+                pass
+            else:
+                self.portnumber = int(blandport[2])
+        else:
+            self.blade = int(blandport[0])
+            if "." in blandport[1]:
+                pass
+            else:
+                self.portnumber = int(blandport[1])
+
+    def _get_interface_numbers(self, intstr):
+        """
+        This function will remove all the letters in an interface leaving just the numbers, and special characters
+        Args:
+            intstr (str): any interface title
+
+        Returns (str): just stack/module/port numbers or vlan number
+        """
+        intstr = re.sub("HundredGigE", "", intstr)
+        intstr = re.sub("FortyGigabitEthernet", "", intstr)
+        intstr = re.sub("TwentyFiveGigE", "", intstr)
+        intstr = re.sub("TwentyFiveGig", "", intstr)
+        intstr = re.sub("TenGigabitEthernet", "", intstr)
+        intstr = re.sub("FiveGigabitEthernet", "", intstr)
+        intstr = re.sub("TwoGigabitEthernet", "", intstr)
+        intstr = re.sub("GigabitEthernet", "", intstr)
+        intstr = re.sub("FastEthernet", "", intstr)
+        intstr = re.sub("Ethernet", "", intstr)
+        intstr = re.sub("Hu", "", intstr)
+        intstr = re.sub("Twe", "", intstr)
+        intstr = re.sub("Tw", "", intstr)
+        intstr = re.sub("Te", "", intstr)
+        intstr = re.sub("Gi", "", intstr)
+        intstr = re.sub("Fa", "", intstr)
+        intstr = re.sub("Eth", "", intstr)
+        intstr = re.sub("Fi", "", intstr)
+        intstr = re.sub("Fo", "", intstr)
+        intstr = re.sub(" ", "", intstr)
+        intstr = re.sub("\x1b", "", intstr)
+        intstr = intstr.replace('\r', '')
+        intstr = intstr.rstrip()
+        return intstr
 
 class PortChannel(Interface):
 

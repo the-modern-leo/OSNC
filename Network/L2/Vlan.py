@@ -27,6 +27,7 @@ class vlan:
         self.vrf = None
         self.shutdown = True
         self.mac_addresses = []
+        self.arp = []
 
     def __eq__(self, other):
         if not isinstance(other, vlan):
@@ -34,6 +35,8 @@ class vlan:
         return self.number == other.number
     def __hash__(self):
         return hash(self._number)
+    def assing_confg_attributes(self):
+        pass
 
 class VLANConfig(object):
     """
