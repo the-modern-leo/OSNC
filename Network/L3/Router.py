@@ -1,5 +1,5 @@
 ### Local Package ###
-from L2 import Stack, Blade, Neighbor
+from Network.L2.Switch import Stack, Blade, Neighbor
 from Network.L1.Port import SFP, Interface,PortChannel
 from Network.L2.Vlan import vlan
 
@@ -7,9 +7,10 @@ from Network.L2.Vlan import vlan
 ### Global Packages ###
 import logging
 import re
-from ipaddress import IPv4Network,ip_network,ip_address
-from dateutil import relativedelta
+from ipaddress import IPv4Network,ip_network,ip_address,IPv4Address
+from dateutil.relativedelta import relativedelta
 from datetime import datetime
+from netaddr import EUI
 
 
 def _exception(e):
@@ -22,6 +23,93 @@ def RepresentsInt(s):
         return True
     except ValueError:
         return False
+
+class routing_protocol():
+    def __int__(self):
+        self.neighbors = None
+        self.networks = None
+        self.routerid = None
+        self.ASNumber = None
+        self.interfaces = []
+
+    def assign_config_attributes(self,config_text):
+        """
+        Function for assigning all the aspects of the EIGRP
+        """
+        self.config_text = config_text
+        self._assign_networks()
+        self._assign_AS()
+        self._assign_interface()
+        self._assign_router_id()
+        self._assign_vrf()
+
+    def _assign_vrf(self):
+        router_line = re.findall(r"router [A-Za-z]{0,10} [\d]{0,10}.*", self.config_text, re.MULTILINE)
+        if "vrf" in router_line[0]:
+            self.vrf = True
+            self.vrfName = re.sub(r"router [A-Za-z]{0,10} [\d]{0,10} vrf ","",re.sub(r"\r", "", router_line[0]))
+
+    def _assign_router_id(self):
+        routerid = re.findall(r".*router-id.*$", self.config_text, re.MULTILINE)
+        for id in routerid:
+            id = re.sub("\r", "", id)
+            ipaddress = re.sub(" router-id ", "", id)
+            self.routerid = ip_address(ipaddress)
+
+    def _assign_networks(self):
+        """
+        a list of the configuration lines for a network
+        """
+        try:
+            self.networks = []
+            networks = re.findall(r"network .*$",self.config_text,re.MULTILINE)
+            for line in networks:
+                r = Routing_Network()
+                r.assign_config(line)
+                self.networks.append(r)
+        except:
+            pass
+    def _assign_AS(self):
+        """
+        grab the AS number
+        """
+        self.ASNumber = int(re.findall(r"router [A-Za-z]{0,10} ([0-9]{0,109}|[0-9]{0,109})",self.config_text, re.MULTILINE)[0])
+
+    def _assign_interface(self):
+        """
+        Assign the interfaces associated with this routing protocol
+        """
+        self.interfaces = []
+        interfaces = re.findall(r".*passive-interface .*$", self.config_text, re.MULTILINE)
+        for int in interfaces:
+            int = re.sub("\r", "", int)
+            if "default" in int:
+                self.passiveInterfaces = True
+            elif "no passive-interface" in int and "Vlan" in int:
+                v = vlan(re.sub("no passive-interface Vlan","",int))
+                self.interfaces.append(v)
+            elif "no passive-interface" in int:
+                i = Interface()
+                i.fullname = re.sub("no passive-interface ","",int)
+                i.assign_config_attributes_from_full_name()
+                i.shortname()
+                self.interfaces.append(i)
+
+class eigrp(routing_protocol):
+    def __int__(self,*args, **kwargs):
+        super(eigrp, self).__init__(*args, **kwargs)
+
+class ospf(routing_protocol):
+    def __int__(self,*args, **kwargs):
+        super(ospf, self).__init__(*args, **kwargs)
+
+class bgp(routing_protocol):
+    def __int__(self,*args, **kwargs):
+        super(bgp, self).__init__(*args, **kwargs)
+
+class rip(routing_protocol):
+    def __int__(self,*args, **kwargs):
+        super(rip, self).__init__(*args, **kwargs)
 
 class Router(Stack):
     """
@@ -36,217 +124,14 @@ class Router(Stack):
         self.network_object_wrong = False
         super(Router, self).__init__(*args, **kwargs)
 
-    def getSwitchInfo(self):
-        """
-        Gathers all the essential information from the switch, and creates a switch object based off the
-        results for better use in python coding projects
-        Args:
-            con (Connection): an active Parimko Connection to a switch
-
-        """
-        logging.info(f"Scraping Router Data - Starting")
-        try:
-            try:
-                teststring = self.conn.send_command('enable', manypages=True)
-            except ValueError:
-                pass
-            self.hostname = re.sub("hostname", "", self.conn.send_command('show run | inc hostname', manypages=True))
-            self.hostname = re.sub(" ", "", self.hostname)
-            self.hostname = self.hostname.rstrip("\r")
-            self.version_result = self.conn.send_command('show version', manypages=True)
-            if "r1-remote" in self.version_result:
-                self.vlan_interface_result = self.conn.send_command('show run | section in Vlan',
-                                                              manypages=True)
-                self.interface_result = self.conn.send_command('show run | section in Ethernet',
-                                                         manypages=True)
-            elif "WS-C6509-E" in self.version_result or "C6816-X-LE" in self.version_result:
-                self.vlan_interface_result = self.conn.send_command('show run | section interface Vlan',
-                                                              manypages=True)
-                self.interface_result = self.conn.send_command('show run | section in Ethernet',
-                                                         manypages=True)
-            else:
-                self.vlan_interface_result = self.conn.send_command('show run | section Vlan',
-                                                              manypages=True)
-                self.interface_result = self.conn.send_command('show run | section interface | section Ethernet',
-                                                         manypages=True)
-                self.port_channel_result = self.conn.send_command('show run | section interface | section port-channel',
-                                                            manypages=True)
-            self.inv_result = self.conn.send_command('show inventory', manypages=True)
-            self.portcount_result = self.conn.send_command('show interface counters', manypages=True)
-            self.cdpnei_result = self.conn.send_command('show cdp nei detail', manypages=True)
-            self.module_result = self.conn.send_command('show module', manypages=True)
-
-        except Exception as e:
-            logging.info(f"Scraping Router Data - Failed")
-            logging.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logging.info(f"Scraping Router Data - Success")
-
-    def assignattributes(self):
-        """
-        takes the responses from get switch info, and applies those responses to the object attributes
-
-        """
-        logging.info(f"Assigning Data to Router Object - Starting")
-        try:
-            self.sortVersion(versionresult=self.version_result)
-            self.sortInventory(self.inv_result)
-            # gathers blades for chassis
-            self.sortmodule(self.module_result)
-            # sort interfaces seperately
-            self.sortinterfaces(self.interface_result)
-            # sort vlan information
-            self.sort_vlan_interfaces(self.vlan_interface_result)
-            # applies the uplinks
-            self.sortCdpNeiDetail(self.cdpnei_result)
-            self.sortportcounters(self.portcount_result)
-
-        except Exception as e:
-            logging.info(f"Assigning Data to Router Object - Failed")
-            logging.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logging.info(f"Assigning Data to Router Object - Success")
-
-    def sortInventory(self, invresult='', ):
-        """
-        takes the string for Invresults, and grabs the serial numbers, SFPs, and blades for the system out of it.
-        This assigns those values to Self.serial, self.SFPs, and self.blades
-        Args:
-            invresult (str): a result for 'show inventory'
-
-        Returns ():
-        """
-        assert isinstance(invresult, str), f'invresult: must be str, but got {type(invresult)}'
-        logging.info("Sorting 'show Inventory' - Starting")
-        try:
-            inv = invresult.split('NAME:')
-            serial = []
-            SFPs = []
-            blades = []
-            # get the serial number for the whole system
-            for hdevice in inv:
-                hdeviceparts = hdevice.split(',')
-                # collect the blades in a Chassis
-                name = hdeviceparts[0].replace('\"', '')
-                name = name.replace('\"', '')
-                name = name.replace('Slot ', '')
-                if 'Switch System' in hdevice:
-                    for line in hdeviceparts:
-                        if 'SN:' in line:
-                            switchserial = line.split(':')[1].rstrip()
-                            serial.append(switchserial)
-                            logging.info("Sorting 'show Inventory' - Success")
-
-                elif 'System' in hdevice:
-                    for line in hdeviceparts:
-                        if 'SN:' in line:
-                            switchserial = line.split(':')[1].rstrip()
-                            serial.append(switchserial)
-                            logging.info("Sorting 'show Inventory' - Success")
-
-                # get the sfps that are in this device
-                elif 'Transceiver' in hdevice:
-                    Transceiver = SFP()
-                    Transceiver.port = re.sub("Transceiver ", "", hdeviceparts[0].replace("\"", ""))
-                    Transceiver.port = re.sub(" ", "", Transceiver.port.replace("\"", ""))
-                    for line in hdeviceparts:
-                        if 'DESCR:' in line:
-                            word = line.split(" ")
-                            for w in word:
-                                if 'base' in w or "Base" in w:
-                                    Transceiver.speed = w
-                        if 'SN:' in line:
-                            line = re.sub(" SN: ", "", line)
-                            line = re.sub("SN: ", "", line)
-                            line = line.replace('\r', '')
-                            line = line.replace('\n', '')
-                            line = re.sub(" ", "", line)
-                            Transceiver.SN = re.sub("SN:", "", line.rstrip(""))
-                    SFPs.append(Transceiver)
-
-                elif 'N77-M348XP-23L' in hdevice:
-                    serialnumber = None
-                    for line in hdeviceparts:
-                        if 'SN:' in line:
-                            line = re.sub(" SN: ", "", line)
-                            line = re.sub("SN: ", "", line)
-                            line = line.replace('\"', '')
-                            line = line.replace('\r', '')
-                            line = line.replace('\n', '')
-                            line = re.sub(" ", "", line)
-                            serialnumber = re.sub("SN:", "", line.rstrip('\"'))
-                    b = Blade(serialnumber)
-                    b.stacknumber = int(name)
-                    blades.append(b)
-                elif 'N77-M324FQ-25L' in hdevice:
-                    pass
-                # get the blades in this chassis
-                elif RepresentsInt(name):
-                    serialnumber = None
-                    for line in hdeviceparts:
-                        if 'SN:' in line:
-                            line = re.sub(" SN: ", "", line)
-                            line = re.sub("SN: ", "", line)
-                            line = line.replace('\"', '')
-                            line = line.replace('\r', '')
-                            line = line.replace('\n', '')
-                            line = re.sub(" ", "", line)
-                            serialnumber = re.sub("SN:", "", line.rstrip('\"'))
-                    b = Blade(serialnumber)
-                    b.stacknumber = int(name)
-                    blades.append(b)
-
-            if blades == set():
-                raise ValueError("blades not assigned")
-
-        except Exception as e:
-            logging.info("Sorting 'show Inventory' - Failed")
-            logging.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logging.info("Sorting 'show Inventory' - Success")
-            self.serial = serial
-            self.SFPs = SFPs
-            self.blades = blades
-
-    def sortinterfaces(self, interface_result):
-        """
-        This function sorts through every single interface on the device, and applies those interfaces to the blade object
-        :param interface_result (str) a response from the command "show run | section interface":
-        """
-        logging.info("Sorting 'show run | section interface | section Ethernet' - Starting")
-        assert isinstance(interface_result, str), f"interface results must be str, got {type(interface_result)} instead"
-        assert hasattr(self, 'blades'), f'the blades have not been set on this object'
-        assert self.blades is not None, f'the blades have not been set on this object'
-        try:
-            # seperate each section into it's own string.
-            interface_result = interface_result.split('interface ')
-
-            interfaces = []
-            for st in interface_result:
-                if re.match('(?:(?:Ethernet|FastEthernet|GigabitEthernet|TwoGigabitEthernet|TenGigabitEthernet|FortyGigabitEthernet)(?:[\d][\/][\d]{0,2}[^\S]|[\d][\/][\d][\/][\d]{0,2}))',st):
-                    if 'both' in st:
-                        continue
-                    interface = self._get_interface_physical(st)
-                    interfaces.append(interface)
-
-            for interface in interfaces:  # add the interface to the correct blade
-                for b in self.blades:
-                    if interface.blade == b.stacknumber:
-                        b.interfaces[interface.portnumber] = interface
-
-        except Exception as e:
-            logging.info("Sorting 'show run | section interface | section Ethernet' - failed")
-            logging.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logging.info("Sorting 'show run | section interface | section Ethernet' - Success")
+    def get_started(self):
+        self.login()
+        self.conn.enable_cisco()
+        self.getSwitchInfo()
+        self.assignattributes()
+        self._get_route_protocols()
+        self._sort_arp()
+        pass
 
     def sort_object_groups(self):
         """
@@ -274,7 +159,7 @@ class Router(Stack):
             obj
         """
         network = None
-        nobj = Network_Object()
+        nobj = self.Network_Object()
         output = line.split('\r\n')
         nobj.name = output[0]
         for l in output:
@@ -484,60 +369,6 @@ class Router(Stack):
         else:
             return v
 
-    def sortmodule(self, module):
-        """
-        Used to collect the blade information for chassis units.
-        Args:
-            module (str): A response from the command 'show module all'
-            switchobj (Switch): A Switch Object
-
-        Returns (Switch): a switch object with the blade objects
-                            having been added
-        """
-        logging.info("Sorting 'show module all' - Starting")
-        try:
-            # create blade list if not already done
-            if not self.blades:
-                self.blades = set()
-            # splits the response by breakdown
-            module = module.split('Mod ')
-            modulelist = []
-            for m in module:
-                if "Card Type" in m:
-                    for line in m.split("\r\n"):
-                        if "---" in line:
-                            pass
-                        elif "Mod" in line:
-                            pass
-                        elif "" == line:
-                            pass
-                        else:
-                            blade = self._get_mod_card(line)
-                            modulelist.append(blade)
-                elif "MAC addres" in m:
-                    for line in m.split("\r\n"):
-                        if "---" in line:
-                            pass
-                        elif "MAC" in line:
-                            pass
-                        elif "" == line:
-                            pass
-                        else:
-                            blade = self._get_mod_mac(line)
-                            modulelist.append(blade)
-                elif "Sub-Module" in m:
-                    pass
-                elif "Online Diag Status" in m:
-                    pass
-        except Exception as e:
-            logging.info("Sorting 'show module all' - failed")
-            logging.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logging.info("Sorting 'show module all' - Success")
-            return
-
     def _get_mod_card(self, modeline):
         """
         This helper function will take in the mod line from the "show module" response, and returns
@@ -638,76 +469,6 @@ class Router(Stack):
             raise
         else:
             return blade
-
-    def sortVersion(self, versionresult=''):
-        """
-        This functions pulls out the Stack information, Version number, Model Number, Serial number,
-        and switch uptime for the 'show version' response
-        Args:
-            versionresult (str): A response from running 'show version' on a switch
-            :param chassislist (list): A List of models that are switch chassis
-        """
-        assert isinstance(versionresult, str), f'versionresult: must be str, but got {type(versionresult)}'
-        logging.info("Sorting 'show Version' - Starting")
-        try:
-            # run code here
-            # search through response to gather the indivigual info
-            if "Cisco IOS Software" in versionresult:
-                self.nexus = None
-            elif "Cisco Nexus Operating System" in versionresult:
-                self.nexus = True
-            else:
-                self.nexus = None
-
-            ver = versionresult.split('\r\n')
-
-            # Begin the looping to gather all the information needed
-            for count, line in enumerate(ver):
-                # locate Nexus Info
-                if self.nexus:
-                    if "system:" in line:
-                        self.version = line
-                    elif "Hardware" in line:
-                        self.modelnumber = ver[count + 1]
-                    elif "Processor Board ID" in line:
-                        self.serial = []
-                        self.serial.append(line)
-                    elif "Kernel uptime is" in line:
-                        self.uptime = line
-                else:  # locate ISO Info
-                    # get the Serial # info
-                    if "Processor board ID" in line:
-                        self.serial = []
-                        self.serial.append(line)
-                    # get Version Info
-                    elif "Cisco IOS Software" in line and "Version" in line:
-                        self.version = line
-                    # get up time Info
-                    elif "uptime is" in line:
-                        self.uptime = line
-                    # get Model # info
-                    elif "processor" in line and "Cisco" in line:
-                        self.modelnumber = line
-
-            # process Serial Number
-            self.serial = self._get_serial(self.serial)
-
-            # process Version Info
-            self.version = self._get_version(self.version)
-
-            # process uptime info
-            self.uptime, self.lastrestart = self._get_uptime(self.uptime)
-
-            # process Model #
-            self.modelnumber = self._get_modelnumber(self.modelnumber)
-
-        except Exception as e:
-            logging.info("Sorting 'show Version' - failed")
-            logging.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logging.info("Sorting 'show Version' - Success")
 
     def _get_serial(self, line):
         """
@@ -853,192 +614,6 @@ class Router(Stack):
         else:
             return line
 
-    def sortCdpNeiDetail(self, cdpnei):
-        """
-        This function pulls the neighboring device information from the command 'show cdp nei detail' creating a neighbor
-        obj for each cdp neighbor while marking the interfaces with that object as well. Assigns all the objects to
-        the self.cdpneighbors list
-
-        Args:
-            cdpnei (str): ipaddress of uplink switch
-
-        """
-        assert isinstance(cdpnei, str), f'cdpnei must be a str, got {type(cdpnei)}'
-        assert cdpnei is not None, f'cdpnei is an empty string. please pass through response from "show cdp nei detail"'
-        logging.info("Sorting 'show cdp nei detail' - Starting")
-        try:
-            # seperate out all the CDP Sections
-            cdpneidetail = cdpnei.split('-------------------------')
-            neighbors = []
-            for neighborstr in cdpneidetail:
-                if neighborstr == "":
-                    continue
-                neighborobj = self._get_neighbor(neighborstr)
-                neighbors.append(neighborobj)
-
-        except Exception as e:
-            logging.info("Sorting 'show cdp nei detail' - Failed")
-            logging.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            logging.info("Sorting 'show cdp nei detail' - Success")
-            self.cdpneighbors = neighbors
-
-    def _get_neighbor(self, neighborstr):
-        """
-        sorts through the cdp neigbor sections, creates a neigbor obj, assigns all the attributes, and returns the object
-        Args:
-            neighborstr:
-
-        Returns:
-
-        """
-        try:
-            localportnumber = None
-            localport = None
-            neighborlist = neighborstr.split("\r\n")
-            neighborlist = [x for x in neighborlist if x]
-            n = Neighbor()
-            n.deviceid = re.sub("Device ID: ", "", neighborlist[0])
-            for line in neighborlist:
-                if "IP address:" in line or "IPv4 Address:" in line or re.match('[\d]{0,3}\.[\d]{0,3}\.[\d]{0,3}\.[\d]{0,3}',line):
-                    line = re.sub("IP address:", "", line)
-                    line = re.sub("IPv4 Address:", "", line)
-                    line = re.sub("IP address:", "", line).rstrip('\r')
-                    line = re.sub("\r", "", line)
-                    line = line.split(" ")
-                    line = [x for x in line if x]
-                    n.ip = ip_address(line[0])
-                elif "Device ID:" in line:
-                    n.deviceid = re.sub("Device ID: ", "", line)
-                elif "Platform:" in line:
-                    line = re.sub("Platform: ", "", line)
-                    line = re.sub(" ", "", line)
-                    n.platform = line.split(",")[0]
-                elif "Interface:" in line:
-                    line = re.sub("Interface: ", "", line)
-                    line = re.sub(" ", "", line)
-                    line = line.split(",")
-                    localport = line[0]
-                    localport = self._get_interface_numbers(localport)
-                    localport = localport.split("/")
-                    if len(localport) > 2:
-                        localportnumber = localport[2]
-                    else:
-                        if 'mgmt0' in localport:
-                            localportnumber = 'mgmt0'
-                        else:
-                            localportnumber = localport[1]
-                    remoteport = re.sub("PortID(outgoingport):", "", line[1])
-                    remoteport = self._get_interface_numbers(remoteport)
-                    remoteport = remoteport.split("/")
-                    if len(localport) > 2:
-                        remoteportnumber = remoteport[2]
-                    else:
-                        remoteportnumber = remoteport[1]
-                    i = Interface()
-                    i.portnumber = remoteportnumber
-                    i.blade = remoteport[0]
-                    i.rawdata = line[1]
-                    n.remote_interface = i
-                    if localportnumber != 'mgmt0':
-                        for blade in self.blades:  # assign the interface obj to the neighbor object
-                            if blade.stacknumber == int(localport[0]):
-                                localint = blade.interfaces[int(localportnumber)]
-                                n.interface = localint
-                                break
-                elif "VTP Management Domain:" in line or "VTP Management Domain Name:":
-                    n.VTPDomain = re.sub("VTP Management Domain: ", "", line)
-                    n.VTPDomain = re.sub(" ", "", n.VTPDomain)
-                elif "Duplex:" in line:
-                    n.duplex = re.sub("Duplex: ", "", line)
-                    n.duplex = re.sub(" ", "", n.duplex)
-
-            # assign the neigbor object to the interface
-            if localport:
-                for blade in self.blades:
-                    if blade.stacknumber == localport[0]:
-                        localint = blade.interfaces[localportnumber]
-                        localint.neighbor = n
-        except Exception as e:
-            logging.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            return n
-
-    def _get_interface_numbers(self, intstr):
-        """
-        This function will remove all the letters in an interface leaving just the numbers, and special characters
-        Args:
-            intstr (str): any interface title
-
-        Returns (str): just stack/module/port numbers or vlan number
-        """
-        try:
-            intstr = re.sub("FortyGigabitEthernet", "", intstr)
-            intstr = re.sub("TenGigabitEthernet", "", intstr)
-            intstr = re.sub("TwoGigabitEthernet", "", intstr)
-            intstr = re.sub("GigabitEthernet", "", intstr)
-            intstr = re.sub("FastEthernet", "", intstr)
-            intstr = re.sub("Ethernet", "", intstr)
-            intstr = re.sub(" ", "", intstr)
-        except Exception as e:
-            logging.error(e, exc_info=True)
-            _exception(e)
-            raise
-        else:
-            return intstr
-
-    def update_orion_migration(self, switch_connection):
-        """
-        Update logging, SNMP, and ACL for the Orion migration.
-        """
-        logging.info("Orion Migration: Updating - Starting ")
-        try:
-            if self.network_objects_wrong:
-                for object in self.network_objects:
-                    if 'Monitoring' in object.name.lower():
-                        self._update_network_object(object)
-            if self.snmp_group_wrong:
-                pass
-            if self.snmp_user_wrong:
-                pass
-            if self.snmp_host_group_wrong:
-                pass
-            if self.snmp_logging_wrong:
-                pass
-        except Exception as e:
-            logging.info("Orion Migration: Updating - Failed ")
-            logging.error(e, exc_info=True)
-        else:
-            logging.info("Orion Migration: Updating - Success ")
-
-    def _update_SNMP(self, object):
-        """
-        Modifies the network object from the provided object
-        Returns:
-        """
-
-    def _delete_SNMP(self):
-        """
-        Removes the whole network object configuration from the provided object
-        Returns:
-        """
-
-    def _create_SNMP(self):
-        """
-        creates a network object from the provided object
-        Returns:
-        """
-
-    def write_SNMP(self):
-        """
-        Writes the configuration of a network object to the device
-        Returns:
-        """
-
     def _update_network_object(self,object):
         """
         Modifies the network object from the provided object
@@ -1076,6 +651,94 @@ class Router(Stack):
             raise
         else:
             return v
+    def _get_route_protocols(self):
+        self.route_protocols = []
+        self.route_protocols_results = self.conn.send_command('show run | sec router ', manypages=True)
+        router_configs = self.route_protocols_results.split("router ")
+        for router in router_configs:
+            if router == "":
+                continue
+            if "eigrp" in router:
+                e = eigrp()
+                e.assign_config_attributes("router " + router)
+                self.route_protocols.append(e)
+            if "ospf" in router:
+                e = ospf()
+                e.assign_config_attributes("router " + router)
+                self.route_protocols.append(e)
+            if "bgp" in router:
+                e = bgp()
+                e.assign_config_attributes("router " + router)
+                self.route_protocols.append(e)
+            if "rip" in router:
+                e = rip()
+                e.assign_config_attributes("router " + router)
+                self.route_protocols.append(e)
+    def _sort_sub_interface(self,interface_lines):
+        """
+        Sorts the routed interfaces on a port.
+        """
+        pass
+
+    def _sort_arp(self):
+        self.arp_result = self.conn.send_command('show ip arp', manypages=True)
+        arps = re.findall(
+            r"(Internet  ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})\s*([\d]{0,3}|-)\s*([\da-z]{0,4}.[\da-z]{0,4}.[\da-z]{0,4})\s*ARPA\s*(Vlan([\d]{0,10})|[A-za-z]{0,20}([\d]{0,2}/[\d]{0,3}/[\d]{0,3}|[\d]{0,2}\/[\d]{0,3})))",
+            self.arp_result, re.MULTILINE)
+        for line in arps:
+            a = arp_line()
+            a.assign_arp(line)
+            if "Vlan" in line[0]:
+                for v in self.vlans:
+                    if v.number == int(a.vlan):
+                        v.arp.append(a)
+            else:
+                for v in self.L2_Interfaces():
+                    if v.fullname == a.interface:
+                        v.arp.append(a)
+
+class Routing_Network():
+    def __int__(self):
+        """
+        :return:
+        """
+        self.object_results = None
+        self.network_objects = None
+        self.network_object_wrong = False
+    def assign_config(self,line):
+        self.network = None
+        config_line = line
+        line = re.sub("\r", "", line)
+        wildcard = re.findall(
+            r"network [\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3} ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})",
+            line, re.MULTILINE)
+        line = line.split(" ")
+        if len(line) >= 3:
+            self.network = IPv4Network(line[1] + "/" + str(IPv4Address(int(IPv4Address(wildcard[0])) ^ (2 ** 32 - 1))))
+        else:
+            self.network = IPv4Network(line[1])
+        if "area" in line:
+            area = re.findall(r"network .* area ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}|[\d])", config_line, re.MULTILINE)
+            self.area = area[0]
+
+class arp_line():
+    def __int__(self):
+        """
+        :return:
+        """
+        self.ip = None
+        self.mac = None
+        self.interface = False
+        self.vlan = None
+    def assign_arp(self,arp_list):
+        if "Vlan" in arp_list[0]:
+            self.vlan = int(arp_list[5])
+            self.mac = EUI(arp_list[3])
+            self.ip = arp_list[1]
+        else:
+            self.interface = arp_list[4]
+            self.mac = EUI(arp_list[3])
+            self.ip = arp_list[1]
 
 
 class VRF():

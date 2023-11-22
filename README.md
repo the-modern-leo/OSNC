@@ -11,7 +11,8 @@ Future improvements will be running the service as a single docker container for
 Possible improvements will also see the application 
 
 **Install:**
-`python3 -m pip install https://github.com/the-modern-leo/OSNC/releases/download/v1.0.0/ONSC-0.1.dev0.tar.gz`
+
+`pip install https://github.com/the-modern-leo/OSNC/releases/download/v1.0.0/ONSC-0.1.dev0.tar.gz`
 
 Intended Consumable Packages are located under the Network Package:
 
