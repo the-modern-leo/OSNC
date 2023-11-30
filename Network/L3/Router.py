@@ -10,7 +10,7 @@ import re
 from ipaddress import IPv4Network,ip_network,ip_address,IPv4Address
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
-from netaddr import EUI
+from netaddr import EUI, mac_cisco
 
 
 def _exception(e):
@@ -681,6 +681,7 @@ class Router(Stack):
         pass
 
     def _sort_arp(self):
+        self.arps = []
         self.arp_result = self.conn.send_command('show ip arp', manypages=True)
         arps = re.findall(
             r"(Internet  ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})\s*([\d]{0,3}|-)\s*([\da-z]{0,4}.[\da-z]{0,4}.[\da-z]{0,4})\s*ARPA\s*(Vlan([\d]{0,10})|[A-za-z]{0,20}([\d]{0,2}/[\d]{0,3}/[\d]{0,3}|[\d]{0,2}\/[\d]{0,3})))",
@@ -688,14 +689,34 @@ class Router(Stack):
         for line in arps:
             a = arp_line()
             a.assign_arp(line)
-            if "Vlan" in line[0]:
-                for v in self.vlans:
-                    if v.number == int(a.vlan):
-                        v.arp.append(a)
-            else:
-                for v in self.L2_Interfaces():
-                    if v.fullname == a.interface:
-                        v.arp.append(a)
+            self.arps.append(a)
+
+    # def find_port(self,ip=None,mac=None):
+    #     neighbor_ip = None
+    #     if ip:
+    #         for arp in self.arps:
+    #             if arp.ip == ip:
+    #                 mac = arp.mac
+    #     if mac:
+    #         mac.dialect = mac_cisco
+    #         mac_results = self.conn.send_command(f'show mac address-table | in {str(mac)}', manypages=True)
+    #         result = re.findall(r"([A-Za-z]{0,10}[\d]{0,3}\/[\d]{0,3}|[A-Za-z]{0,10}[\d]{0,3}\/[\d]{0,3}\/[\d]{0,3})",mac_results)
+    #         for neighbor in self.cdpneighbors:
+    #             if neighbor.interface.short.lower() == result[0].lower():
+    #                 neighbor_ip = neighbor.ip
+    #         if not neighbor_ip:
+    #             return self.get_interface_obj(result[0])
+    #     if neighbor_ip:
+    #         s = Stack(neighbor_ip)
+    #         s.login()
+    #         s.conn.enable_cisco()
+    #         s.getSwitchInfo()
+    #         s.assignattributes()
+    #         s.find_port(mac)
+
+
+
+
 
 class Routing_Network():
     def __int__(self):

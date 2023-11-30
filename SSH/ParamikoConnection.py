@@ -162,6 +162,8 @@ class Connection(object):
                     raise ValueError("Cisco prompt not reached")
 
             prompt = header.splitlines()[-1].strip()
+            if ">" in prompt:
+                self.enable_cisco()
             self.prompt = prompt
             self.update_prompts(self.prompt)
         except paramiko.ssh_exception.NoValidConnectionsError as N:
@@ -195,6 +197,9 @@ class Connection(object):
         return
     def update_prompts(self,prompt):
         try:
+            if "Violators will be prosecuted." in prompt:
+                prompt = re.sub(r"Violators will be prosecuted\.","",prompt)
+            prompt = re.sub("\r\n","",prompt)
             self.prompt = prompt + '#'
             if len(self.prompt) > 20:
                 self.configprompt = prompt[:20]
@@ -270,6 +275,7 @@ class Connection(object):
                             raise ValueError('Enable prompt not reached: ' + output)
                         else:
                             logging.info('Successfully enabled')
+                            self.update_prompts(output)
                             break
                     else:
                         if "Invalid command at \'^\' marker" in output:  # already in enable mode
@@ -285,7 +291,7 @@ class Connection(object):
         else:
             logger.info(f'Enable - Success')
 
-    def send_command(self, command, trim=True, manypages=False, adtranmore=False,File_transfer=False):
+    def send_command(self, command, trim=True, manypages=False, adtranmore=False,File_transfer=False,attempt=0):
         """Send a command to the SSH'd device.
 
         Args:
@@ -304,6 +310,8 @@ class Connection(object):
             ValueError for stuck loops (prompt not reached) or invalid commands.
         """
         logger.debug(f'Command:{command}')
+        if attempt:
+            attempt = attempt+1
         try:
             if self.channel.recv_ready():
                 pass
@@ -317,7 +325,7 @@ class Connection(object):
             output = ""
             if command == 'yes' or command == 'y':  # don't expect a prompt back
                 return ''
-
+            start_time = time.time()
             while True:
                 # note: only check first 20 characters or whole system name,
                 # since config mode truncates name at 20 chars
@@ -325,7 +333,6 @@ class Connection(object):
                 prompt_end = min(len(self.prompt) - 2, 20)
                 loop_counter = 0
                 while not self.channel.recv_ready():
-                    logger.debug(f'Waiting for Response: {loop_counter}')
                     time.sleep(0.1)
                     loop_counter += 1
                     if output == '':
@@ -340,8 +347,15 @@ class Connection(object):
                         if loop_counter > 4800:
                             # stuck for more than 60 seconds, give up
                             raise ValueError("Stuck in wait loop, " + str(output))
-                    if loop_counter > 1200:  # stuck for more than 60 seconds, give up
-                        raise ValueError("Stuck in wait loop, " + str(output))
+                    if loop_counter > 1200: # stuck for more than 60 seconds, give up
+                        end_time = time.time()
+                        logger.debug(f"Waiting for Response: {str(end_time - start_time)}")
+                        if attempt >= 3:
+                            raise ValueError("Stuck in wait loop, " + str(output))
+                        self.logout()
+                        self.login()
+                        self.enable_cisco()
+                        self.send_command(command,attempt=attempt)
 
                 output += self.channel.recv(32768).decode("utf-8")
                 logger.debug(f'Loop Count:{loop_counter} - {output}')
@@ -448,6 +462,13 @@ class Connection(object):
             logger.debug(f'Prompt length: {prompt_end}')
             logger.error(I, exc_info=True)
             _exception(I)
+            raise
+        except OSError as o:
+            logger.debug(f'Output: {output}')
+            logger.debug(f'Prompt: {self.prompt}')
+            logger.debug(f'Prompt length: {prompt_end}')
+            logger.error(o, exc_info=True)
+            _exception(o)
             raise
         except Exception as e:
             logger.error(e, exc_info=True)
