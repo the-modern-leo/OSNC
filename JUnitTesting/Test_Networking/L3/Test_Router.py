@@ -1,5 +1,5 @@
 import unittest
-from Network.L3.Router import Router
+from Network.L3.Router import Router, VRF
 import re
 from netaddr import mac_cisco
 
@@ -12,7 +12,7 @@ class TestRouter(unittest.TestCase):
         self.assertEqual()
 
     def test_find_port_quick(self):
-        r = Router("192.168.100.202")
+        r = Router("192.168.100.178")
         r.get_started()
         aprs = []
         all_ports = []
@@ -29,8 +29,6 @@ class TestRouter(unittest.TestCase):
             mac = ports[2]
             mac.dialect = mac_cisco
             print(f"IP address:{ports[0]},interface:{str(ports[1])}, Mac Address: {str(mac)}")
-
-
 
     def test_port_finder(self):
         r = Router("192.168.100.202")
@@ -50,4 +48,8 @@ class TestRouter(unittest.TestCase):
             mac = ports[1].interface.mac_addresses[0]
             mac.dialect = mac_cisco
             print(f"IP address:{ports[0]},interface:{str(ports[1])} Mac Address: {str(mac)}")
+
+    def test_generate_vrf_configuration(self):
+        v = VRF()
+        v.generate_Vrf_configuration()
 

@@ -765,3 +765,85 @@ class arp_line():
 class VRF():
     def __init__(self):
         pass
+
+    def generate_Vrf_configuration(self, vlans=None, vrf=None, ospf=None):
+            """
+
+            @param vlans: A list of dictionary [{name:str,number:str,hsrp:c,hsrpNumber:d,hsrphelpers:tuple(),ip:e,}]
+            @type vlans: list
+            @param vrf: A list of dictionary [{name:str,bgpLoopbackNumber:str,bgpLoopbackIp:,}]
+            @type vrf: list
+            @param ospf: the ip address of the routerid/loopback
+            @type ospf: dictionary {ip:ipaddress.IPv4Address,Loopbackip:int,Loopbacknumber:int)
+            @return:
+            @rtype:
+            """
+            vlans = ""
+            for vlan in vlans:
+                vlans = vlans + f"""vlan {vlan["number"]}
+    name {vlan["name"]}
+
+    default interface Vlan{vlan["number"]}
+    no interface Vlan{vlan["number"]}
+    interface Vlan{vlan["number"]}
+     description {vlan["name"]}
+     vrf forwarding {vrf["name"]}
+     ip address {vlan["ip"]}
+     ip helper-address {vlan["hsrphelpers"][0]}
+     ip helper-address {vlan["hsrphelpers"][1]}
+    shut
+    !
+    """
+
+            return f"""{vlans}
+    !
+    vrf definition {vrf["name"]}
+     rd 650{ospf["LoopbackNumber"]}:{ospf["LoopbackNumber"]}
+     route-target export 650{ospf["LoopbackNumber"]}:{ospf["LoopbackNumber"]}
+     route-target import 650{ospf["LoopbackNumber"]}:{ospf["LoopbackNumber"]}
+     !
+     address-family ipv4
+     exit-address-family
+
+    no router ospf {ospf["LoopbackNumber"]} vrf {vrf["name"]}
+    router ospf {ospf["LoopbackNumber"]} vrf {vrf["name"]}
+     router-id {ospf["Loopbackip"]}
+     network 10.7.0.0 0.0.240.255 area 0
+     network 10.24.0.0 0.0.7.255 area 0
+
+    default interface Loopback3
+    no interface Loopback3
+    interface Loopback3
+     description BGP-for-Multi-Vrf
+     ip address {vrf["bgpLoopbackIp"]}
+
+    default interface Loopback{ospf["LoopbackNumber"]}
+    no interface Loopback{ospf["LoopbackNumber"]}
+    interface Loopback{ospf["LoopbackNumber"]}
+     description {vrf["name"]}-vrf
+     vrf forwarding {vrf["name"]}
+     ip address {ospf["Loopbackip"]}
+     ip ospf network point-to-point
+
+    default router bgp 65000
+    no router bgp 65000
+    router bgp 65000
+     bgp log-neighbor-changes
+     neigbhor 10.7.2.0 remote-as 65000
+     neigbhor 10.7.2.0 update-source Loopback3
+     neigbhor 10.7.2.1 remote-as 65000
+     neigbhor 10.7.2.1 update-source Loopback3
+     !
+     address-family vpnv4
+      neigbhor 10.7.2.0 activate
+      neigbhor 10.7.2.0 send-community both
+      neigbhor 10.7.2.0 next-hop-self
+      neigbhor 10.7.2.1 activate
+      neigbhor 10.7.2.1 send-community both
+      neigbhor 10.7.2.1 next-hop-self
+     exit-address-family
+     !
+     address-family ipv4 vrf {vrf["name"]}
+      redistribute ospf {ospf["LoopbackNumber"]}
+     exit-address-family
+    """
