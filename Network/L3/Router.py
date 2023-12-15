@@ -31,6 +31,7 @@ class routing_protocol():
         self.routerid = None
         self.ASNumber = None
         self.interfaces = []
+        self.neighbors = []
 
     def assign_config_attributes(self,config_text):
         """
@@ -42,6 +43,7 @@ class routing_protocol():
         self._assign_interface()
         self._assign_router_id()
         self._assign_vrf()
+        self._assign_neighbors()
 
     def _assign_vrf(self):
         router_line = re.findall(r"router [A-Za-z]{0,10} [\d]{0,10}.*", self.config_text, re.MULTILINE)
@@ -74,7 +76,6 @@ class routing_protocol():
         grab the AS number
         """
         self.ASNumber = int(re.findall(r"router [A-Za-z]{0,10} ([0-9]{0,109}|[0-9]{0,109})",self.config_text, re.MULTILINE)[0])
-
     def _assign_interface(self):
         """
         Assign the interfaces associated with this routing protocol
@@ -94,6 +95,11 @@ class routing_protocol():
                 i.assign_config_attributes_from_full_name()
                 i.shortname()
                 self.interfaces.append(i)
+    def _assign_neighbors(self):
+        self.neighbors = [] = []
+        neighborsText = re.findall(r"neighbor [\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}", self.config_text, re.MULTILINE)
+        for nei in neighborsText:
+            nei = re.sub("\r", "", int)
 
 class eigrp(routing_protocol):
     def __int__(self,*args, **kwargs):
@@ -714,10 +720,6 @@ class Router(Stack):
     #         s.assignattributes()
     #         s.find_port(mac)
 
-
-
-
-
 class Routing_Network():
     def __int__(self):
         """
@@ -761,52 +763,57 @@ class arp_line():
             self.mac = EUI(arp_list[3])
             self.ip = arp_list[1]
 
-
 class VRF():
-    def __init__(self):
+    def __init__(self,name,instancenumber):
+        self.name = name
+        self.instancenumber = instancenumber
+
+    def _generate_vlan_configs(self,router):
         pass
+    def _generate_bgp_configs(self,router):
+        if distro:
+            for i in range(0, distro):
 
-    def generate_Vrf_configuration(self, vlans=None, vrf=None, ospf=None):
-            """
+        pass
+    def generate_all_vrf_configurations(self,routers,vlans,distrorouters):
+        configs = []
+        for router in distrorouters:
+            bgpconfigs = self._generate_bgp_configs(router)
+            vrf_configs = self.generate_Vrf_configuration(vlans, "3", bgpconfigs,distro=len(distrorouters))
+        for router in routers:
+            bgpconfigs = self._generate_bgp_configs(router)
+            vrf_configs = self.generate_Vrf_configuration(vlans,"3",bgpconfigs)
+        return configs
 
-            @param vlans: A list of dictionary [{name:str,number:str,hsrp:c,hsrpNumber:d,hsrphelpers:tuple(),ip:e,}]
-            @type vlans: list
-            @param vrf: A list of dictionary [{name:str,bgpLoopbackNumber:str,bgpLoopbackIp:,}]
-            @type vrf: list
-            @param ospf: the ip address of the routerid/loopback
-            @type ospf: dictionary {ip:ipaddress.IPv4Address,Loopbackip:int,Loopbacknumber:int)
-            @return:
-            @rtype:
-            """
-            vlans = ""
-            for vlan in vlans:
-                vlans = vlans + f"""vlan {vlan["number"]}
-    name {vlan["name"]}
+    def generate_Vrf_configuration(self,bgpconfig,vlans=None,distro=None):
+        """
 
-    default interface Vlan{vlan["number"]}
-    no interface Vlan{vlan["number"]}
-    interface Vlan{vlan["number"]}
-     description {vlan["name"]}
-     vrf forwarding {vrf["name"]}
-     ip address {vlan["ip"]}
-     ip helper-address {vlan["hsrphelpers"][0]}
-     ip helper-address {vlan["hsrphelpers"][1]}
-    shut
+        @param vlans (list): A list of Vlan objects
+        @type vlans: list
+        @param ospf: the ip address of the routerid/loopback
+        @type ospf: dictionary {ip:ipaddress.IPv4Address,Loopbackip:int,Loopbacknumber:int)
+        @return:
+        @rtype:
+        """
+
+        firstVlanConfigs = ""
+        secVlanConfigs = ""
+        for vlan in vlans:
+            firstVlanConfigs = firstVlanConfigs + vlan.config(1)
+            secVlanConfigs = secVlanConfigs + vlan.config(2)
+
+        firstConfig = f"""{firstVlanConfigs}
     !
-    """
-
-            return f"""{vlans}
-    !
-    vrf definition {vrf["name"]}
-     rd 650{ospf["LoopbackNumber"]}:{ospf["LoopbackNumber"]}
-     route-target export 650{ospf["LoopbackNumber"]}:{ospf["LoopbackNumber"]}
-     route-target import 650{ospf["LoopbackNumber"]}:{ospf["LoopbackNumber"]}
+    vrf definition {self.name}
+     rd 650{self.instancenumber}:{self.instancenumber}
+     route-target export 650{self.instancenumber}:{self.instancenumber}
+     route-target import 650{self.instancenumber}:{self.instancenumber}
      !
      address-family ipv4
      exit-address-family
 
-    no router ospf {ospf["LoopbackNumber"]} vrf {vrf["name"]}
-    router ospf {ospf["LoopbackNumber"]} vrf {vrf["name"]}
+    no router ospf {self.instancenumber} vrf {self.name}
+    router ospf {self.instancenumber} vrf {self.name}
      router-id {ospf["Loopbackip"]}
      network 10.7.0.0 0.0.240.255 area 0
      network 10.24.0.0 0.0.7.255 area 0
@@ -817,14 +824,13 @@ class VRF():
      description BGP-for-Multi-Vrf
      ip address {vrf["bgpLoopbackIp"]}
 
-    default interface Loopback{ospf["LoopbackNumber"]}
-    no interface Loopback{ospf["LoopbackNumber"]}
-    interface Loopback{ospf["LoopbackNumber"]}
-     description {vrf["name"]}-vrf
-     vrf forwarding {vrf["name"]}
+    default interface Loopback{self.instancenumber}
+    no interface Loopback{self.instancenumber}
+    interface Loopback{self.instancenumber}
+     description {self.name}-vrf
+     vrf forwarding {self.name}
      ip address {ospf["Loopbackip"]}
      ip ospf network point-to-point
-
     default router bgp 65000
     no router bgp 65000
     router bgp 65000
@@ -843,7 +849,58 @@ class VRF():
       neigbhor 10.7.2.1 next-hop-self
      exit-address-family
      !
-     address-family ipv4 vrf {vrf["name"]}
-      redistribute ospf {ospf["LoopbackNumber"]}
+     address-family ipv4 vrf {self.name}
+      redistribute ospf {self.instancenumber}
+     exit-address-family
+"""
+    secondconfig f"""{vlanConfig}
+    !
+    vrf definition {self.name}
+     rd 650{self.instancenumber}:{self.instancenumber}
+     route-target export 650{self.instancenumber}:{self.instancenumber}
+     route-target import 650{self.instancenumber}:{self.instancenumber}
+     !
+     address-family ipv4
+     exit-address-family
+
+    no router ospf {self.instancenumber} vrf {self.name}
+    router ospf {self.instancenumber} vrf {self.name}
+     router-id {ospf["Loopbackip"]}
+     network 10.7.0.0 0.0.240.255 area 0
+     network 10.24.0.0 0.0.7.255 area 0
+
+    default interface Loopback3
+    no interface Loopback3
+    interface Loopback3
+     description BGP-for-Multi-Vrf
+     ip address {vrf["bgpLoopbackIp"]}
+
+    default interface Loopback{self.instancenumber}
+    no interface Loopback{self.instancenumber}
+    interface Loopback{self.instancenumber}
+     description {self.name}-vrf
+     vrf forwarding {self.name}
+     ip address {ospf["Loopbackip"]}
+     ip ospf network point-to-point
+    default router bgp 65000
+    no router bgp 65000
+    router bgp 65000
+     bgp log-neighbor-changes
+     neigbhor 10.7.2.0 remote-as 65000
+     neigbhor 10.7.2.0 update-source Loopback3
+     neigbhor 10.7.2.1 remote-as 65000
+     neigbhor 10.7.2.1 update-source Loopback3
+     !
+     address-family vpnv4
+      neigbhor 10.7.2.0 activate
+      neigbhor 10.7.2.0 send-community both
+      neigbhor 10.7.2.0 next-hop-self
+      neigbhor 10.7.2.1 activate
+      neigbhor 10.7.2.1 send-community both
+      neigbhor 10.7.2.1 next-hop-self
+     exit-address-family
+     !
+     address-family ipv4 vrf {self.name}
+      redistribute ospf {self.instancenumber}
      exit-address-family
     """

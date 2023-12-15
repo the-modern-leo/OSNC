@@ -28,6 +28,7 @@ class vlan:
         self.shutdown = True
         self.mac_addresses = []
         self.arp = []
+        self.subnetmask = ''
 
     def __eq__(self, other):
         if not isinstance(other, vlan):
