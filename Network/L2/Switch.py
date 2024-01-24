@@ -338,6 +338,7 @@ class Stack():
         self.node = None
         self.tacacs = []
         self.port_channels = []
+        self.vlans = []
 
         # Location variables
         self.roomnumber = None

@@ -12,7 +12,6 @@ from dateutil.relativedelta import relativedelta
 from datetime import datetime
 from netaddr import EUI, mac_cisco
 
-
 def _exception(e):
     logging.error(e,exc_info=True)
     raise
@@ -96,7 +95,7 @@ class routing_protocol():
                 i.shortname()
                 self.interfaces.append(i)
     def _assign_neighbors(self):
-        self.neighbors = [] = []
+        self.neighbors = []
         neighborsText = re.findall(r"neighbor [\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}", self.config_text, re.MULTILINE)
         for nei in neighborsText:
             nei = re.sub("\r", "", int)
@@ -108,10 +107,61 @@ class eigrp(routing_protocol):
 class ospf(routing_protocol):
     def __int__(self,*args, **kwargs):
         super(ospf, self).__init__(*args, **kwargs)
+    def generate_config(self,vrf=None):
+        networksConfig = ""
+        for net in self.networks:
+            networksConfig = networksConfig + f"network {str(net.network)} {str(net.hostmask)}\n"
+        neighConfig = ""
+        for neigh in self.neighbors:
+            neighConfig = neighConfig + f"neigbhor {str(neigh.ip)}\n"
+        return f"""interface Loopback{self.loopback}
+description {vrf.name}-vrf
+{"vrf forwarding "+vrf.name if vrf else ""}
+ip address {str(self.routerid.ip)} {str(self.routerid.netmask)}
+ip ospf network point-to-point
+!
+router ospf {vrf.instancenumber} {"vrf "+vrf.name if vrf else ""}
+router-id {str(self.routerid)}
+{neighConfig if neighConfig != "" else ""}
+{networksConfig if networksConfig != "" else ""}
+!
+"""
 
 class bgp(routing_protocol):
     def __int__(self,*args, **kwargs):
         super(bgp, self).__init__(*args, **kwargs)
+
+    def generate_config(self, vrf=None):
+        netconfig = ""
+        for ne in self.networks:
+            netconfig = netconfig + f"""network {str(ne.ip)} mask {str(ne.netmask)}\n"""
+        neighConfig = ""
+        for neigh in self.neighbors:
+            neighConfig = neighConfig + f"""neigbhor {str(neigh.ip)} remote-as {self.ASNumber}
+neigbhor {str(neigh.ip)} update-source Loopback{self.loopback}\n"""
+        vpnv4Config = "address-family vpnv4\n"
+        for neigh in self.neighbors:
+            vpnv4Config = vpnv4Config + f"""neigbhor {str(neigh.ip)} activate
+neigbhor {str(neigh.ip)} send-community both
+neigbhor {str(neigh.ip)} next-hop-self\n"""
+        vpnv4Config = vpnv4Config + "exit-address-family"
+        return f"""interface Loopback{self.loopback}
+description BGP-for-Multi-Vrf
+ip address {str(self.routerid.ip)} {str(self.routerid.netmask)}
+!      
+router bgp {self.ASNumber}
+bgp log-neighbor-changes
+bgp router-id {str(self.routerid.ip)}
+{netconfig if netconfig != "" else ""}
+{neighConfig if neighConfig != "" else ""}
+ !
+{vpnv4Config if vpnv4Config != "" else ""}
+ !
+ address-family ipv4 {"vrf "+vrf.name if vrf else ""}
+  redistribute ospf {vrf.instancenumber}
+ exit-address-family
+!
+"""
 
 class rip(routing_protocol):
     def __int__(self,*args, **kwargs):
@@ -697,6 +747,26 @@ class Router(Stack):
             a.assign_arp(line)
             self.arps.append(a)
 
+    def generate_vlan_config(self,vrf=None):
+        configs2 = ""
+        configs1 = ""
+        for vl in self.vlans:
+            if vl.hsrp:
+                if vrf:
+                    con1, con2 = vl.generate_config(vrf)
+                else:
+                    con1, con2 = vl.generate_config()
+                configs1 = configs1 + con1
+                configs2 = configs2 + con2
+                return (configs1,configs2)
+            else:
+                if vrf:
+                    con1 = vl.generate_config(vrf)
+                else:
+                    con1 = vl.generate_config()
+                configs1 = configs1 + con1
+        return configs1
+
     # def find_port(self,ip=None,mac=None):
     #     neighbor_ip = None
     #     if ip:
@@ -767,3 +837,23 @@ class VRF():
     def __init__(self,name,instancenumber):
         self.name = name
         self.instancenumber = instancenumber
+    def generate_all_vrf_configurations(self,routers):
+        configs = []
+        for router in routers:
+            conf = ""
+            conf = conf + self.generate_config()
+            conf = conf + router.generate_vlan_config(self)
+            conf = conf + router.ospf.generate_config(self)
+            conf = conf + router.route_protocols.generate_config(self)
+            configs.append(conf)
+        return configs
+    def generate_config(self):
+        return f"""vrf definition {self.name}
+rd 65000:{self.instancenumber}
+route-target export 65000:{self.instancenumber}
+route-target import 65000:{self.instancenumber}
+!
+address-family ipv4
+exit-address-family
+!
+"""

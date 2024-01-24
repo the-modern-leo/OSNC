@@ -11,6 +11,39 @@ class restapi():
 
     def _login(self):
         pass
+    def get_host_record(self, ipad=None,macaddress=None,dns=None):
+
+        if ipad:
+            query = f"record:host?ipv4addr={ipad}"
+        elif macaddress:
+            query = f"record:host?ipvaddr={ipad}"
+        elif dns:
+            query = f"record:host?name={dns}"
+        else:
+            return
+        self._get(queryurl=query)
+    def create_host_record(self,network,name,comment,nextavailable=None,ipad=None):
+        query = "record:host"
+        if nextavailable:
+            data = {
+                "comment": comment,
+                "name" : f"{name}",
+                "ipv4addrs": [{"_object_function": "next_available_network"}]
+            }
+        else:
+            data ={
+        "ipv4addrs": [
+            {
+                "configure_for_dhcp": False,
+                "ipv4addr": f"{ipad}"
+            }
+        ],
+        "name": f"{name}",
+        "view": "default"
+    }
+
+        self._post(queryurl=query,jsondict=data)
+
 
     def get_Network_containers_all(self,netadd):
         return self._get(f"network?network_container={netadd}&_return_fields%2B=network_container",)
@@ -28,7 +61,9 @@ class restapi():
         responses = []
         for net in networks:
             data = {
-                "comment": f"Location:{net['location']}\r\nVlan:{net['vlan']}\r\nRouter:{net['router']}",
+                "comment": f"""Vlan: {net["vlan"]}
+Location: {net["location"]}
+Router: {net["router"]}""",
                 "network": {
                     "_object_function": "next_available_network",
                     "_result_field": "networks",
@@ -45,6 +80,7 @@ class restapi():
         return responses
 
     def create_HSRP_gateways(self,netcontainer,data):
+        pass
 
     def _get(self, queryurl):
         response = requests.get(infoblox.url + queryurl, headers=headers,
@@ -57,6 +93,8 @@ class restapi():
                                  auth=(SSH.username, SSH.password),verify=False)
         if response.status_code == 200:
             return response.json()
+        if response.status_code == 201:
+            return response.json()
 
     def _put(self, queryurl, jsondict):
         response = requests.put(infoblox.url + queryurl, data=json.dumps(jsondict), headers=headers,
@@ -64,6 +102,8 @@ class restapi():
         response.json()
         if response.status_code == 200:
             return response
+        elif response.status_code != 200 or response.status_code != 201:
+            return "did not work"
 
     def _delete(self, queryurl, jsondict):
         response = requests.delete(infoblox.url + queryurl, data=json.dumps(jsondict), headers=headers,
