@@ -1,13 +1,12 @@
 ### Network Imports ###
 from Network.L2.Vlan import vlan
 from Network.settings.cisco import Hardware as chw
-from Network.settings import router as router_settings
 from Network.L1.Port import Interface, PortChannel, SFP
 from Network.L4.AccessList import Access_Lists, ACL, ACL_Entry
 
 ### OSNC Application Imports ###
-from SSH.NetmikoConnection import connection
-from SSH.ParamikoConnection import Connection as Pconn
+from Services.SSH.NetmikoConnection import connection
+from Services.SSH import Connection as Pconn
 # from SNMP.Objects import SNMP,SNMP_Group,SNMP_view,SNMP_contact,SNMP_User,\
 #     SNMP_community, SNMP_Host_Group
 # from Tacacs.Objects import TACACS
