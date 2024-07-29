@@ -47,11 +47,38 @@ class restapi():
 
     def get_Network_containers_all(self,netadd):
         return self._get(f"network?network_container={netadd}&_return_fields%2B=network_container",)
+
+    def createContainer(self,data):
+        """
+        netadd(str): ex - 10.0.0.0/16
+        """
+        jsondict = {
+            "comment": f"""{data["comment"]}""",
+            "network": f"""{ data['network']}/{data['size']}"""
+        }
+        return self._post("networkcontainer",jsondict)
+
     def get_Network_container(self,netadd):
         """
         netadd(str): ex - 10.0.0.0/16
         """
-        return self._get(f"network?network_container={netadd}&_return_fields%2B=network_container")
+        return self._get(f"network?network_container={netadd}")
+    def createNetwork(self,data):
+        jsondata = {
+            "comment": f"""{data["comment"]}""",
+            "network": {
+                "_object_function": "next_available_network",
+                "_result_field": "networks",
+                "_object": "networkcontainer",
+                "_object_parameters": {
+                    "network": f"{data['network']}",
+                },
+                "_parameters": {
+                    "cidr": data['size'],
+                },
+            }
+        }
+        return self._post(f"network", jsondata)
     def create_multiple_networks(self,netcontainer,networks):
         """
         Will create multiple networks under one network container.
@@ -93,8 +120,10 @@ Router: {net["router"]}""",
                                  auth=(SSH.username, SSH.password),verify=False)
         if response.status_code == 200:
             return response.json()
-        if response.status_code == 201:
+        elif response.status_code == 201:
             return response.json()
+        else:
+            print (response)
 
     def _put(self, queryurl, jsondict):
         response = requests.put(infoblox.url + queryurl, data=json.dumps(jsondict), headers=headers,

@@ -8,55 +8,631 @@ class TestRouter(unittest.TestCase):
         rest.get_Network_containers_all(netadd="10.0.0.0/8")
     def test_get_network_contrainer(self):
         rest = restapi()
-        rest.get_Network_container(netadd="10.24.4.0/22")
-    def test_create_multiple_networks(self):
-        data = [{"location": "DDC", "size": 31, "router": "DDCCI9500Core / FLHQ9605", "vlan": "2802"},
-                {"location": "DDC", "size": 31, "router": "DDCCI9500Core / MB39605", "vlan": "2902"},
-                {"location": "UVX", "size": 31, "router": "UVXSamwise / FLHQ9605", "vlan": "2803"},
-                {"location": "UVX", "size": 31, "router": "UVXSamwise / MB39605", "vlan": "2903"},
-                {"location": "FLHQBCI", "size": 31, "router": "BilboFLHQ / FLHQ9605", "vlan": "2804"},
-                {"location": "FLHQBCI", "size": 31, "router": "BilboFLHQ / MB39605", "vlan": "2904"},
-                {"location": "ProvoTIC", "size": 31, "router": "ProvoTICCI3850 / FLHQ9605", "vlan": "2805"},
-                {"location": "ProvoTIC", "size": 31, "router": "ProvoTICCI3850 / MB39605", "vlan": "2905"},
-                {"location": "DDTC", "size": 31, "router": "DDTC3ACI9300 / FLHQ9605", "vlan": "2806"},
-                {"location": "DDTC", "size": 31, "router": "DDTC3ACI9300 / MB39605", "vlan": "2906"},
-                {"location": "CustFirst", "size": 31, "router": "CustFirstCI3850 / FLHQ9605", "vlan": "2807"},
-                {"location": "CustFirst", "size": 31, "router": "CustFirstCI3850 / MB39605", "vlan": "2907"},
-                {"location": "FLHQACI", "size": 31, "router": "FLHQACI3850 / FLHQ9605", "vlan": "2808"},
-                {"location": "FLHQACI", "size": 31, "router": "FLHQACI3850 / MB39605", "vlan": "2908"},
-                {"location": "MC1", "size": 31, "router": "MC1CI3850 / FLHQ9605", "vlan": "2809"},
-                {"location": "MC1", "size": 31, "router": "MC1CI3850 / MB39605", "vlan": "2909"},
-                {"location": "MB8", "size": 31, "router": "MB8CI3850 / FLHQ9605", "vlan": "2810"},
-                {"location": "MB8", "size": 31, "router": "MB8CI3850 / MB39605", "vlan": "2910"},
-                {"location": "UCACI", "size": 31, "router": "UCACI3750 / FLHQ9605", "vlan": "2811"},
-                {"location": "UCACI", "size": 31, "router": "UCACI3750 / MB39605", "vlan": "2911"},
-                {"location": "MVRSC", "size": 31, "router": "MVRSC / FLHQ9605", "vlan": "2812"},
-                {"location": "MVRSC", "size": 31, "router": "MVRSC / MB39605", "vlan": "2912"},
-                {"location": "CE1CI", "size": 31, "router": "CE1CI3850 / FLHQ9605", "vlan": "2813"},
-                {"location": "CE1CI", "size": 31, "router": "CE1CI3850 / MB39605", "vlan": "2913"},
-                {"location": "OG1ACI", "size": 31, "router": "OG1ACI3850 / FLHQ9605", "vlan": "2814"},
-                {"location": "OG1ACI", "size": 31, "router": "OG1ACI3850 / MB39605", "vlan": "2914"},
-                {"location": "Frodo", "size": 31, "router": "Frodo / FLHQ9605", "vlan": "2815"},
-                {"location": "Frodo", "size": 31, "router": "Frodo / MB39605", "vlan": "2915"},
-                {"location": "WSACI", "size": 31, "router": "WSACI3850 / FLHQ9605", "vlan": "2816"},
-                {"location": "WSACI", "size": 31, "router": "WSACI3850 / MB39605", "vlan": "2916"},
-                {"location": "JRSCACI", "size": 31, "router": "JRSCACI3850X / FLHQ9605", "vlan": "2817"},
-                {"location": "JRSCACI", "size": 31, "router": "JRSCACI3850X / MB39605", "vlan": "2917"},
-                {"location": "Riverside", "size": 31, "router": "Riverside / FLHQ9605", "vlan": "2818"},
-                {"location": "Riverside", "size": 31, "router": "Riverside / MB39605", "vlan": "2918"},
-                {"location": "TimpOps", "size": 31, "router": "TimpOpsCI3850 / FLHQ9605", "vlan": "2819"},
-                {"location": "TimpOps", "size": 31, "router": "TimpOpsCI3850 / MB39605", "vlan": "2919"},
-                {"location": "MB7CI", "size": 31, "router": "MB7CI3850 / FLHQ9605", "vlan": "2820"},
-                {"location": "MB7CI", "size": 31, "router": "MB7CI3850 / MB39605", "vlan": "2920"},
-                {"location": "MB1ACI", "size": 31, "router": "MB1ACI3750X / FLHQ9605", "vlan": "2821"},
-                {"location": "MB1ACI", "size": 31, "router": "MB1ACI3750X / MB39605", "vlan": "2921"},
-                {"location": "MB3", "size": 31, "router": "MB3BCI3850 / FLHQ9605", "vlan": "2822"},
-                {"location": "MB3", "size": 31, "router": "MB3BCI3850 / MB39605", "vlan": "2922"},
-                {"location": "OGTC-B", "size": 31, "router": "OGTC / FLHQ9605", "vlan": "2823"},
-                {"location": "OGTC-B", "size": 31, "router": "OGTC / MB39605", "vlan": "2923"}
-                ]
+        result = rest.get_Network_container(netadd="10.24.4.0/22")
+        print(result)
+
+    def test_createNetwork(self):
+        data = [
+{"size":24,"network":"10.179.0.0","comment":f"""Vlan: 2401
+devices: Network
+Router:2100S-CI3850
+Location: 2100"""},
+{"size":24,"network":"10.179.0.0","comment":f"""Vlan: 2402
+devices: Video Security
+Router:2100S-CI3850
+Location: 2100"""},
+{"size":24,"network":"10.179.0.0","comment":f"""Vlan: 2403
+devices: Facilities
+Router:2100S-CI3850
+Location: 2100"""},
+{"size":24,"network":"10.179.0.0","comment":f"""Vlan: 2404
+devices: Voip
+Router:2100S-CI3850
+Location: 2100"""},
+{"size":24,"network":"10.179.0.0","comment":f"""Vlan: 2405
+devices: IOT
+Router:2100S-CI3850
+Location: 2100"""},
+{"size":24,"network":"10.179.0.0","comment":f"""Vlan: 2406
+devices: User
+Router:2100S-CI3850
+Location: 2100"""},
+{"size":24,"network":"10.180.0.0","comment":f"""Vlan: 2451
+devices: Network
+Router:CustFirstCI3850-12
+Location: CustFirst"""},
+{"size":24,"network":"10.180.0.0","comment":f"""Vlan: 2452
+devices: Video Security
+Router:CustFirstCI3850-12
+Location: CustFirst"""},
+{"size":24,"network":"10.180.0.0","comment":f"""Vlan: 2453
+devices: Facilities
+Router:CustFirstCI3850-12
+Location: CustFirst"""},
+{"size":24,"network":"10.180.0.0","comment":f"""Vlan: 2454
+devices: Voip
+Router:CustFirstCI3850-12
+Location: CustFirst"""},
+{"size":24,"network":"10.180.0.0","comment":f"""Vlan: 2455
+devices: IOT
+Router:CustFirstCI3850-12
+Location: CustFirst"""},
+{"size":24,"network":"10.180.0.0","comment":f"""Vlan: 2456
+devices: User
+Router:CustFirstCI3850-12
+Location: CustFirst"""},
+{"size":24,"network":"10.181.0.0","comment":f"""Vlan: 2451
+devices: Network
+Router:CE1CI3850
+Location: CE"""},
+{"size":24,"network":"10.181.0.0","comment":f"""Vlan: 2452
+devices: Video Security
+Router:CE1CI3850
+Location: CE"""},
+{"size":24,"network":"10.181.0.0","comment":f"""Vlan: 2453
+devices: Facilities
+Router:CE1CI3850
+Location: CE"""},
+{"size":24,"network":"10.181.0.0","comment":f"""Vlan: 2454
+devices: Voip
+Router:CE1CI3850
+Location: CE"""},
+{"size":24,"network":"10.181.0.0","comment":f"""Vlan: 2455
+devices: IOT
+Router:CE1CI3850
+Location: CE"""},
+{"size":24,"network":"10.181.0.0","comment":f"""Vlan: 2456
+devices: User
+Router:CE1CI3850
+Location: CE"""},
+{"size":24,"network":"10.182.0.0","comment":f"""Vlan: 2451
+devices: Network
+Router:Tooele-CIASA
+Location: Tooele"""},
+{"size":24,"network":"10.182.0.0","comment":f"""Vlan: 2452
+devices: Video Security
+Router:Tooele-CIASA
+Location: Tooele"""},
+{"size":24,"network":"10.182.0.0","comment":f"""Vlan: 2453
+devices: Facilities
+Router:Tooele-CIASA
+Location: Tooele"""},
+{"size":24,"network":"10.182.0.0","comment":f"""Vlan: 2454
+devices: Voip
+Router:Tooele-CIASA
+Location: Tooele"""},
+{"size":24,"network":"10.182.0.0","comment":f"""Vlan: 2455
+devices: IOT
+Router:Tooele-CIASA
+Location: Tooele"""},
+{"size":24,"network":"10.182.0.0","comment":f"""Vlan: 2456
+devices: User
+Router:Tooele-CIASA
+Location: Tooele"""},
+{"size":24,"network":"10.183.0.0","comment":f"""Vlan: 2601
+devices: Network
+Router:RS1A-C3850-12
+Location: riverside"""},
+{"size":24,"network":"10.183.0.0","comment":f"""Vlan: 2602
+devices: Video Security
+Router:RS1A-C3850-12
+Location: riverside"""},
+{"size":24,"network":"10.183.0.0","comment":f"""Vlan: 2603
+devices: Facilities
+Router:RS1A-C3850-12
+Location: riverside"""},
+{"size":24,"network":"10.183.0.0","comment":f"""Vlan: 2604
+devices: Voip
+Router:RS1A-C3850-12
+Location: riverside"""},
+{"size":24,"network":"10.183.0.0","comment":f"""Vlan: 2605
+devices: IOT
+Router:RS1A-C3850-12
+Location: riverside"""},
+{"size":24,"network":"10.183.0.0","comment":f"""Vlan: 2606
+devices: User
+Router:RS1A-C3850-12
+Location: riverside"""},
+{"size":24,"network":"10.184.0.0","comment":f"""Vlan: 3251
+devices: Network
+Router:OGTC-B-CI3850
+Location: Ogden Tic"""},
+{"size":24,"network":"10.184.0.0","comment":f"""Vlan: 3252
+devices: Video Security
+Router:OGTC-B-CI3850
+Location: Ogden Tic"""},
+{"size":24,"network":"10.184.0.0","comment":f"""Vlan: 3253
+devices: Facilities
+Router:OGTC-B-CI3850
+Location: Ogden Tic"""},
+{"size":24,"network":"10.184.0.0","comment":f"""Vlan: 3254
+devices: Voip
+Router:OGTC-B-CI3850
+Location: Ogden Tic"""},
+{"size":24,"network":"10.184.0.0","comment":f"""Vlan: 3255
+devices: IOT
+Router:OGTC-B-CI3850
+Location: Ogden Tic"""},
+{"size":24,"network":"10.184.0.0","comment":f"""Vlan: 3256
+devices: User
+Router:OGTC-B-CI3850
+Location: Ogden Tic"""},
+{"size":24,"network":"10.185.0.0","comment":f"""Vlan: 3301
+devices: Network
+Router:OG1ACI3850
+Location: Ogden"""},
+{"size":24,"network":"10.185.0.0","comment":f"""Vlan: 3302
+devices: Video Security
+Router:OG1ACI3850
+Location: Ogden"""},
+{"size":24,"network":"10.185.0.0","comment":f"""Vlan: 3303
+devices: Facilities
+Router:OG1ACI3850
+Location: Ogden"""},
+{"size":24,"network":"10.185.0.0","comment":f"""Vlan: 3304
+devices: Voip
+Router:OG1ACI3850
+Location: Ogden"""},
+{"size":24,"network":"10.185.0.0","comment":f"""Vlan: 3305
+devices: IOT
+Router:OG1ACI3850
+Location: Ogden"""},
+{"size":24,"network":"10.185.0.0","comment":f"""Vlan: 3306
+devices: User
+Router:OG1ACI3850
+Location: Ogden"""},
+{"size":24,"network":"10.186.0.0","comment":f"""Vlan: 3351
+devices: Network
+Router:WSACI3850-1
+Location: Warm Springs"""},
+{"size":24,"network":"10.186.0.0","comment":f"""Vlan: 3352
+devices: Video Security
+Router:WSACI3850-1
+Location: Warm Springs"""},
+{"size":24,"network":"10.186.0.0","comment":f"""Vlan: 3353
+devices: Facilities
+Router:WSACI3850-1
+Location: Warm Springs"""},
+{"size":24,"network":"10.186.0.0","comment":f"""Vlan: 3354
+devices: Voip
+Router:WSACI3850-1
+Location: Warm Springs"""},
+{"size":24,"network":"10.186.0.0","comment":f"""Vlan: 3355
+devices: IOT
+Router:WSACI3850-1
+Location: Warm Springs"""},
+{"size":24,"network":"10.186.0.0","comment":f"""Vlan: 3356
+devices: User
+Router:WSACI3850-1
+Location: Warm Springs"""},
+{"size":24,"network":"10.187.0.0","comment":f"""Vlan: 3401
+devices: Network
+Router:FLHQACI3850
+Location: FLHQ"""},
+{"size":24,"network":"10.187.0.0","comment":f"""Vlan: 3402
+devices: Video Security
+Router:FLHQACI3850
+Location: FLHQ"""},
+{"size":24,"network":"10.187.0.0","comment":f"""Vlan: 3403
+devices: Facilities
+Router:FLHQACI3850
+Location: FLHQ"""},
+{"size":24,"network":"10.187.0.0","comment":f"""Vlan: 3404
+devices: Voip
+Router:FLHQACI3850
+Location: FLHQ"""},
+{"size":24,"network":"10.187.0.0","comment":f"""Vlan: 3405
+devices: IOT
+Router:FLHQACI3850
+Location: FLHQ"""},
+{"size":24,"network":"10.187.0.0","comment":f"""Vlan: 3406
+devices: User
+Router:FLHQACI3850
+Location: FLHQ"""},
+{"size":24,"network":"10.188.0.0","comment":f"""Vlan: 3451
+devices: Network
+Router:MB3CI3850
+Location: MeadowBrook"""},
+{"size":24,"network":"10.188.0.0","comment":f"""Vlan: 3452
+devices: Video Security
+Router:MB3CI3850
+Location: MeadowBrook"""},
+{"size":24,"network":"10.188.0.0","comment":f"""Vlan: 3453
+devices: Facilities
+Router:MB3CI3850
+Location: MeadowBrook"""},
+{"size":24,"network":"10.188.0.0","comment":f"""Vlan: 3454
+devices: Voip
+Router:MB3CI3850
+Location: MeadowBrook"""},
+{"size":24,"network":"10.188.0.0","comment":f"""Vlan: 3455
+devices: IOT
+Router:MB3CI3850
+Location: MeadowBrook"""},
+{"size":24,"network":"10.188.0.0","comment":f"""Vlan: 3456
+devices: User
+Router:MB3CI3850
+Location: MeadowBrook"""},
+{"size":24,"network":"10.189.0.0","comment":f"""Vlan: 3501
+devices: Network
+Router:DDC-CI9500-Core
+Location: UofU DDC"""},
+{"size":24,"network":"10.189.0.0","comment":f"""Vlan: 3502
+devices: Video Security
+Router:DDC-CI9500-Core
+Location: UofU DDC"""},
+{"size":24,"network":"10.189.0.0","comment":f"""Vlan: 3503
+devices: Facilities
+Router:DDC-CI9500-Core
+Location: UofU DDC"""},
+{"size":24,"network":"10.189.0.0","comment":f"""Vlan: 3504
+devices: Voip
+Router:DDC-CI9500-Core
+Location: UofU DDC"""},
+{"size":24,"network":"10.189.0.0","comment":f"""Vlan: 3505
+devices: IOT
+Router:DDC-CI9500-Core
+Location: UofU DDC"""},
+{"size":24,"network":"10.189.0.0","comment":f"""Vlan: 3506
+devices: User
+Router:DDC-CI9500-Core
+Location: UofU DDC"""},
+{"size":24,"network":"10.190.0.0","comment":f"""Vlan: 3551
+devices: Network
+Router:DR-TDC-C9500
+Location: UofU TDC (DR)"""},
+{"size":24,"network":"10.190.0.0","comment":f"""Vlan: 3552
+devices: Video Security
+Router:DR-TDC-C9500
+Location: UofU TDC (DR)"""},
+{"size":24,"network":"10.190.0.0","comment":f"""Vlan: 3553
+devices: Facilities
+Router:DR-TDC-C9500
+Location: UofU TDC (DR)"""},
+{"size":24,"network":"10.190.0.0","comment":f"""Vlan: 3554
+devices: Voip
+Router:DR-TDC-C9500
+Location: UofU TDC (DR)"""},
+{"size":24,"network":"10.190.0.0","comment":f"""Vlan: 3555
+devices: IOT
+Router:DR-TDC-C9500
+Location: UofU TDC (DR)"""},
+{"size":24,"network":"10.190.0.0","comment":f"""Vlan: 3556
+devices: User
+Router:DR-TDC-C9500
+Location: UofU TDC (DR)"""},
+{"size":24,"network":"10.191.0.0","comment":f"""Vlan: 3601
+devices: Network
+Router:DDTC3ACI9300
+Location: DDTC"""},
+{"size":24,"network":"10.191.0.0","comment":f"""Vlan: 3602
+devices: Video Security
+Router:DDTC3ACI9300
+Location: DDTC"""},
+{"size":24,"network":"10.191.0.0","comment":f"""Vlan: 3603
+devices: Facilities
+Router:DDTC3ACI9300
+Location: DDTC"""},
+{"size":24,"network":"10.191.0.0","comment":f"""Vlan: 3604
+devices: Voip
+Router:DDTC3ACI9300
+Location: DDTC"""},
+{"size":24,"network":"10.191.0.0","comment":f"""Vlan: 3605
+devices: IOT
+Router:DDTC3ACI9300
+Location: DDTC"""},
+{"size":24,"network":"10.191.0.0","comment":f"""Vlan: 3606
+devices: User
+Router:DDTC3ACI9300
+Location: DDTC"""},
+{"size":24,"network":"10.192.0.0","comment":f"""Vlan: 3651
+devices: Network
+Router:MRSCACI3850
+Location: midvale rail service center"""},
+{"size":24,"network":"10.192.0.0","comment":f"""Vlan: 3652
+devices: Video Security
+Router:MRSCACI3850
+Location: midvale rail service center"""},
+{"size":24,"network":"10.192.0.0","comment":f"""Vlan: 3653
+devices: Facilities
+Router:MRSCACI3850
+Location: midvale rail service center"""},
+{"size":24,"network":"10.192.0.0","comment":f"""Vlan: 3654
+devices: Voip
+Router:MRSCACI3850
+Location: midvale rail service center"""},
+{"size":24,"network":"10.192.0.0","comment":f"""Vlan: 3655
+devices: IOT
+Router:MRSCACI3850
+Location: midvale rail service center"""},
+{"size":24,"network":"10.192.0.0","comment":f"""Vlan: 3656
+devices: User
+Router:MRSCACI3850
+Location: midvale rail service center"""},
+{"size":24,"network":"10.193.0.0","comment":f"""Vlan: 3701
+devices: Network
+Router:JRSCACI3850X
+Location: Jordan River"""},
+{"size":24,"network":"10.193.0.0","comment":f"""Vlan: 3702
+devices: Video Security
+Router:JRSCACI3850X
+Location: Jordan River"""},
+{"size":24,"network":"10.193.0.0","comment":f"""Vlan: 3703
+devices: Facilities
+Router:JRSCACI3850X
+Location: Jordan River"""},
+{"size":24,"network":"10.193.0.0","comment":f"""Vlan: 3704
+devices: Voip
+Router:JRSCACI3850X
+Location: Jordan River"""},
+{"size":24,"network":"10.193.0.0","comment":f"""Vlan: 3705
+devices: IOT
+Router:JRSCACI3850X
+Location: Jordan River"""},
+{"size":24,"network":"10.193.0.0","comment":f"""Vlan: 3706
+devices: User
+Router:JRSCACI3850X
+Location: Jordan River"""},
+{"size":24,"network":"10.194.0.0","comment":f"""Vlan: 3751
+devices: Network
+Router:MC1CI3850-12
+Location: Mobility Center"""},
+{"size":24,"network":"10.194.0.0","comment":f"""Vlan: 3752
+devices: Video Security
+Router:MC1CI3850-12
+Location: Mobility Center"""},
+{"size":24,"network":"10.194.0.0","comment":f"""Vlan: 3753
+devices: Facilities
+Router:MC1CI3850-12
+Location: Mobility Center"""},
+{"size":24,"network":"10.194.0.0","comment":f"""Vlan: 3754
+devices: Voip
+Router:MC1CI3850-12
+Location: Mobility Center"""},
+{"size":24,"network":"10.194.0.0","comment":f"""Vlan: 3755
+devices: IOT
+Router:MC1CI3850-12
+Location: Mobility Center"""},
+{"size":24,"network":"10.194.0.0","comment":f"""Vlan: 3756
+devices: User
+Router:MC1CI3850-12
+Location: Mobility Center"""},
+{"size":24,"network":"10.195.0.0","comment":f"""Vlan: 3801
+devices: Network
+Router:TimpOpsCI3850-12
+Location: timp Operations"""},
+{"size":24,"network":"10.195.0.0","comment":f"""Vlan: 3802
+devices: Video Security
+Router:TimpOpsCI3850-12
+Location: timp Operations"""},
+{"size":24,"network":"10.195.0.0","comment":f"""Vlan: 3803
+devices: Facilities
+Router:TimpOpsCI3850-12
+Location: timp Operations"""},
+{"size":24,"network":"10.195.0.0","comment":f"""Vlan: 3804
+devices: Voip
+Router:TimpOpsCI3850-12
+Location: timp Operations"""},
+{"size":24,"network":"10.195.0.0","comment":f"""Vlan: 3805
+devices: IOT
+Router:TimpOpsCI3850-12
+Location: timp Operations"""},
+{"size":24,"network":"10.195.0.0","comment":f"""Vlan: 3806
+devices: User
+Router:TimpOpsCI3850-12
+Location: timp Operations"""},
+{"size":24,"network":"10.196.0.0","comment":f"""Vlan: 3851
+devices: Network
+Router:ProvoTIC-CI3850
+Location: Provo Tic"""},
+{"size":24,"network":"10.196.0.0","comment":f"""Vlan: 3852
+devices: Video Security
+Router:ProvoTIC-CI3850
+Location: Provo Tic"""},
+{"size":24,"network":"10.196.0.0","comment":f"""Vlan: 3853
+devices: Facilities
+Router:ProvoTIC-CI3850
+Location: Provo Tic"""},
+{"size":24,"network":"10.196.0.0","comment":f"""Vlan: 3854
+devices: Voip
+Router:ProvoTIC-CI3850
+Location: Provo Tic"""},
+{"size":24,"network":"10.196.0.0","comment":f"""Vlan: 3855
+devices: IOT
+Router:ProvoTIC-CI3850
+Location: Provo Tic"""},
+{"size":24,"network":"10.196.0.0","comment":f"""Vlan: 3856
+devices: User
+Router:ProvoTIC-CI3850
+Location: Provo Tic"""},
+{"size":24,"network":"10.197.0.0","comment":f"""Vlan: 3901
+devices: Network
+Router:2100-PA-820
+Location: 2100UDP"""},
+{"size":24,"network":"10.197.0.0","comment":f"""Vlan: 3902
+devices: Video Security
+Router:2100-PA-820
+Location: 2100UDP"""},
+{"size":24,"network":"10.197.0.0","comment":f"""Vlan: 3903
+devices: Facilities
+Router:2100-PA-820
+Location: 2100UDP"""},
+{"size":24,"network":"10.197.0.0","comment":f"""Vlan: 3904
+devices: Voip
+Router:2100-PA-820
+Location: 2100UDP"""},
+{"size":24,"network":"10.197.0.0","comment":f"""Vlan: 3905
+devices: IOT
+Router:2100-PA-820
+Location: 2100UDP"""},
+{"size":24,"network":"10.197.0.0","comment":f"""Vlan: 3906
+devices: User
+Router:2100-PA-820
+Location: 2100UDP"""},
+{"size":24,"network":"10.198.0.0","comment":f"""Vlan: 3901
+devices: Network
+Router:MB1UCJIASA
+Location: MurrayUPD"""},
+{"size":24,"network":"10.198.0.0","comment":f"""Vlan: 3902
+devices: Video Security
+Router:MB1UCJIASA
+Location: MurrayUPD"""},
+{"size":24,"network":"10.198.0.0","comment":f"""Vlan: 3903
+devices: Facilities
+Router:MB1UCJIASA
+Location: MurrayUPD"""},
+{"size":24,"network":"10.198.0.0","comment":f"""Vlan: 3904
+devices: Voip
+Router:MB1UCJIASA
+Location: MurrayUPD"""},
+{"size":24,"network":"10.198.0.0","comment":f"""Vlan: 3905
+devices: IOT
+Router:MB1UCJIASA
+Location: MurrayUPD"""},
+{"size":24,"network":"10.198.0.0","comment":f"""Vlan: 3906
+devices: User
+Router:MB1UCJIASA
+Location: MurrayUPD"""},
+{"size":24,"network":"10.199.0.0","comment":f"""Vlan: 3951
+devices: Network
+Router:ProvoUPD-PA-820
+Location: ProvoPD"""},
+{"size":24,"network":"10.199.0.0","comment":f"""Vlan: 3952
+devices: Video Security
+Router:ProvoUPD-PA-820
+Location: ProvoPD"""},
+{"size":24,"network":"10.199.0.0","comment":f"""Vlan: 3953
+devices: Facilities
+Router:ProvoUPD-PA-820
+Location: ProvoPD"""},
+{"size":24,"network":"10.199.0.0","comment":f"""Vlan: 3954
+devices: Voip
+Router:ProvoUPD-PA-820
+Location: ProvoPD"""},
+{"size":24,"network":"10.199.0.0","comment":f"""Vlan: 3955
+devices: IOT
+Router:ProvoUPD-PA-820
+Location: ProvoPD"""},
+{"size":24,"network":"10.199.0.0","comment":f"""Vlan: 3956
+devices: User
+Router:ProvoUPD-PA-820
+Location: ProvoPD"""},
+{"size":24,"network":"10.200.0.0","comment":f"""Vlan: 4001
+devices: Network
+Router:FW-OgdenPD
+Location: OgdenPD"""},
+{"size":24,"network":"10.200.0.0","comment":f"""Vlan: 4002
+devices: Video Security
+Router:FW-OgdenPD
+Location: OgdenPD"""},
+{"size":24,"network":"10.200.0.0","comment":f"""Vlan: 4003
+devices: Facilities
+Router:FW-OgdenPD
+Location: OgdenPD"""},
+{"size":24,"network":"10.200.0.0","comment":f"""Vlan: 4004
+devices: Voip
+Router:FW-OgdenPD
+Location: OgdenPD"""},
+{"size":24,"network":"10.200.0.0","comment":f"""Vlan: 4005
+devices: IOT
+Router:FW-OgdenPD
+Location: OgdenPD"""},
+{"size":24,"network":"10.200.0.0","comment":f"""Vlan: 4006
+devices: User
+Router:FW-OgdenPD
+Location: OgdenPD"""}]
+        for networks in data:
+            rest = restapi()
+            result = rest.createNetwork(networks)
+            print(result)
+    def test_createContainer(self):
+        datalist = [
+{"size":16,"network":"10.179.0.0","comment":f"""Vlan Range: Vlan 2400 -> 2449 
+Location: 2100 
+Router:2100S-CI3850"""},
+{"size":16,"network":"10.180.0.0","comment":f"""Vlan Range: Vlan 2450 -> 2499 
+Location: CustFirst 
+Router:CustFirstCI3850-12"""},
+{"size":16,"network":"10.181.0.0","comment":f"""Vlan Range: Vlan 2500 -> 2549 
+Location: CE 
+Router:CE1CI3850"""},
+{"size":16,"network":"10.182.0.0","comment":f"""Vlan Range: Vlan 2550 -> 2599 
+Location: Tooele 
+Router:Tooele-CIASA"""},
+{"size":16,"network":"10.183.0.0","comment":f"""Vlan Range: Vlan 2600 -> 2649 
+Location: riverside 
+Router:RS1A-C3850-12"""},
+{"size":16,"network":"10.184.0.0","comment":f"""Vlan Range: Vlan 3250 -> 3299 
+Location: Ogden Tic 
+Router:OGTC-B-CI3850"""},
+{"size":16,"network":"10.185.0.0","comment":f"""Vlan Range: Vlan 3300 -> 3349 
+Location: Ogden 
+Router:OG1ACI3850"""},
+{"size":16,"network":"10.186.0.0","comment":f"""Vlan Range: Vlan 3350 -> 3399 
+Location: Warm Springs 
+Router:WSACI3850-1"""},
+{"size":16,"network":"10.187.0.0","comment":f"""Vlan Range: Vlan 3400 -> 3449 
+Location: FLHQ 
+Router:FLHQACI3850"""},
+{"size":16,"network":"10.188.0.0","comment":f"""Vlan Range: Vlan 3450 -> 3499 
+Location: MeadowBrook 
+Router:MB3CI3850"""},
+{"size":16,"network":"10.189.0.0","comment":f"""Vlan Range: Vlan 3500 -> 3549 
+Location: UofU DDC 
+Router:DDC-CI9500-Core"""},
+{"size":16,"network":"10.190.0.0","comment":f"""Vlan Range: Vlan 3550 -> 3599 
+Location: UofU TDC (DR) 
+Router:DR-TDC-C9500"""},
+{"size":16,"network":"10.191.0.0","comment":f"""Vlan Range: Vlan 3600 -> 3649 
+Location: DDTC 
+Router:DDTC3ACI9300"""},
+{"size":16,"network":"10.192.0.0","comment":f"""Vlan Range: Vlan 3650 -> 3699 
+Location: midvale rail service center 
+Router:MRSCACI3850"""},
+{"size":16,"network":"10.193.0.0","comment":f"""Vlan Range: Vlan 3700 -> 3749 
+Location: Jordan River 
+Router:JRSCACI3850X"""},
+{"size":16,"network":"10.194.0.0","comment":f"""Vlan Range: Vlan 3750 -> 3799 
+Location: Mobility Center 
+Router:MC1CI3850-12"""},
+{"size":16,"network":"10.195.0.0","comment":f"""Vlan Range: Vlan 3800 -> 3849 
+Location: timp Operations 
+Router:TimpOpsCI3850-12"""},
+{"size":16,"network":"10.196.0.0","comment":f"""Vlan Range: Vlan 3850 -> 3899 
+Location: Provo Tic 
+Router:ProvoTIC-CI3850"""},
+{"size":16,"network":"10.197.0.0","comment":f"""Vlan Range: Vlan 3900 -> 3949 
+Location: 2100UDP 
+Router:2100-PA-820"""},
+{"size":16,"network":"10.198.0.0","comment":f"""Vlan Range: Vlan 3950 -> 3999 
+Location: MurrayUPD 
+Router:MB1UCJIASA"""},
+{"size":16,"network":"10.199.0.0","comment":f"""Vlan Range: Vlan 4000 -> 4049 
+Location: ProvoPD 
+Router:ProvoUPD-PA-820"""},
+{"size":16,"network":"10.200.0.0","comment":f"""Vlan Range: Vlan 4050 -> 4094 
+Location: OgdenPD 
+Router:FW-OgdenPD"""}]
+        for data in datalist:
+            rest = restapi()
+            result = rest.createContainer(data)
+
+    def test_create_multiple_networks(self,data,network):
+        data = [
+{"size":24, "router":"FW-Critical", "vlan": "2655", "location":"TRXS"},
+{"size":24, "router":"FW-Critical", "vlan": "2705", "location":"TRXN"},
+{"size":24, "router":"FW-Critical", "vlan": "2755", "location":"TXU"},
+{"size":24, "router":"FW-Critical", "vlan": "2805", "location":"CRN"},
+{"size":24, "router":"FW-Critical", "vlan": "2855", "location":"CRS"},
+{"size":24, "router":"FW-Critical", "vlan": "2905", "location":"TMJ"},
+{"size":24, "router":"FW-Critical", "vlan": "2955", "location":"TWV"},
+{"size":24, "router":"FW-Critical", "vlan": "3005", "location":"TXA"},
+{"size":24, "router":"FW-Critical", "vlan": "3055", "location":"SC"},
+{"size":24, "router":"FW-Critical", "vlan": "3105", "location":"UVX"},
+{"size":24, "router":"FW-Critical", "vlan": "3155", "location":"OGX"},
+]
         rest = restapi()
-        rest.create_multiple_networks("10.7.34.0/24",data)
+        rest.create_multiple_networks("10.70.0.0/16",data)
 
     def test_create_host_record(self):
         r = restapi()
