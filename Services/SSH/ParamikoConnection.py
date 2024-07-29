@@ -2,20 +2,11 @@ import auth
 from auth import SSH
 import paramiko
 import socket
-import logging
 import time
 import re
 
 command_fails = ['nvalid command at','% Incomplete command.','FAILED:']
 # global helper functions
-
-
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(ch)
 
 def close_socket(transport):
     """
@@ -28,7 +19,7 @@ def close_socket(transport):
         if sock:
             sock.close()
 def _exception(e):
-    logging.error(e)
+    print(e)
     return
 
 def remove_byte_strings(result):
@@ -77,7 +68,7 @@ class Connection(object):
         Raises:
             ValueErrors if there are problems logging in to the device.
         """
-        logger.debug(f'SSH connection - {self.ip}')
+        print(f'SSH connection - {self.ip}')
         try:
             self.client = paramiko.SSHClient()
             self.client.load_system_host_keys()
@@ -95,15 +86,15 @@ class Connection(object):
                 except socket.timeout:
                     raise IOError("Connection timed out")
                 except paramiko.ssh_exception.NoValidConnectionsError as N:
-                    logger.error("username not exists")
-                    logger.error(N, exc_info=True)
+                    print("ists")
+                    print(N)
                     raise
                 except paramiko.ssh_exception.AuthenticationException as a:
                     if auth_retry < 2:
                         auth_retry += 1
                         time.sleep(2)
                     else:
-                        logger.error('Password incorrect: ' + str(a))
+                        print('ect: ' + str(a))
                         close_socket(self.client.get_transport())
                         raise IOError("Cannot log in to device (" + str(a) + ")")
                 # except paramiko.ssh_exception as g:
@@ -112,16 +103,16 @@ class Connection(object):
                 #             f"Cannot log into device {self.ip} You might need to change your password\r\n"
                 #             f"{g}")
                 except socket.gaierror as g:
-                    logger.info(f'Router Value was not found on network: {self.ip}')
-                    logger.error(g, exc_info=True)
+                    print(f'Router Value was not found on network: {self.ip}')
+                    print(g)
                     _exception(g)
                     raise
                 except EOFError as f: #Chipher issues, or algorithms to use for connection
-                    logger.error(f, exc_info=True)
+                    print(f)
                     _exception(f)
                     raise
                 except Exception as e:
-                    logger.error(e, exc_info=True)
+                    print(e)
                     _exception(e)
                     raise
 
@@ -154,7 +145,7 @@ class Connection(object):
                     return
                 if '#' not in header and '>' not in header:
 
-                    logger.info(header)
+                    print(header)
                     if self.channel is not None:
                         self.channel.close()
                     if self.client is not None:
@@ -169,10 +160,10 @@ class Connection(object):
         except paramiko.ssh_exception.NoValidConnectionsError as N:
             raise
         except OSError as O:
-            logger.error(O, exc_info=True)
+            print(O)
             raise
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
 
@@ -250,7 +241,7 @@ class Connection(object):
             command was not successful.
         """
         password = auth.SSH.enable
-        logger.info('Checking if in Enable Mode')
+        print('Checking if in Enable Mode')
         try:
             self.channel.send("enable\n")
             while True:
@@ -261,10 +252,10 @@ class Connection(object):
                 else:
                     output = self.channel.recv(4096).decode("utf-8")
                     if '#' in output:  # already enabled end the function
-                        logging.info('Already Enabled')
+                        print('Already Enabled')
                         break
                     if 'password' in output or 'password' in output.lower():
-                        logging.info("not enabled, asking for password")
+                        print("not enabled, asking for password")
                         self.channel.send(password + "\n")
                         while not self.channel.recv_ready():
                             time.sleep(0.1)
@@ -274,22 +265,22 @@ class Connection(object):
                         if not output.endswith('#'):
                             raise ValueError('Enable prompt not reached: ' + output)
                         else:
-                            logging.info('Successfully enabled')
+                            print('Successfully enabled')
                             self.update_prompts(output)
                             break
                     else:
                         if "Invalid command at \'^\' marker" in output:  # already in enable mode
-                            logging.info('Already Enabled')
+                            print('Already Enabled')
                             break
                         if self.prompt in output:  # already in enable mode
-                            logging.info('Already Enabled')
+                            print('Already Enabled')
                             break
 
         except Exception as e:
-            logger.info(f'Enable - FAILED')
-            logger.error(e, exc_info=True)
+            print(f'Enable - FAILED')
+            print(e)
         else:
-            logger.info(f'Enable - Success')
+            print(f'Enable - Success')
 
     def send_command(self, command, trim=True, manypages=False, adtranmore=False,File_transfer=False,attempt=0):
         """Send a command to the SSH'd device.
@@ -309,7 +300,7 @@ class Connection(object):
         Raises:
             ValueError for stuck loops (prompt not reached) or invalid commands.
         """
-        logger.debug(f'Command:{command}')
+        print(f'Command:{command}')
         if attempt:
             attempt = attempt+1
         try:
@@ -349,7 +340,7 @@ class Connection(object):
                             raise ValueError("Stuck in wait loop, " + str(output))
                     if loop_counter > 1200: # stuck for more than 60 seconds, give up
                         end_time = time.time()
-                        logger.debug(f"Waiting for Response: {str(end_time - start_time)}")
+                        print(f"Waiting for Response: {str(end_time - start_time)}")
                         if attempt >= 3:
                             raise ValueError("Stuck in wait loop, " + str(output))
                         self.logout()
@@ -358,7 +349,7 @@ class Connection(object):
                         self.send_command(command,attempt=attempt)
 
                 output += self.channel.recv(32768).decode("utf-8")
-                logger.debug(f'Loop Count:{loop_counter} - {output}')
+                print(f'Loop Count:{loop_counter} - {output}')
                 # checks for any errors send to the channel
                 if self.channel.recv_stderr_ready():
                     raise ConnectionError(self.channel.recv_stderr(32768).decode("utf-8"))
@@ -453,25 +444,25 @@ class Connection(object):
             output = re.sub("\[7m--More--\[m", '', output)
             output = re.sub('--More--', '', output)
             output = re.sub('<--- More --->', '', output)
-            logger.debug(f'{output}')
+            print(f'{output}')
             return remove_byte_strings(output.replace('\b', ''))
 
         except IndexError as I:
-            logger.debug(f'Output: {output}')
-            logger.debug(f'Prompt: {self.prompt}')
-            logger.debug(f'Prompt length: {prompt_end}')
-            logger.error(I, exc_info=True)
+            print(f'Output: {output}')
+            print(f'Prompt: {self.prompt}')
+            print(f'Prompt length: {prompt_end}')
+            print(I)
             _exception(I)
             raise
         except OSError as o:
-            logger.debug(f'Output: {output}')
-            logger.debug(f'Prompt: {self.prompt}')
-            logger.debug(f'Prompt length: {prompt_end}')
-            logger.error(o, exc_info=True)
+            print(f'Output: {output}')
+            print(f'Prompt: {self.prompt}')
+            print(f'Prompt length: {prompt_end}')
+            print(o)
             _exception(o)
             raise
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
 
