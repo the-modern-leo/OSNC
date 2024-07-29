@@ -51,6 +51,7 @@ class Interface:
 
     def __repr__(self):
         return self.fullname
+
     def shortname(self):
         assert self.fullname != '', f'Interface must have a fullname before running shortname'
         self.short = re.sub('interface', '', self.fullname)
@@ -1161,5 +1162,6 @@ class SSThread(threading.Thread):
             self.portconfig.update(self.threadID, None, result, False)
         except Exception as e:
             self.portconfig.update(self.threadID, str(e), None, True)
+
 
 
