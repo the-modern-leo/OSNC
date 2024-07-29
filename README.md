@@ -11,8 +11,12 @@ Future improvements will be running the service as a single docker container for
 Possible improvements will also see the application 
 
 **Install:**
+```
+docker pull python:3.8-slim-bullseye
+docker build -t osnc:latest .
+docker run osnc:latest -p 8080:8080 -v $(pwd):/opt/OSNC
+```
 
-`pip install https://github.com/the-modern-leo/OSNC/releases/download/v1.0.0/ONSC-0.1.dev0.tar.gz`
 
 Intended Consumable Packages are located under the Network Package:
 
