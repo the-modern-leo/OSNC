@@ -1,4 +1,4 @@
-import logging, time, threading
+import time, threading
 from builtins import str
 from builtins import range
 from builtins import object
@@ -1093,7 +1093,6 @@ class PortConfig(PortConfigCommon):
         thread_current = self.threads.get(int(thread_id), None)
         self.threadlock.release()
         if not thread_current:
-            logging.error('warning: thread_id ' + str(thread_id) +' is invalid')
             return {'error': 'Invalid thread ID'}
         if thread_current and (not thread_current['message'] or
                 thread_current['error']):
