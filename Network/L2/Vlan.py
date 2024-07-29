@@ -28,6 +28,9 @@ class vlan:
         self.shutdown = True
         self.mac_addresses = []
         self.arp = []
+        self.subnetmask = ''
+        self.hsrp = False
+        self.helper_addr = []
 
     def __eq__(self, other):
         if not isinstance(other, vlan):
@@ -35,6 +38,48 @@ class vlan:
         return self.number == other.number
     def __hash__(self):
         return hash(self._number)
+    def generate_config(self,vrf=None):
+        ip_helper_config = "\n".join([f"ip helper-address {str(ips.ip)}" for ips in self.helper_addr])
+        if self.hsrp:
+            hsrpconfig1 = f"""vlan {self.number}
+name {self.name} 
+!
+interface vlan {self.number}
+description {self.name}
+{f" vrf forwarding {vrf.name}" if vrf else ""}
+ip address {str(list(self.network)[2])} {str(self.network.netmask)}
+{f"{ip_helper_config}" if ip_helper_config else ""}
+version 2 
+standby version 2
+standby {self.number} ip {str(list(self.network)[1])}
+standby {self.number} priority 1
+standby {self.number} preempt
+!"""
+            hsrpconfig2 = f"""vlan {self.number}
+name {self.name} 
+!
+interface vlan {self.number}
+description {self.name}
+{f" vrf forwarding {vrf.name}" if vrf else ""}
+ip address {str(list(self.network)[3])} {str(self.network.netmask)}
+{f"{ip_helper_config}" if ip_helper_config else ""}
+version 2 
+standby version 2
+standby {self.number} ip {str(list(self.network)[1])}
+standby {self.number} priority 100
+standby {self.number} preempt"""
+            return (hsrpconfig1,hsrpconfig2)
+        else:
+            return f"""vlan {self.number}
+name {self.name}
+!
+interface vlan {self.number}
+description {self.name}
+{f" vrf forwarding {vrf.name}" if vrf else ""}
+ip address {str(self.network.ip)} {str(self.network.netmask)}
+{ip_helper_config}
+!
+"""
     def assing_confg_attributes(self):
         pass
 

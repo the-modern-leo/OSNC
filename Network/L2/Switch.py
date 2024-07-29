@@ -1,13 +1,12 @@
 ### Network Imports ###
 from Network.L2.Vlan import vlan
 from Network.settings.cisco import Hardware as chw
-from Network.settings import router as router_settings
 from Network.L1.Port import Interface, PortChannel, SFP
 from Network.L4.AccessList import Access_Lists, ACL, ACL_Entry
 
 ### OSNC Application Imports ###
-from SSH.NetmikoConnection import connection
-from SSH.ParamikoConnection import Connection as Pconn
+from Services.SSH.NetmikoConnection import connection
+from Services.SSH import Connection as Pconn
 # from SNMP.Objects import SNMP,SNMP_Group,SNMP_view,SNMP_contact,SNMP_User,\
 #     SNMP_community, SNMP_Host_Group
 # from Tacacs.Objects import TACACS
@@ -19,7 +18,7 @@ from pathlib import Path
 import re
 from collections import namedtuple
 import ipaddress
-from netaddr import EUI
+from netaddr import EUI, mac_cisco
 from dateutil.relativedelta import relativedelta
 from datetime import timedelta,datetime
 import concurrent
@@ -338,6 +337,7 @@ class Stack():
         self.node = None
         self.tacacs = []
         self.port_channels = []
+        self.vlans = []
 
         # Location variables
         self.roomnumber = None
@@ -421,10 +421,10 @@ class Stack():
         except Exception as e:
             logger.info(f"Gathering Switch data - Failed")
             logger.error(e, exc_info=True)
-            self.logout(self.conn)
+            self.logout()
         else:
             logger.info(f"Gathering Switch data - Success")
-            self.logout(self.conn)
+            self.logout()
 
     def getSwitchInfo(self):
         """
@@ -492,13 +492,16 @@ class Stack():
             logger.debug(f"inline_power_result={self.inline_power_result}")
             self.environment_result = self.conn.send_command('show environment all', manypages=True)
             logger.debug(f"environment_result={self.environment_result}")
+            if 'Invalid input detected at' in self.environment_result:
+                self.environment_result = self.conn.send_command('show env all', manypages=True)
+                logger.debug(f"environment_result={self.environment_result}")
         except Exception as e:
             logger.info(f"Gathering Switch data - Failed")
             logger.error(e, exc_info=True)
-            self.logout(self.conn)
+            self.logout()
         else:
             logger.info(f"Gathering Switch data - Success")
-            # self.logout(self.conn)
+            # self.logout()
             return self.version_result
 
     def getSwitchInfo_thread(self):
@@ -732,13 +735,14 @@ class Stack():
         try:
             if not interface_result:
             #ssh into switch, and get information:
-                self.login()
+                if not self.conn:
+                    self.login()
                 self.interface_result = self.conn.send_command('show run | section interface', manypages=True)
                 interface_result = self.interface_result
                 if 'Invalid input detected at' in self.interface_result:
                     self.interface_name_r = self.conn.send_command('show run | in interface', manypages=True)
                     interface_result = self.interface_name_r
-                self.logout(self.conn)
+                self.logout()
             # Checks if this command is not runnable on this machine
             if '% Invalid input detected at' in interface_result:
                 if not '\r\n' in self.run_result:
@@ -753,10 +757,10 @@ class Stack():
                     interface_result = self.run_result.split('\r\n')
                 endupdate = True
             else:
-                if not '\r\n' in self.interface_result:
-                    interface_result = self.interface_result.split('\n')
+                if not '\r\n' in interface_result:
+                    interface_result = interface_result.split('\n')
                 else:
-                    interface_result = self.interface_result.split('\r\n')
+                    interface_result = interface_result.split('\r\n')
                 endupdate = False
             # located the index values of the interfaces
 
@@ -770,6 +774,8 @@ class Stack():
                 if 'interface FastEthernet1' in line and "/" not in line:
                     pass
                 elif 'interface FastEthernet0' in line and "/" not in line:
+                    pass
+                elif 'interface GigabitEthernet0' in line and "/" not in line:
                     pass
                 elif 'no passive' in line:
                     pass
@@ -923,29 +929,29 @@ class Stack():
                     for blade in self.blades:
                         if blade.stacknumber == 1:
                             if i.blade == 0:  # assign to blade 1
-                                blade.interfaces[f"{i.portnumber}"] = i
+                                blade.interfaces[f"{i.fullname}"] = i
                             if i.blade == 1:
-                                blade.moduleinterfaces[f"{i.portnumber}"] = i
+                                blade.moduleinterfaces[f"{i.fullname}"] = i
                 else:  # handle standard formating of 0/1 and 1/0/1 formats
                     for blade in self.blades:
                         if i.blade == 0:
                             if blade.stacknumber == 1:
-                                blade.interfaces[f"{i.portnumber}"] = i
+                                blade.interfaces[f"{i.fullname}"] = i
                         elif hasattr(i, "module"):
                             if i.module != 0:
                                 if i.blade == blade.stacknumber:
-                                    blade.moduleinterfaces[f"{i.portnumber}"] = i
+                                    blade.moduleinterfaces[f"{i.fullname}"] = i
                             else:
                                 if i.blade == blade.stacknumber:
                                     if i.portnumber == 49 or i.portnumber == 50 or i.portnumber == 51 or i.portnumber == 52:
-                                        blade.moduleinterfaces[f"{i.portnumber}"] = i
+                                        blade.moduleinterfaces[f"{i.fullname}"] = i
                                     else:
-                                        blade.interfaces[f"{i.portnumber}"] = i
+                                        blade.interfaces[f"{i.fullname}"] = i
                         elif i.blade == blade.stacknumber:
                             if i.portnumber == 49 or i.portnumber == 50 or i.portnumber == 51 or i.portnumber == 52:
-                                blade.moduleinterfaces[f"{i.portnumber}"] = i
+                                blade.moduleinterfaces[f"{i.fullname}"] = i
                             else:
-                                blade.interfaces[f"{i.portnumber}"] = i
+                                blade.interfaces[f"{i.fullname}"] = i
 
             for blade in self.blades:
                 if blade.interfaces == {} and blade.moduleinterfaces == {}:
@@ -1280,6 +1286,62 @@ class Stack():
         else:
             return a
 
+    def _get_fullname_from_shortname(self,shortname):
+        """
+
+        """
+        intstr = shortname
+        intstr = re.sub("HundredGigE", "", intstr)
+        intstr = re.sub("FortyGigabitEthernet", "", intstr)
+        intstr = re.sub("TwentyFiveGigE", "", intstr)
+        intstr = re.sub("TwentyFiveGig", "", intstr)
+        intstr = re.sub("TenGigabitEthernet", "", intstr)
+        intstr = re.sub("FiveGigabitEthernet", "", intstr)
+        intstr = re.sub("TwoGigabitEthernet", "", intstr)
+        intstr = re.sub("GigabitEthernet", "", intstr)
+        intstr = re.sub("FastEthernet", "", intstr)
+        intstr = re.sub("Ethernet", "", intstr)
+        intstr = re.sub("Hu", "", intstr)
+        intstr = re.sub("Twe", "", intstr)
+        intstr = re.sub("Tw", "", intstr)
+        intstr = re.sub("Te", "", intstr)
+        intstr = re.sub("Gi", "", intstr)
+        intstr = re.sub("Fa", "", intstr)
+        intstr = re.sub("Eth", "", intstr)
+        intstr = re.sub("Fi", "", intstr)
+        intstr = re.sub("Fo", "", intstr)
+        intstr = re.sub(" ", "", intstr)
+        intstr = re.sub("\x1b", "", intstr)
+        intstr = intstr.replace('\r', '')
+        intstr = intstr.rstrip()
+        if "Hu" in shortname:
+            fullname = "HundredGigE" + intstr
+            return fullname
+        if "Twe" in shortname:
+            fullname = "TwentyFiveGigE" + intstr
+            return fullname
+        if "Tw" in shortname:
+            fullname = "TwoGigabitEthernet" + intstr
+            return fullname
+        if "Te" in shortname:
+            fullname = "TenGigabitEthernet" + intstr
+            return fullname
+        if "Gi" in shortname:
+            fullname = "GigabitEthernet" + intstr
+            return fullname
+        if "Fa" in shortname:
+            fullname = "FastEthernet" + intstr
+            return fullname
+        if "Eth" in shortname:
+            fullname = "Ethernet" + intstr
+            return fullname
+        if "Fi" in shortname:
+            fullname = "FiveGigabitEthernet" + intstr
+            return fullname
+        if "Fo" in shortname:
+            fullname = "FortyGigabitEthernet" + intstr
+            return fullname
+
     def sort_mac_address(self, mac_address_result):
         """
         assigns the variables from the mac address table to both the Vlans, and the ports from this command
@@ -1366,6 +1428,7 @@ class Stack():
                     continue
                 if "/" not in shortport:
                     continue
+                fullname = self._get_fullname_from_shortname(shortport)
                 port = shortport.split("/")
                 if len(port) == 3:
                     port = shortport.split("/")[2]
@@ -1377,9 +1440,9 @@ class Stack():
                 for blade in self.blades:
                     if bl == blade.stacknumber:
                         if int(port) in [49,50,51,52]:
-                            blade.moduleinterfaces[port].mac_addresses.append(macaddress)
+                            blade.moduleinterfaces[fullname].mac_addresses.append(macaddress)
                         else:
-                            blade.interfaces[port].mac_addresses.append(macaddress)
+                            blade.interfaces[fullname].mac_addresses.append(macaddress)
                         break
                 for vl in self.vlans:
                     if vlan == vl.number:
@@ -1394,7 +1457,7 @@ class Stack():
         else:
             pass
 
-    def sortmodule(self, module):
+    def sortmodule(self, module=None):
         """
         Used to collect the blade information for chassis units.
         Args:
@@ -1406,6 +1469,8 @@ class Stack():
         """
         logger.info("Sorting 'show module all' - Starting")
         try:
+            if not module:
+                module = self.conn.send_command('show module all', manypages=True)
             # create blade list if not already done
             if not self.blades:
                 self.blades = set()
@@ -1939,28 +2004,58 @@ class Stack():
         """
         sorts "show run" command for the switching vlans
         """
-        vlans = []
-        matches = re.findall(
-            r"vlan(.*)\n.(name(.*)|remote-span|are|backupcrf|bridge|media|parent|private-vlan|ring|said|shutdown|state|ste|stp|tb-vlan1|tb-vlan2)",
-            runresult)
-        matches2 = re.findall(
-            r"vlan(.*)\n!",
-            runresult)
-        for m in matches:
-            vl = vlan(int(re.sub(r"\\r",'',m[0])))
-            if len(m) > 2:
-                vl.name = re.sub(r"\\r",'',m[0])
-            vlans.append(vl)
-        for m in matches2:
-            if "-" in m:
-                m = m.split("-")
-                for n in m:
-                    vl = vlan(int(re.sub(r"\\r", '', n)))
-                    vlans.append(vl)
-            else:
-                vl = vlan(int(re.sub(r"\\r",'',m)))
+        try:
+            vlans = []
+            matches = re.findall(
+                r"vlan(.*)\n.(name(.*)|remote-span|are|backupcrf|bridge|parent|private-vlan|ring|said|shutdown|state|ste|stp|tb-vlan1|tb-vlan2)",
+                runresult)
+            matches2 = re.findall(
+                r"vlan(.*)\n!",
+                runresult)
+            for m in matches:
+                if "community" in m[0]:
+                    continue
+                if "internal allocation policy ascending" in m[0]:
+                    continue
+                if "-" in m[0]:
+                    m[0] = m[0].split("-")
+                    for n in m[0]:
+                        vl = vlan(int(re.sub(r"\\r", '', n)))
+                        vlans.append(vl)
+                elif "," in m[0]:
+                    m[0] = m[0].split(",")
+                    for n in m[0]:
+                        vl = vlan(int(re.sub(r"\\r", '', n)))
+                        vlans.append(vl)
+                elif len(m) > 2:
+                    vl = vlan(int(re.sub(r"\\r", '', m[0])))
+                    vl.name = re.sub(r"\\r",'',m[0])
                 vlans.append(vl)
-        return vlans
+            for m in matches2:
+                if "internal allocation policy ascending" in m:
+                    continue
+                if "dot1q tag native" in m:
+                    continue
+                if "-" in m:
+                    m = m.split("-")
+                    for n in m:
+                        vl = vlan(int(re.sub(r"\\r", '', n)))
+                        vlans.append(vl)
+                elif "," in m:
+                    m = m.split(",")
+                    for n in m:
+                        vl = vlan(int(re.sub(r"\\r", '', n)))
+                        vlans.append(vl)
+                else:
+                    vl = vlan(int(re.sub(r"\\r",'',m)))
+                    vlans.append(vl)
+        except Exception as e:
+            logger.info("Sorting 'show run' - Failed")
+            logger.error(e, exc_info=True)
+            _exception(e)
+            raise
+        else:
+            return vlans
 
     def sortRun(self, runresult=''):
         """
@@ -2496,11 +2591,11 @@ class Stack():
             else:
                 print(f"Not Sure What to Do: {self.ip}")
         except Exception as e:
-            self.logout(self.conn)
+            self.logout()
             _exception(e)
             raise
         else:
-            self.logout(self.conn)
+            self.logout()
             percent_memory = round(100 * (used_memory / total_memory))
             logger.info("Sorting Memory: Succeess")
             return (used_memory, percent_memory)
@@ -2509,6 +2604,9 @@ class Stack():
             if 'Invalid input detected at' in self.inline_power_result:
                 pass
             else:
+                result = re.findall(
+                    r"(([A-Za-z]{0,20}[\d]{0,3}\/[\d]{0,3}\/[\d]{0,3}).*[A-Za-z]{0,20}.*[A-Za-z]{0,20}.* ([\d]{0,3}\.[\d]{0,3}).*[A-Za-z]{0,20} ([\d]{0,3}\.[\d]{0,3}))",
+                    self.inline_power_result)
                 port_power_modules = self.inline_power_result.split('Module   Available     Used     Remaining')
                 for module in port_power_modules:
                     if '' == module:
@@ -2530,7 +2628,7 @@ class Stack():
                     for line in lines:
                         self.assign_power_inline_to_interface(line)
         except Exception as e:
-            self.logout(self.conn)
+            self.logout()
             logger.error(e, exc_info=True)
             _exception(e)
             raise
@@ -2572,7 +2670,7 @@ class Stack():
                     b.used_watts = float(self._get_just_power_int(line_segs[2]))
                     b.remaining_watts = float(self._get_just_power_int(line_segs[3]))
         except Exception as e:
-            self.logout(self.conn)
+            self.logout()
             logger.error(e, exc_info=True)
             _exception(e)
             raise
@@ -2587,7 +2685,7 @@ class Stack():
             self.used_watts = float(self._get_just_power_int(line_segs[1]))
             self.remaining_watts = float(self._get_just_power_int(line_segs[2]))
         except Exception as e:
-            self.logout(self.conn)
+            self.logout()
             logger.error(e, exc_info=True)
             _exception(e)
             raise
@@ -2609,7 +2707,7 @@ class Stack():
                 if int(line_segs[0]) == b.stacknumber:
                     b = self._convert_power_info(b,line_segs)
         except Exception as e:
-            self.logout(self.conn)
+            self.logout()
             logger.error(e, exc_info=True)
             _exception(e)
             raise
@@ -2650,7 +2748,7 @@ class Stack():
                                 continue
                             self.assign_environment_power_to_blade(line)
         except Exception as e:
-            self.logout(self.conn)
+            self.logout()
             logger.error(e, exc_info=True)
             _exception(e)
             raise
@@ -2660,14 +2758,24 @@ class Stack():
         try:
             line = line.split(' ')
             line = [x for x in line if x != '']
+            if 'WS-C3560CX' in self.modelnumber:
+                blade = int(line[0])
+                for b in self.blades:
+                    if b.stacknumber == blade:
+                        b.slot_a_system_power = line[2]
+                        return
             if 'Not' in line[1]:
                 sw = line[0]
                 blade = sw[0]
                 slot = sw[1]
             else:
                 sw = line[0]
-                blade = int(sw[0])
-                slot = sw[1]
+                if isinstance(sw,str):
+                    blade = int(line[0])
+                    slot = line[1]
+                else:
+                    blade = int(sw[0])
+                    slot = sw[1]
                 for b in self.blades:
                     if b.stacknumber == blade:
                         if slot == 'A':
@@ -2695,7 +2803,7 @@ class Stack():
                                 b.slot_b_poe_power = line[5]
                                 b.slot_b_watts = int(line[6])
         except Exception as e:
-            self.logout(self.conn)
+            self.logout()
             logger.error(e, exc_info=True)
             _exception(e)
             raise
@@ -2997,6 +3105,9 @@ class Stack():
             localportnumber = None
             localport = None
             n = Neighbor()
+            ip = re.findall(r"([\d]{0,3}\.[\d]{0,3}\.[\d]{0,3}\.[\d]{0,3})", neighborstr)
+            if ip:
+                n.ip = ip[0]
             if not "\r\n" in neighborstr:
                 neighborlist = neighborstr.split("\n")
             else:
@@ -3029,7 +3140,7 @@ class Stack():
                     localport = line[0]
                     localport = self._get_interface_numbers(localport)
                     localport = localport.split("/")
-                    n.interface = self._get_interface_obj(localport)
+                    n.interface = self._get_interface_obj(localport,line[0])
                     # remove brackets and containing info
                     remoteport = re.sub(f':', '', line[1])
                     remoteport = re.sub("PortID", "", remoteport)
@@ -3047,7 +3158,7 @@ class Stack():
             if localport:
                 for blade in self.blades:
                     if blade.stacknumber == localport[0]:
-                        blade.interfaces[localportnumber].neighbor = n
+                        blade.interfaces[n.interface.fullname].neighbor = n
         except Exception as e:
             logger.error(e, exc_info=True)
             print(e)
@@ -3056,7 +3167,7 @@ class Stack():
         else:
             return n
 
-    def _get_interface_obj(self, portinfo):
+    def _get_interface_obj(self, portinfo,name):
         """
 
         Args:
@@ -3068,22 +3179,57 @@ class Stack():
                 for blade in self.blades:
                     if int(portinfo[0]) == 0:
                         if blade.stacknumber == 1:
-                            for portnumber, interface in blade.interfaces.items():
-                                if portinfo[1] == portnumber:
-                                    Inter = interface
+                            for fullname, interface in blade.interfaces.items():
+                                if name == fullname:
+                                    if name == interface.fullname:
+                                        Inter = interface
                     elif int(portinfo[0]) == blade.stacknumber:
-                        for portnumber, interface in blade.interfaces.items():
-                            if portinfo[1] == portnumber:
-                                Inter = interface
+                        for fullname, interface in blade.interfaces.items():
+                            if name == fullname:
+                                if name == interface.fullname:
+                                    Inter = interface
+                                    break
 
             elif len(portinfo) == 3:
                 for blade in self.blades:
                     if int(portinfo[1]) != 0:
-                        pass
+                        if int(portinfo[0]) == blade.stacknumber:
+                            for fullname, interface in blade.moduleinterfaces.items():
+                                if str(name) == str(fullname):
+                                    if name == interface.fullname:
+                                        Inter = interface
+                                    break
                     elif int(portinfo[0]) == blade.stacknumber:
-                        for portnumber, interface in blade.interfaces.items():
-                            if int(portinfo[2]) == portnumber:
-                                Inter = interface
+                        for fullname, interface in blade.interfaces.items():
+                            if str(name) == str(fullname):
+                                if name == interface.fullname:
+                                    Inter = interface
+                                break
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            print(e)
+            _exception(e)
+            raise
+        else:
+            return Inter
+    def get_interface_obj(self, shortname=None,longName=None):
+        """
+
+        Args:
+            portinfo (List): A list of 2 long or 3 long
+        """
+        try:
+            Inter = None
+            for blade in self.blades:
+                for interface in blade.interfaces.values():
+                    if shortname:
+                        if interface.shortname().lower() == shortname.lower():
+                            Inter = interface
+                    if longName:
+                        if interface.fullname.lower() == longName.lower():
+                            Inter = interface
+            if Inter:
+                return Inter
         except Exception as e:
             logger.error(e, exc_info=True)
             print(e)
@@ -3300,7 +3446,8 @@ class Stack():
         gets only the hostname, and assigns it to self.hostname
         """
         try:
-            self.login()
+            if not self.conn:
+                self.login()
             hostname = self.conn.send_command("show run | in hostname")
             self.hostname = re.sub("hostname ", "", hostname)
         except Exception as e:
@@ -3442,6 +3589,66 @@ class Stack():
                 continue
             vlans.append(vlan)
         self.vlans = vlans
+
+    def find_port_quick(self, ip=None, mac=None):
+        try:
+            neighbor_ip = None
+            if ip:
+                for arp in self.arps:
+                    if arp.ip == ip:
+                        mac = arp.mac
+            if mac:
+                mac.dialect = mac_cisco
+                mac_results = self.conn.send_command(f'show mac address-table | in {str(mac)}', manypages=True)
+                result = re.findall(r"([A-Za-z]{0,10}[\d]{0,3}\/[\d]{0,3}|[A-Za-z]{0,10}[\d]{0,3}\/[\d]{0,3}\/[\d]{0,3})",
+                                    mac_results)
+                for neighbor in self.cdpneighbors:
+                    if neighbor.interface.shortname().lower() == result[0].lower():
+                        neighbor_ip = neighbor.ip
+                        break
+                if not neighbor_ip:
+                    return self.ip, result[0],mac
+            if neighbor_ip:
+                s = Stack(str(neighbor_ip))
+                s.login()
+                s.conn.enable_cisco()
+                s.sortVersion(s.conn.send_command('show version', manypages=True))
+                s.sortinterfaces(s.conn.send_command('show run | section interface', manypages=True))
+                s.sortCdpNeiDetail(s.conn.send_command(f'show cdp nei detail', manypages=True))
+                result = s.find_port_quick(mac=mac)
+                if result:
+                    return result
+            return
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            pass
+    def find_port(self,ip=None,mac=None):
+        neighbor_ip = None
+        if ip:
+            for arp in self.arps:
+                if arp.ip == ip:
+                    mac = arp.mac
+        if mac:
+            mac.dialect = mac_cisco
+            mac_results = self.conn.send_command(f'show mac address-table | in {str(mac)}', manypages=True)
+            result = re.findall(r"([A-Za-z]{0,10}[\d]{0,3}\/[\d]{0,3}|[A-Za-z]{0,10}[\d]{0,3}\/[\d]{0,3}\/[\d]{0,3})",mac_results)
+            for neighbor in self.cdpneighbors:
+                if not hasattr(neighbor.interface,"short"):
+                    continue
+                if neighbor.interface.short.lower() == result[0].lower():
+                    neighbor_ip = neighbor.ip
+            if not neighbor_ip:
+                return self.IPAddress, self.get_interface_obj(result[0])
+        if neighbor_ip:
+            s = Stack(str(neighbor_ip))
+            s.login()
+            s.conn.enable_cisco()
+            s.getSwitchInfo()
+            s.assignattributes()
+            result = s.find_port(mac=mac)
+            if result:
+                return result
+        return
 
 class Chassis(Stack):
     pass
