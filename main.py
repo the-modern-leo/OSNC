@@ -7,7 +7,6 @@ class MainHandler(RequestHandler):
                    self.reverse_url("story", "1"))
 
 class StoryHandler(RequestHandler):
-
     def get(self, story_id):
         self.write("this is story %s and story 2" % story_id)
 
@@ -21,5 +20,4 @@ async def main():
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    print("starting")
     asyncio.run(main())
