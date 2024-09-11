@@ -1,1 +1,0 @@
-Routers_in_network = []
