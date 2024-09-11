@@ -1,11 +1,8 @@
 from netmiko import SSHDetect, ConnectHandler
 from auth import SSH
-import logging
-logging.basicConfig(filename='test.log', level=logging.DEBUG)
-logger = logging.getLogger("netmiko")
 
 def _exception(e):
-    logging.error(e)
+    print(e)
     return
 
 class connection():

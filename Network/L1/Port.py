@@ -1,4 +1,4 @@
-import logging, time, threading
+import time, threading
 from builtins import str
 from builtins import range
 from builtins import object
@@ -51,6 +51,7 @@ class Interface:
 
     def __repr__(self):
         return self.fullname
+
     def shortname(self):
         assert self.fullname != '', f'Interface must have a fullname before running shortname'
         self.short = re.sub('interface', '', self.fullname)
@@ -1092,7 +1093,6 @@ class PortConfig(PortConfigCommon):
         thread_current = self.threads.get(int(thread_id), None)
         self.threadlock.release()
         if not thread_current:
-            logging.error('warning: thread_id ' + str(thread_id) +' is invalid')
             return {'error': 'Invalid thread ID'}
         if thread_current and (not thread_current['message'] or
                 thread_current['error']):
@@ -1161,5 +1161,6 @@ class SSThread(threading.Thread):
             self.portconfig.update(self.threadID, None, result, False)
         except Exception as e:
             self.portconfig.update(self.threadID, str(e), None, True)
+
 
 

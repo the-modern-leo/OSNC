@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-import logging
 import re
 import time
 from builtins import object
@@ -277,7 +276,6 @@ class VLANChanger():
                     # name is too long, so it is on the previous line
                     if line.split()[0] == 'active':
                         temp = list_of_vlans[index - 1] + line
-                        logging.info(temp)
                         result.append(temp.split(' active ')[0])
                     else:
                         result.append(line.split(' active ')[0])
@@ -358,8 +356,6 @@ class VLANChanger():
             ValueError: When there is an issue interacting with the switch
         """
         try:
-            logging.info("Changing VLAN on " + switch + " " + port +
-                         " to VLAN " + str(vlanid))
 
             output = connection.send_command("configure terminal")
             if "nter configuration commands" not in output:
@@ -405,7 +401,6 @@ class VLANChanger():
         mt_result, connection = self.search_and_verify_mac(mac, vlanid)
 
         # TODO save old config in a database somewhere
-        logging.info("Old config: " + mt_result.simple_config)
 
         # all our Tests checked out, it's okay to swap to configure mode and
         # change the port VLAN

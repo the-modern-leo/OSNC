@@ -6,15 +6,13 @@ from Network.L4.AccessList import Access_Lists, ACL, ACL_Entry
 
 ### OSNC Application Imports ###
 from Services.SSH.NetmikoConnection import connection
-from Services.SSH import Connection as Pconn
+from Services.SSH.ParamikoConnection import Connection as Pconn
 # from SNMP.Objects import SNMP,SNMP_Group,SNMP_view,SNMP_contact,SNMP_User,\
 #     SNMP_community, SNMP_Host_Group
 # from Tacacs.Objects import TACACS
 
 ### Package Imports ###
 import logging
-import os
-from pathlib import Path
 import re
 from collections import namedtuple
 import ipaddress
@@ -25,24 +23,8 @@ import concurrent
 from concurrent.futures import ThreadPoolExecutor
 import itertools
 
-directory = os.path.realpath(__file__)
-path = Path(directory)
-project_folder = re.sub('OSNC(.*)','',str(path))
-project_folder = f"{project_folder}OSNC\\"
-path = Path(project_folder)
-Logging_folder = [x for x in path.iterdir() if x.is_dir() and x.name == "Logging"][0]
-Network_Logging_folder = [x for x in Logging_folder.iterdir() if x.is_dir() and x.name == "Network"][0]
-logging_file_name = str(Network_Logging_folder)
-
-fh = logging.FileHandler(logging_file_name+"/switch.log",mode="a+")
-fh.setLevel(logging.DEBUG)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(fh)
-
 def _exception(e):
-    logger.error(e,exc_info=True)
+    print(e)
     raise
 
 class Neighbor():
@@ -275,7 +257,7 @@ class Checker():
             if "Node does not exist" in str(e):
                 error = "does not exist"
             else:
-                logger.error(e, exc_info=True)
+                print(e)
         finally:
             return self.CheckStatus(error, actual_entry, expected_entry, None)
 
@@ -359,9 +341,6 @@ class Stack():
 
 
         date_name = datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
-        stack_fh = logging.FileHandler(f"{logging_file_name}/{ip}_{date_name}.log", mode="a+")
-        stack_fh.setLevel(logging.DEBUG)
-        logger.addHandler(stack_fh)
 
     def __repr__(self):
         return str(self.ip)
@@ -405,7 +384,7 @@ class Stack():
 
         Returns (Switch, Connection):
         """
-        logger.info(f"Gathering Switch data - Starting")
+        print(f"Gathering Switch data - Starting")
         try:
             self.version_result = self.conn.send_command('show version', manypages=True)
             self.run_result = self.conn.send_command('show run', manypages=True)
@@ -419,11 +398,11 @@ class Stack():
             if 'Invalid input detected at' in self.module_result:
                 self.module_result = self.conn.send_command('show module', manypages=True)
         except Exception as e:
-            logger.info(f"Gathering Switch data - Failed")
-            logger.error(e, exc_info=True)
+            print(f"Gathering Switch data - Failed")
+            print(e)
             self.logout()
         else:
-            logger.info(f"Gathering Switch data - Success")
+            print(f"Gathering Switch data - Success")
             self.logout()
 
     def getSwitchInfo(self):
@@ -435,72 +414,72 @@ class Stack():
 
         Returns (Switch, Connection):
         """
-        logger.info(f"Gathering Switch data - Starting")
+        print(f"Gathering Switch data - Starting")
         try:
             self.hostname = re.sub("hostname", "", self.conn.send_command('show run | inc hostname', manypages=True))
             self.hostname = re.sub(" ", "", self.hostname)
             self.hostname = self.hostname.rstrip("\r")
             self.version_result = self.conn.send_command('show version', manypages=True)
-            logger.debug(f"version_result={self.version_result}")
+            print(f"version_result={self.version_result}")
             self.run_result = self.conn.send_command('show run', manypages=True)
-            logger.debug(f"run_result={self.run_result}")
+            print(f"run_result={self.run_result}")
             self.status_result = self.conn.send_command('show int status', manypages=True)
-            logger.debug(f"status_result={self.status_result}")
+            print(f"status_result={self.status_result}")
             self.interface_result = self.conn.send_command('show run | section interface', manypages=True)
-            logger.debug(f"interface_result={self.interface_result}")
+            print(f"interface_result={self.interface_result}")
             if 'Invalid input detected at' in self.interface_result:
                 self.interface_name_r = self.conn.send_command('show run | in interface', manypages=True)
-                logger.debug(f"interface_name_r={self.interface_name_r}")
+                print(f"interface_name_r={self.interface_name_r}")
             self.portdowntime_result = self.conn.send_command('show interface link', manypages=True)
-            logger.debug(f"portdowntime_result={self.portdowntime_result}")
+            print(f"portdowntime_result={self.portdowntime_result}")
             if 'Invalid input detected at' in self.portdowntime_result:
                 self.portdowntime_result_in = self.conn.send_command('show interface', manypages=True)
-                logger.debug(f"portdowntime_result_in={self.portdowntime_result_in}")
+                print(f"portdowntime_result_in={self.portdowntime_result_in}")
             self.inv_result = self.conn.send_command('show inventory', manypages=True)
-            logger.debug(f"inv_result={self.inv_result}")
+            print(f"inv_result={self.inv_result}")
             self.portcount_result = self.conn.send_command('show interface counters', manypages=True)
-            logger.debug(f"portcount_result={self.portcount_result}")
+            print(f"portcount_result={self.portcount_result}")
             self.cdpnei_result = self.conn.send_command('show cdp nei detail', manypages=True)
-            logger.debug(f"cdpnei_result={self.cdpnei_result}")
+            print(f"cdpnei_result={self.cdpnei_result}")
             self.module_result = self.conn.send_command('show module all', manypages=True)
-            logger.debug(f"module_result={self.module_result}")
+            print(f"module_result={self.module_result}")
             if 'Invalid input detected at' in self.module_result:
                 self.module_result = self.conn.send_command('show module', manypages=True)
-                logger.debug(f"module_result={self.module_result}")
+                print(f"module_result={self.module_result}")
             self.snmp_result = self.conn.send_command('show run | section snmp', manypages=True)
-            logger.debug(f"snmp_result={self.snmp_result}")
+            print(f"snmp_result={self.snmp_result}")
             if 'Invalid input detected at' in self.snmp_result:
                 self.snmp_result_in = self.conn.send_command('show run | in snmp', manypages=True)
-                logger.debug(f"snmp_result_in={self.snmp_result_in}")
+                print(f"snmp_result_in={self.snmp_result_in}")
             self.snmp_user_result = self.conn.send_command('show snmp user', manypages=True)
-            logger.debug(f"snmp_user_result={self.snmp_user_result}")
+            print(f"snmp_user_result={self.snmp_user_result}")
             self.acl_result = self.conn.send_command('show access-list', manypages=True)
-            logger.debug(f"acl_result={self.acl_result}")
+            print(f"acl_result={self.acl_result}")
             self.logging_data_result = self.conn.send_command('show run | section logging', manypages=True)
-            logger.debug(f"logging_data_result={self.logging_data_result}")
+            print(f"logging_data_result={self.logging_data_result}")
             if 'Invalid input detected at' in self.logging_data_result:
                 self.logging_data_result = self.conn.send_command('show run | in logging', manypages=True)
-                logger.debug(f"logging_data_result={self.logging_data_result}")
+                print(f"logging_data_result={self.logging_data_result}")
             self.mac_address_result = self.conn.send_command('show mac address-table', manypages=True)
-            logger.debug(f"mac_address_result={self.mac_address_result}")
+            print(f"mac_address_result={self.mac_address_result}")
             self.tacacs_result = self.conn.send_command('show run | section tacacs', manypages=True)
-            logger.debug(f"tacacs_result={self.tacacs_result}")
+            print(f"tacacs_result={self.tacacs_result}")
             if 'Invalid input detected at' in self.tacacs_result:
                 self.tacacs_result_in = self.conn.send_command('show run | in tacacs', manypages=True)
-                logger.debug(f"tacacs_result_in={self.tacacs_result_in}")
+                print(f"tacacs_result_in={self.tacacs_result_in}")
             self.inline_power_result = self.conn.send_command('show power inline', manypages=True)
-            logger.debug(f"inline_power_result={self.inline_power_result}")
+            print(f"inline_power_result={self.inline_power_result}")
             self.environment_result = self.conn.send_command('show environment all', manypages=True)
-            logger.debug(f"environment_result={self.environment_result}")
+            print(f"environment_result={self.environment_result}")
             if 'Invalid input detected at' in self.environment_result:
                 self.environment_result = self.conn.send_command('show env all', manypages=True)
-                logger.debug(f"environment_result={self.environment_result}")
+                print(f"environment_result={self.environment_result}")
         except Exception as e:
-            logger.info(f"Gathering Switch data - Failed")
-            logger.error(e, exc_info=True)
+            print(f"Gathering Switch data - Failed")
+            print(e)
             self.logout()
         else:
-            logger.info(f"Gathering Switch data - Success")
+            print(f"Gathering Switch data - Success")
             # self.logout()
             return self.version_result
 
@@ -513,7 +492,7 @@ class Stack():
 
         Returns (Switch, Connection):
         """
-        logger.info(f"Gathering Switch data - Starting")
+        print(f"Gathering Switch data - Starting")
         try:
             command_list = ['show version','show run','show int status','show run | section interface',
                               'show run | in interface','show interface link','show interface','show inventory',
@@ -557,18 +536,18 @@ class Stack():
             self.inline_power_result = results[21][1]
             self.environment_result = results[22][1]
         except Exception as e:
-            logger.info(f"Gathering Switch data - Failed")
-            logger.error(e, exc_info=True)
+            print(f"Gathering Switch data - Failed")
+            print(e)
             _exception(e)
         else:
-            logger.info(f"Gathering Switch data - Success")
+            print(f"Gathering Switch data - Success")
 
     def get_run_data(self):
         """
         gets the fun information for this device and assignes it to the self.run_results
         :return:
         """
-        logger.info(f"Gathering Switch Run data - Started")
+        print(f"Gathering Switch Run data - Started")
         try:
             self.run_result = self.conn.send_command('show run', manypages=True)
             if '% Invalid command at' in self.run_result:
@@ -576,12 +555,12 @@ class Stack():
             if self.run_result is None:
                 raise ValueError
         except Exception as e:
-            logger.info(f"Gathering Switch Run data - Failed")
-            logger.error(e, exc_info=True)
+            print(f"Gathering Switch Run data - Failed")
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info(f"Gathering Switch Run data - Success")
+            print(f"Gathering Switch Run data - Success")
 
     ############################################## Sort Functions ###########################################
     def assignattributes_vlan(self):
@@ -613,7 +592,7 @@ class Stack():
                     if blade.moduleinterfaces:
                         self.portcount += len(blade.moduleinterfaces)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             raise
     def assignattributes(self):
         """
@@ -660,7 +639,7 @@ class Stack():
                     if blade.moduleinterfaces:
                         self.portcount += len(blade.moduleinterfaces)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
     def assignattributes_thread(self):
@@ -709,7 +688,7 @@ class Stack():
                     try:
                         s = future.result()
                     except Exception as e:
-                        logger.error(e, exc_info=True)
+                        print(e)
                         _exception(e)
                         raise
             if not self.portcount:
@@ -719,7 +698,7 @@ class Stack():
                     if blade.moduleinterfaces:
                         self.portcount += len(blade.moduleinterfaces)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             _exception(e)
             raise
@@ -729,7 +708,7 @@ class Stack():
         This function sorts through every single interface on the device, and applies those interfaces to the blade object
         :param interface_result (str) a response from the command "show run | section interface":
         """
-        logger.info("Sorting 'show run | section interface' - Starting")
+        print("Sorting 'show run | section interface' - Starting")
         assert hasattr(self, 'blades'), f'the blades have not been set on this object'
         assert self.blades is not None, f'the blades have not been set on this object'
         try:
@@ -958,19 +937,19 @@ class Stack():
                     raise AttributeError ("was not able to assign Interfaces to blades")
 
         except Exception as e:
-            logger.info("Sorting 'show run | section interface' - failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show run | section interface' - failed")
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show run | section interface' - Success")
+            print("Sorting 'show run | section interface' - Success")
 
     def sort_acl(self,acl_lines=None):
         """
         Gets all the ACL information in self.aclnumbers, creates an acl object for each number
         and gets the full acl information for that list.
         """
-        logger.info(f"Sorting 'show run | section access-list' - Success")
+        print(f"Sorting 'show run | section access-list' - Success")
         try:
             ACCESS = Access_Lists()
             if not acl_lines:
@@ -1054,12 +1033,12 @@ class Stack():
                     ACCESS.names.add(a.name)
 
         except Exception as e:
-            logger.info(f"Sorting 'show run | section access-list' - FAILED")
-            logger.error(e, exc_info=True)
+            print(f"Sorting 'show run | section access-list' - FAILED")
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info(f"Sorting 'show run | section access-list' - Success")
+            print(f"Sorting 'show run | section access-list' - Success")
             self.access_lists = ACCESS
 
     def _sort_access_lists_2(self, accesslist, type):
@@ -1189,7 +1168,7 @@ class Stack():
             if type == "mac":
                 pass
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             print(e)
             _exception(e)
             raise
@@ -1280,7 +1259,7 @@ class Stack():
                 entry.matche_count = matches
                 a.Entries.append(entry)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             print(e)
             return a
         else:
@@ -1348,7 +1327,7 @@ class Stack():
         Args:
             mac_address_result (str): the output from command "show mac address-table"
         """
-        logger.info("Sorting 'show mac address-table' - Starting")
+        print("Sorting 'show mac address-table' - Starting")
         try:
             maclines = mac_address_result.split("\r\n")
             maclines = [x for x in maclines if x]
@@ -1450,8 +1429,8 @@ class Stack():
                         break
 
         except Exception as e:
-            logger.info("Sorting 'show mac address-table' - failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show mac address-table' - failed")
+            print(e)
             _exception(e)
             raise
         else:
@@ -1467,7 +1446,7 @@ class Stack():
         Returns (Switch): a switch object with the blade objects
                             having been added
         """
-        logger.info("Sorting 'show module all' - Starting")
+        print("Sorting 'show module all' - Starting")
         try:
             if not module:
                 module = self.conn.send_command('show module all', manypages=True)
@@ -1516,8 +1495,8 @@ class Stack():
                 raise AttributeError("unable to assign blades to Switch")
 
         except Exception as e:
-            logger.info("Sorting 'show module all' - failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show module all' - failed")
+            print(e)
             _exception(e)
             raise
         else:
@@ -1535,7 +1514,7 @@ class Stack():
         assert isinstance(portdowntime, str), f'portdowntime: must be str, but got {type(portdowntime)}'
         for blade in self.blades:
             assert blade.interfaces != [], f'Blade{blade.stacknumber} is missing interfaces'
-        logger.info("Sorting 'show interfaces link' - Starting")
+        print("Sorting 'show interfaces link' - Starting")
         try:
             # creates a list, and removes the empty strings in the list
             port = portdowntime.split('\r\n')
@@ -1573,12 +1552,12 @@ class Stack():
                                     date_obj = datetime.strptime(' '.join(downsince), "%H:%M:%S %a %b %d %Y")
                                     interface.downtime = date_obj
         except Exception as e:
-            logger.info("Sorting 'show interfaces link' - Failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show interfaces link' - Failed")
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show interfaces link' - Success")
+            print("Sorting 'show interfaces link' - Success")
 
     def sortportcounters(self, portcounters):
         """
@@ -1594,7 +1573,7 @@ class Stack():
             assert self.blades != set(), f'Swithobj is missing blades'
             for blade in self.blades:
                 assert blade.interfaces != [], f'Blade{blade.stacknumber} is missing interfaces'
-            logger.info("Sorting 'show interfaces counters' - Starting")
+            print("Sorting 'show interfaces counters' - Starting")
             port = portcounters.split('\r\n')
             port = [x for x in port if x != '']
             for blade in self.blades:
@@ -1651,12 +1630,12 @@ class Stack():
                                         interface.InBcastPkts = int(p[4])
                                     out = True
         except Exception as e:
-            logger.info("Sorting 'show interfaces counters' - Failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show interfaces counters' - Failed")
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show interfaces counters' - Success")
+            print("Sorting 'show interfaces counters' - Success")
 
     def sortInventory(self, invresult):
         """
@@ -1669,7 +1648,7 @@ class Stack():
 
         """
         assert isinstance(invresult, str), f'invresult: must be str, but got {type(invresult)}'
-        logger.info("Sorting 'show Inventory' - Starting")
+        print("Sorting 'show Inventory' - Starting")
         try:
             inv = invresult.split('NAME:')
 
@@ -1689,16 +1668,16 @@ class Stack():
                             switchserial = line.split(':')[1].rstrip()
                             switchserial = re.sub(" ", "", switchserial)
                             self.serial = [switchserial]
-                            logger.info("Sorting 'show Inventory' - Success")
+                            print("Sorting 'show Inventory' - Success")
                             return self
 
         except Exception as e:
-            logger.info("Sorting 'show Inventory' - Failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show Inventory' - Failed")
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show Inventory' - Success")
+            print("Sorting 'show Inventory' - Success")
             return self
 
     def sort_inventory_hardware(self,linelist):
@@ -1783,8 +1762,8 @@ class Stack():
                     s.speed = '1GB'
 
         except Exception as e:
-            logger.info("Sorting 'show Inventory' - Failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show Inventory' - Failed")
+            print(e)
             _exception(e)
             raise
         else:
@@ -1809,7 +1788,7 @@ class Stack():
 
         """
         assert isinstance(versionresult, str), f'versionresult: must be str, but got {type(versionresult)}'
-        logger.info("Sorting 'show Version' - Starting")
+        print("Sorting 'show Version' - Starting")
         try:
             stackline = None
             # run code here
@@ -1850,7 +1829,7 @@ class Stack():
                         # b = Blade()
                         # b.stacknumber = 1
                         # self.blades.add(b)
-                logger.info("Sorting 'show Version' - Success")
+                print("Sorting 'show Version' - Success")
                 return self
 
             for count, line in enumerate(ver):
@@ -1894,7 +1873,7 @@ class Stack():
                                     self.version = match[0]
 
 
-                        logger.info("Sorting 'show Version' - Success")
+                        print("Sorting 'show Version' - Success")
                         return self
 
             if self.modelnumber not in chw.chassis:  # handle working on a Stack of Switches_syntax_compatability
@@ -1994,12 +1973,12 @@ class Stack():
                                 bl.ISOversion = re.sub("Cisco IOS XE Software, Version","",line).strip()
                         self.blades.add(bl)
         except Exception as e:
-            logger.info("Sorting 'show Version' - failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show Version' - failed")
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show Version' - Success")
+            print("Sorting 'show Version' - Success")
     def _sort_run_vlan(self,runresult=''):
         """
         sorts "show run" command for the switching vlans
@@ -2050,8 +2029,8 @@ class Stack():
                     vl = vlan(int(re.sub(r"\\r",'',m)))
                     vlans.append(vl)
         except Exception as e:
-            logger.info("Sorting 'show run' - Failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show run' - Failed")
+            print(e)
             _exception(e)
             raise
         else:
@@ -2071,7 +2050,7 @@ class Stack():
         assert isinstance(runresult, str), f'runresult: must be str, but got {type(runresult)}'
         # assert hasattr(self, 'blades'), f'the blades have not been set on this object'
         # assert self.blades is not None, f'the blades have not been set on this object'
-        logger.info("Sorting 'show run' - Starting")
+        print("Sorting 'show run' - Starting")
         try:
             if not '\r\n' in runresult:
                 run = runresult.split('\n')
@@ -2200,12 +2179,12 @@ class Stack():
                 line = [x for x in line if x]
                 self.aclnumbers.add(line[1])
         except Exception as e:
-            logger.info("Sorting 'show run' - Failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show run' - Failed")
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show run' - Success")
+            print("Sorting 'show run' - Success")
             return self
     def sortCdpNeiDetail(self, cdpnei):
         """
@@ -2221,7 +2200,7 @@ class Stack():
         """
         assert isinstance(cdpnei, str), f'cdpnei must be a str, got {type(cdpnei)}'
         assert cdpnei is not None, f'cdpnei is an empty string. please pass through response from "show cdp nei detail"'
-        logger.info("Sorting 'show cdp nei detail' - Starting")
+        print("Sorting 'show cdp nei detail' - Starting")
         try:
             cdpneidetail = cdpnei.split('-------------------------')
             switchs = [x for x in cdpneidetail if x]
@@ -2232,12 +2211,12 @@ class Stack():
                 self.cdpneighbors.append(cdpneiobj)
                 self.uplinklist.append(cdpneiobj.interface)
         except Exception as e:
-            logger.info("Sorting 'show cdp nei detail' - Failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show cdp nei detail' - Failed")
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show cdp nei detail' - Success")
+            print("Sorting 'show cdp nei detail' - Success")
     def sortlogging(self, logging_result):
         """
 
@@ -2245,7 +2224,7 @@ class Stack():
         :return:
         """
         assert isinstance(logging_result, str), f'logging_result: must be str, but got {type(logging_result)}'
-        logger.info("Sorting 'show run | section looging' - Starting")
+        print("Sorting 'show run | section looging' - Starting")
         try:
             logginglines = []
             logg = logging_result.split('\r\n')
@@ -2260,12 +2239,12 @@ class Stack():
 
 
         except Exception as e:
-            logger.info("Sorting 'show run | section looging' - Failed")
-            logger.error(e, exc_info=True)
+            print("Sorting 'show run | section looging' - Failed")
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info("Sorting 'show run | section looging' - Success")
+            print("Sorting 'show run | section looging' - Success")
             self.logging_data = logginglines
     # def sortsnmp(self):
     #     """
@@ -2273,7 +2252,7 @@ class Stack():
     #     :param snmp_result:
     #     :return:
     #     """
-    #     logger.info("Sorting 'show run | section snmp' - Starting")
+    #     print("Sorting 'show run | section snmp' - Starting")
     #     try:
     #         if "Invalid input detected at" not in self.snmp_result:
     #             snmp_result = self.snmp_result
@@ -2423,12 +2402,12 @@ class Stack():
     #                     s.contacts.append(c)
     #
     #     except Exception as e:
-    #         logger.info("Sorting 'show run | section snmp' - Failed")
-    #         logger.error(e, exc_info=True)
+    #         print("Sorting 'show run | section snmp' - Failed")
+    #         print(e)
     #         _exception(e)
     #         raise
     #     else:
-    #         logger.info("Sorting 'show run | section snmp' - Success")
+    #         print("Sorting 'show run | section snmp' - Success")
     #         self.SNMP = s
     # def _sort_snmp_user(self):
     #     """
@@ -2453,7 +2432,7 @@ class Stack():
     #                     U.group = re.sub('Group-name: ','',line).strip()
     #             self.SNMP.user.append(U)
     #     except Exception as e:
-    #         logger.error(e, exc_info=True)
+    #         print(e)
     #         _exception(e)
     #         raise
     #     else:
@@ -2487,7 +2466,7 @@ class Stack():
                 string = "\r\n".join(newlist)
                 interface_configurations = interface_configurations + string + "\r\n"
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -2498,7 +2477,7 @@ class Stack():
         Returns:
             (int): Percentage of memory used
         """
-        logger.info("Sorting Memory: Starting")
+        print("Sorting Memory: Starting")
         total_memory = None
         used_memory = None
         percent_memory = None
@@ -2506,7 +2485,7 @@ class Stack():
             try:
                 self.login()
             except Exception as ssh:
-                logger.info("Sorting Memory: Unable to Collect")
+                print("Sorting Memory: Unable to Collect")
                 _exception(ssh)
                 raise
             self.system_results = self.conn.send_command('show system resources', manypages=True)
@@ -2597,7 +2576,7 @@ class Stack():
         else:
             self.logout()
             percent_memory = round(100 * (used_memory / total_memory))
-            logger.info("Sorting Memory: Succeess")
+            print("Sorting Memory: Succeess")
             return (used_memory, percent_memory)
     def sort_power_inline(self):
         try:
@@ -2629,7 +2608,7 @@ class Stack():
                         self.assign_power_inline_to_interface(line)
         except Exception as e:
             self.logout()
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -2649,7 +2628,7 @@ class Stack():
                         i.Max = line_segs[6]
                         return
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -2671,7 +2650,7 @@ class Stack():
                     b.remaining_watts = float(self._get_just_power_int(line_segs[3]))
         except Exception as e:
             self.logout()
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -2686,7 +2665,7 @@ class Stack():
             self.remaining_watts = float(self._get_just_power_int(line_segs[2]))
         except Exception as e:
             self.logout()
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -2708,7 +2687,7 @@ class Stack():
                     b = self._convert_power_info(b,line_segs)
         except Exception as e:
             self.logout()
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -2749,7 +2728,7 @@ class Stack():
                             self.assign_environment_power_to_blade(line)
         except Exception as e:
             self.logout()
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -2804,7 +2783,7 @@ class Stack():
                                 b.slot_b_watts = int(line[6])
         except Exception as e:
             self.logout()
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -2857,7 +2836,7 @@ class Stack():
                             for key, value in vars(interface).items():
                                 if key not in ignore:
                                     setattr(new_interface, f'{key}', value)
-                            logger.debug(f'Transferring {interface.fullname} to {new_interface.fullname}')
+                            print(f'Transferring {interface.fullname} to {new_interface.fullname}')
                             new_interface.empty = False
                             return
                 elif int(new_interface.blade) == int(blade_and_port[0]) and int(new_interface.portnumber) == int(blade_and_port[1]):
@@ -2883,7 +2862,7 @@ class Stack():
 
         Returns:
         """
-        logger.info("Writing Port configs to device - Started")
+        print("Writing Port configs to device - Started")
         try:
             config_lines = interface.run_config()
             result = self.conn.send_command('config t', trim=False)
@@ -2895,11 +2874,11 @@ class Stack():
             result = self.conn.send_command('end')
             result = self.conn.send_command('wri')
         except Exception as e:
-            logger.info("Writing Port configs to device - Failed")
-            logger.error(e, exc_info=True)
+            print("Writing Port configs to device - Failed")
+            print(e)
             _exception(e)
         else:
-            logger.info("Writing Port configs to device - Success")
+            print("Writing Port configs to device - Success")
 
     def write_portconfig(self):
         """
@@ -2908,7 +2887,7 @@ class Stack():
         """
         assert isinstance(self.conn, Pconn), f'self.conn is not a connection object: {type(self.conn)}'
         assert isinstance(self.portconfig, list), f'self.Ports is not list'
-        logger.info("Writing Port configs to device - Started")
+        print("Writing Port configs to device - Started")
         try:
             result = self.conn.send_command('config t', trim=False)
             if '(config)' not in result:
@@ -2921,17 +2900,17 @@ class Stack():
             result = self.conn.send_command('end')
             result = self.conn.send_command('wri')
         except Exception as e:
-            logger.info("Writing Port configs to device - Failed")
-            logger.error(e, exc_info=True)
+            print("Writing Port configs to device - Failed")
+            print(e)
         else:
-            logger.info("Writing Port configs to device - Success")
+            print("Writing Port configs to device - Success")
     def write_vlans(self):
         """
         This function writes out the configuration of the vlans stored in self.vlans
         :param self.conn (Connection): A Parmimiko connection to the device
         """
         assert isinstance(self.conn, Pconn), f'self.conn is not a connection object: {type(self.conn)}'
-        logger.info("Writing vlan configs to device - Started")
+        print("Writing vlan configs to device - Started")
         try:
             result = self.conn.send_command('config t', trim=False)
             if '(config)' not in result:
@@ -2944,10 +2923,10 @@ class Stack():
             result = self.conn.send_command('end')
             result = self.conn.send_command('wri')
         except Exception as e:
-            logger.info("Writing vlan configs to device - Failed")
-            logger.error(e, exc_info=True)
+            print("Writing vlan configs to device - Failed")
+            print(e)
         else:
-            logger.info("Writing vlan configs to device - Success")
+            print("Writing vlan configs to device - Success")
 
     def _modify_acl(self,aclnumber):
         pass
@@ -2965,7 +2944,7 @@ class Stack():
             result = self.conn.send_command(f"end")
             result = self.conn.send_command(f"wri")
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
     # def _remove_snmp(self,snmpobj):
@@ -2999,7 +2978,7 @@ class Stack():
     #             result = self.conn.send_command(f"end")
     #             result = self.conn.send_command(f"wri")
     #     except Exception as e:
-    #         logger.error(e, exc_info=True)
+    #         print(e)
     #         _exception(e)
     #         raise
     #     else:
@@ -3017,7 +2996,7 @@ class Stack():
             # create configurations for Vlans
             # create Logging configuration
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
 
     ############################################# Other Functions #############################################
     def login_netmiko(self,hosttype=None):
@@ -3160,7 +3139,7 @@ class Stack():
                     if blade.stacknumber == localport[0]:
                         blade.interfaces[n.interface.fullname].neighbor = n
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             print(e)
             _exception(e)
             raise
@@ -3206,7 +3185,7 @@ class Stack():
                                     Inter = interface
                                 break
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             print(e)
             _exception(e)
             raise
@@ -3231,7 +3210,7 @@ class Stack():
             if Inter:
                 return Inter
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             print(e)
             _exception(e)
             raise
@@ -3271,7 +3250,7 @@ class Stack():
             intstr = intstr.replace('\r', '')
             intstr = intstr.rstrip()
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
         else:
             return intstr
 
@@ -3306,7 +3285,7 @@ class Stack():
             lastrestart = datetime.now() - delta
 
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             return
         else:
             return (delta, lastrestart)
@@ -3344,7 +3323,7 @@ class Stack():
                     deltadict["minutes"] = int(re.sub("minute", "", t))
 
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
         else:
             return deltadict
 
@@ -3419,7 +3398,7 @@ class Stack():
         Creates the Configuration output to be sent to a device from this object
         :return: the configuration formated as a string
         """
-        logger.info('Generating Port Configuration - Starting')
+        print('Generating Port Configuration - Starting')
         try:
             allconfigs = []
             for blade in self.blades:
@@ -3428,12 +3407,12 @@ class Stack():
                     for line in config:
                         allconfigs.append(line)
         except Exception as e:
-            logger.info('Generating Port Configuration - Failed')
-            logger.error(e, exc_info=True)
+            print('Generating Port Configuration - Failed')
+            print(e)
             _exception(e)
             raise
         else:
-            logger.info('Generating Port Configuration - Success')
+            print('Generating Port Configuration - Success')
             self.portconfig = allconfigs
 
     def _remove_domain_name(self,name):
@@ -3451,7 +3430,7 @@ class Stack():
             hostname = self.conn.send_command("show run | in hostname")
             self.hostname = re.sub("hostname ", "", hostname)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
 
     def lifeCycleUpdate_interface_report(self):
         """
@@ -3470,7 +3449,7 @@ class Stack():
                 portcount = portcount + len(blade.interfaces)
 
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
         else:
             return portcount
 
@@ -3495,7 +3474,7 @@ class Stack():
                     power['watts'] = b.slot_b_watts
                     power_supplies.append(power)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
         else:
             return total_used_power, power_supplies
     def check_hostname(self):
@@ -3550,7 +3529,7 @@ class Stack():
 
 
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -3572,7 +3551,7 @@ class Stack():
                     vlans.append(vlan)
             self.vlans = vlans
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -3620,7 +3599,7 @@ class Stack():
                     return result
             return
         except Exception as e:
-            logger.error(e, exc_info=True)
+            print(e)
             pass
     def find_port(self,ip=None,mac=None):
         neighbor_ip = None
@@ -3718,10 +3697,10 @@ class Blade:
                     interface.voicevlan == '' and
                     interface.dualmode == False and
                     interface.stpf == False):
-                logger.info(f'{interface.fullname} nothing assigned to this port - removing config')
+                print(f'{interface.fullname} nothing assigned to this port - removing config')
                 self.inuseports -= 1
             else:
-                logger.info(f'{interface.fullname} has configuration information')
+                print(f'{interface.fullname} has configuration information')
                 interfaces.update({key: interface})
         self.interfaces = interfaces
 
@@ -3734,13 +3713,13 @@ class Blade:
         for key, interface in self.interfaces.items():
             if interface.downtime:
                 if interface.downtime < past:
-                    logger.info(f'{interface.fullname} has not been up in the last 6 months - removing config')
+                    print(f'{interface.fullname} has not been up in the last 6 months - removing config')
                     self.inuseports -= 1
                 else:
-                    logger.info(f'{interface.fullname} has been used recently')
+                    print(f'{interface.fullname} has been used recently')
                     interfaces.update({key: interface})
             else:
-                logger.info(f'{interface.fullname} is actively connected')
+                print(f'{interface.fullname} is actively connected')
                 interfaces.update({key: interface})
 
         self.interfaces = interfaces
@@ -3759,10 +3738,10 @@ class Blade:
                     interface.outUcastPkts == 0 and
                     interface.outMcastPkts == 0 and
                     interface.outBcastPkts == 0):
-                logger.info(f'{interface.fullname} has not sent any traffic - removing config')
+                print(f'{interface.fullname} has not sent any traffic - removing config')
                 self.inuseports -= 1
             else:
-                logger.info(f'{interface.fullname} has been sending traffic')
+                print(f'{interface.fullname} has been sending traffic')
                 interfaces.update({key: interface})
         self.interfaces = interfaces
 
@@ -3780,7 +3759,7 @@ class Blade:
         """
         assert self.interfaces is not None, f'There are no interfaces generated for this blade'
         assert isinstance(interfaceobj, Interface), f'There are no interfaces generated for this blade'
-        logger.info(
+        print(
             f'Transferring {interfaceobj.fullname} to Port:{"Next available" if nextavailable else portname} - Starting')
         try:
             interfaces = {}
@@ -3804,7 +3783,7 @@ class Blade:
                             for key, value in vars(interfaceobj).items():
                                 if key not in ignore:
                                     setattr(interface, f'{key}', value)
-                            logger.debug(f'Transferring {interfaceobj.fullname} to {interface.fullname}')
+                            print(f'Transferring {interfaceobj.fullname} to {interface.fullname}')
                             interface.empty = False
                             self.interfaces.update({key: interface})
                             break
@@ -3827,7 +3806,7 @@ class Blade:
                         for key, value in vars(interfaceobj).items():
                             if key not in ignore:
                                 setattr(interface, f'{key}', value)
-                        logger.debug(f'Transferring {interfaceobj.fullname} to {interface.fullname}')
+                        print(f'Transferring {interfaceobj.fullname} to {interface.fullname}')
                         interface.empty = False
                     interfaces.update({key: interface})
 
@@ -3835,11 +3814,11 @@ class Blade:
                     raise ValueError(f'{portname} Not on this blade')
 
         except:
-            logger.info(
+            print(
                 f'Transferring {interfaceobj.fullname} to Port:{"Next available" if nextavailable else portname} - failed')
             raise
         else:
-            logger.info(
+            print(
                 f'Transferring {interfaceobj.fullname} to Port:{"Next available" if nextavailable else portname} - success')
 
 class Switch(Blade):

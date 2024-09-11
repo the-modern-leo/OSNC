@@ -1,19 +1,18 @@
 ### Local Package ###
-from Network.L2.Switch import Stack, Blade, Neighbor
-from Network.L1.Port import SFP, Interface,PortChannel
+from Network.L2.Switch import Stack, Blade
+from Network.L1.Port import Interface,PortChannel
 from Network.L2.Vlan import vlan
 
 
 ### Global Packages ###
-import logging
 import re
 from ipaddress import IPv4Network,ip_network,ip_address,IPv4Address
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
-from netaddr import EUI, mac_cisco
+from netaddr import EUI
 
 def _exception(e):
-    logging.error(e,exc_info=True)
+    print(e)
     raise
 
 def RepresentsInt(s):
@@ -230,7 +229,7 @@ class Router(Stack):
                         l = l.rstrip('\r')
                         nobj.subnet.append(IPv4Network(l))
                 except Exception as e:
-                    logging.error(e, exc_info=True)
+                    print(e)
                     _exception(e)
                     raise
         return nobj
@@ -305,7 +304,7 @@ class Router(Stack):
                         interface.subnet = subnet
 
         except Exception as e:
-            logging.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -333,8 +332,8 @@ class Router(Stack):
             subnet = ip_network(ipline,strict=False)
             ip = list(subnet.hosts())[1]
         except Exception as e:
-            logging.info("Sorting 'show run | section interface | section Vlan' - failed")
-            logging.error(e, exc_info=True)
+            print("Sorting 'show run | section interface | section Vlan' - failed")
+            print(e)
             _exception(e)
             raise
         else:
@@ -345,7 +344,7 @@ class Router(Stack):
         This function sorts through every single interface on the device, and applies those interfaces to the blade object
         :param vlan_interface_result (str) a response from the command "show run | section interface":
         """
-        logging.info("Sorting 'show run | section interface | section Vlan' - Starting")
+        print("Sorting 'show run | section interface | section Vlan' - Starting")
         try:
             vlan_interface_result = vlan_interface_result.split('interface ')
 
@@ -364,13 +363,13 @@ class Router(Stack):
             if vlans == []:
                 raise
         except Exception as e:
-            logging.info("Sorting 'show run | section interface | section Vlan' - failed")
-            logging.error(e, exc_info=True)
+            print("Sorting 'show run | section interface | section Vlan' - failed")
+            print(e)
             _exception(e)
             raise
         else:
             self.vlansints = vlans
-            logging.info("Sorting 'show run | section interface | section Vlan' - Success")
+            print("Sorting 'show run | section interface | section Vlan' - Success")
 
     def _get_vlan(self, vlanstr,V=None):
         """
@@ -419,7 +418,7 @@ class Router(Stack):
                     v.shutdown = True
 
         except Exception as e:
-            logging.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -470,7 +469,7 @@ class Router(Stack):
                 blade = b
 
         except Exception as e:
-            logging.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -520,7 +519,7 @@ class Router(Stack):
                 blade = b
 
         except Exception as e:
-            logging.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -541,7 +540,7 @@ class Router(Stack):
             line = re.sub(':', '', line)
             line = re.sub(' ', '', line)
         except Exception as e:
-            logging.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -568,7 +567,7 @@ class Router(Stack):
                 line = re.sub('system:', '', line)
                 line = re.sub(' ', '', line)
         except Exception as e:
-            logging.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -603,7 +602,7 @@ class Router(Stack):
             lastrestart = datetime.now() - delta
 
         except Exception as e:
-            logging.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -642,7 +641,7 @@ class Router(Stack):
                     deltadict["minutes"] = int(re.sub("minute", "", t))
 
         except Exception as e:
-            logging.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -664,7 +663,7 @@ class Router(Stack):
                 line = line.split(" ")
                 line = line[1]
         except Exception as e:
-            logging.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:
@@ -702,7 +701,7 @@ class Router(Stack):
             v = self._get_vlan(self.conn.send_command(f"show run int Vlan {str(v.number)}"),v)
             self.logout(self.conn)
         except Exception as e:
-            logging.error(e, exc_info=True)
+            print(e)
             _exception(e)
             raise
         else:

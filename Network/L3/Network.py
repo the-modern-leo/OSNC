@@ -1,12 +1,11 @@
 ### Local Packages ###
-from L2 import Stack
+from Network.L2.Switch import Stack
 from Router import Router
 
 ### Package imports
 import re
-import logging
 import datetime
-from settings import cisco
+from Network.settings import cisco
 from datetime import datetime
 from collections import defaultdict
 import concurrent
@@ -17,7 +16,6 @@ import socket
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 import traceback
-from openpyxl import load_workbook
 
 def RepresentsInt(s):
     try:
