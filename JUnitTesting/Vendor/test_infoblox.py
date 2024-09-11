@@ -23,7 +23,7 @@ class TestRouter(unittest.TestCase):
             rest = restapi()
             result = rest.createContainer(data)
 
-    def test_create_multiple_networks(self,data,network):
+    def test_create_networks(self,data,network):
         data = []
         rest = restapi()
         rest.create_multiple_networks("10.70.0.0/16",data)
