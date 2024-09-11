@@ -185,7 +185,7 @@ class TestRouter(unittest.TestCase):
                 routers.append(r1)
         v = VRF("fuelmaster",20)
         configs = v.generate_all_vrf_configurations(routers)
-        save_path = "C:/Users/nbradberry/Documents/changes/Fuelmaster/changes"
+        save_path = ""
         for con,r in zip(configs,routers):
             name_of_file = f"{r.hostname}-change.txt"
             completeName = os.path.join(save_path, name_of_file + ".txt")
