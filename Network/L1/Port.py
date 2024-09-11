@@ -57,6 +57,7 @@ class Interface:
         self.short = re.sub('interface', '', self.fullname)
         self.short = re.sub('FastEthernet', 'Fa', self.short)
         self.short = re.sub(' ', '', self.short)
+        self.short = re.sub('TwentyFiveGigE', 'Twe', self.short)
         self.short = re.sub('TenGigabitEthernet', 'Te', self.short)
         self.short = re.sub('GigabitEthernet', 'Gi', self.short)
         self.short = re.sub('FastEthernet1', 'Fa', self.short)
