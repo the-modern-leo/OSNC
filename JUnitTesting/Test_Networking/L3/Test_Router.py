@@ -60,14 +60,17 @@ class TestRouter(unittest.TestCase):
         routers = []
         Hubrouters = []
         for network in containers:
-            matches = re.findall(r"Vlan: ([\d]{0,5})[\s\S]Location: (.*)[\s\S]Router: (.*)[\s\S]{0,2}",network["comment"],re.MULTILINE)[0]
+            matches = \
+            re.findall(r"Vlan: ([\d]{0,5})[\s\S]Location: (.*)[\s\S]Router: (.*)[\s\S]{0,2}", network["comment"],
+                       re.MULTILINE)[0]
             v = vlan(matches[0])
             v.name = matches[1] + "-fuelmaster"
             v.network = IPNetwork(network['network'])
-            v.helper_addr = [IPNetwork("10.2.5.150/32"),IPNetwork("10.2.7.150/32")]
+            v.helper_addr = [IPNetwork("10.2.5.150/32"), IPNetwork("10.2.7.150/32")]
             if "/" in matches[2]:
-                name_ip = re.findall(r"([a-zA-z\d]{0,20}).*<([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}.)>.*/ ([a-zA-z\d]{0,20}).*<([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}.)>",
-                                     matches[2], re.MULTILINE)[0]
+                name_ip = re.findall(
+                    r"([a-zA-z\d]{0,20}).*<([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}.)>.*/ ([a-zA-z\d]{0,20}).*<([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}.)>",
+                    matches[2], re.MULTILINE)[0]
                 r1 = Router(name_ip[1])
                 r1.vlans.append(v)
                 r1.hostname = name_ip[0]
@@ -128,7 +131,7 @@ class TestRouter(unittest.TestCase):
                                    netaddr.IPNetwork("10.7.3.7/32"),
                                    netaddr.IPNetwork("10.7.3.8/32"),
                                    netaddr.IPNetwork("10.7.3.9/32")]
-                    o.networks = [netaddr.IPNetwork("10.7.0.0/16"),netaddr.IPNetwork("10.24.0.0/24")]
+                    o.networks = [netaddr.IPNetwork("10.7.0.0/16"), netaddr.IPNetwork("10.24.0.0/24")]
                     r1.route_protocols = b
                     r1.ospf = o
                 Hubrouters.append(r1)
@@ -140,9 +143,9 @@ class TestRouter(unittest.TestCase):
                 b = bgp()
                 b.loopback = "3"
                 b.ASNumber = "65000"
-                b.networks = [netaddr.IPNetwork("192.168.100.0/24"),netaddr.IPNetwork("10.7.1.0/24")]
+                b.networks = [netaddr.IPNetwork("192.168.100.0/24"), netaddr.IPNetwork("10.7.1.0/24")]
                 o = ospf()
-                o.neighbors = [netaddr.IPNetwork("10.7.3.1/32"),netaddr.IPNetwork("10.7.3.2/32")]
+                o.neighbors = [netaddr.IPNetwork("10.7.3.1/32"), netaddr.IPNetwork("10.7.3.2/32")]
                 o.loopback = "20"
                 r1 = Router(name_ip[1])
                 r1.hostname = name_ip[0]
@@ -154,7 +157,7 @@ class TestRouter(unittest.TestCase):
                 elif "WSA" in r1.hostname:
                     b.routerid = netaddr.IPNetwork("10.7.1.3/32")
                     o.routerid = netaddr.IPNetwork("10.7.3.4/32")
-                    b.neighbors = [netaddr.IPNetwork("192.168.100.129/30"),netaddr.IPNetwork("192.168.100.29/30")]
+                    b.neighbors = [netaddr.IPNetwork("192.168.100.129/30"), netaddr.IPNetwork("192.168.100.29/30")]
                 elif "DDTC" in r1.hostname:
                     b.routerid = netaddr.IPNetwork("10.7.1.4/32")
                     o.routerid = netaddr.IPNetwork("10.7.3.5/32")
@@ -178,18 +181,18 @@ class TestRouter(unittest.TestCase):
                 elif "JRSC" in r1.hostname:
                     b.routerid = netaddr.IPNetwork("10.7.1.9/32")
                     o.routerid = netaddr.IPNetwork("")
-                    b.neighbors = [netaddr.IPNetwork("10.7.32.5/31"),netaddr.IPNetwork("192.168.100.101/30")]
+                    b.neighbors = [netaddr.IPNetwork("10.7.32.5/31"), netaddr.IPNetwork("192.168.100.101/30")]
                 r1.route_protocols = b
                 o.networks = [netaddr.IPNetwork("10.7.0.0/16"), netaddr.IPNetwork("10.24.0.0/24")]
                 r1.ospf = o
                 routers.append(r1)
-        v = VRF("fuelmaster",20)
+        v = VRF("fuelmaster", 20)
         configs = v.generate_all_vrf_configurations(routers)
         save_path = ""
-        for con,r in zip(configs,routers):
+        for con, r in zip(configs, routers):
             name_of_file = f"{r.hostname}-change.txt"
             completeName = os.path.join(save_path, name_of_file + ".txt")
-            with open(completeName,"w") as f:
+            with open(completeName, "w") as f:
                 f.write(con)
 
     def test_eigrp_config(self):
