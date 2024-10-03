@@ -44,7 +44,6 @@ class restapi():
 
         self._post(queryurl=query,jsondict=data)
 
-
     def get_Network_containers_all(self,netadd):
         return self._get(f"network?network_container={netadd}&_return_fields%2B=network_container",)
 
@@ -109,6 +108,44 @@ Router: {net["router"]}""",
     def create_HSRP_gateways(self,netcontainer,data):
         pass
 
+    def AssociateNetworkToMember(self,network,dhcpmember):
+        """
+
+        """
+        reply = None
+        reply = self._get(f"network?network={network}")
+        data = {
+                "members": dhcpmember
+            }
+        return self._put(reply[0]["_ref"], data)
+    def AssociateRangeTofailover(self,network,failover):
+        """
+
+        """
+        reply = None
+        reply = self._get(f"range?network={network}")
+        data = {
+                "members": failover
+            }
+        return self._put(reply[0]["_ref"], data)
+    def CreateDHCPRange(self,network,network_view,start_addr,end_addr,comment=None,dhcpmember=None,failover_association=None):
+        """
+
+        """
+        data = {
+            "network_view": str(network_view),
+            "network": str(network),
+            "end_addr": str(end_addr),
+            "start_addr": str(start_addr),
+        }
+        if dhcpmember:
+            data["member"] = dhcpmember
+        if comment:
+            data["comment"] = str(comment)
+        if failover_association:
+            data["failover_association"] = failover_association
+
+        return self._post(f"range", data)
     def _get(self, queryurl):
         response = requests.get(infoblox.url + queryurl, headers=headers,
                                 auth=(SSH.username, SSH.password),verify=False)
