@@ -3293,7 +3293,8 @@ class Stack():
     def allinterfaces(self):
         interfaces = []
         for blade in self.blades:
-            interfaces += blade.interfaces
+            for inter in blade.interfaces.values():
+                interfaces.append(inter)
         return interfaces
 
     def generateportconfiguration(self):
@@ -3536,6 +3537,38 @@ class Stack():
         except Exception as e:
             print(e)
             pass
+
+    def push_ipdhcpsnooping(self,vlan,interfaces=None):
+        """
+        @param vlan: number or vlan range, example: 1,3-5,7,9-11
+        @type vlan: str
+        @param interfaces: Name of the upstream interface toward the DHCP Server for trusted interfaces example: gi1/1/1
+        @type interfaces: list
+        @return: The results of the commands, and the commands sent
+        @rtype: lsit
+        """
+        command_results = []
+        command_results.append((self.conn.send_command("config t"),"config t"))
+        command_results.append((self.conn.send_command("ip dhcp snooping"),"ip dhcp snooping"))
+        command_results.append((self.conn.send_command(f"ip dhcp snooping vlan {vlan}"),f"ip dhcp snooping vlan {vlan}"))
+        if interfaces:
+            for interface in interfaces:
+                command_results.append((self.conn.send_command("int " + str(interface)),"int " + str(interface)))
+                command_results.append((self.conn.send_command("ip dhcp snooping trust"),"ip dhcp snooping trust"))
+        else:
+            defaultGateway = re.match("[\d]{0,3}\.[\d]{0,3}\.[\d]{0,3}\.[\d]{0,3}",self.conn.send_command("show run | sec default-gateway"))
+            command_results.append((defaultGateway,"show run | sec default-gateway"))
+            Mac = re.match("[\dA-Za-z]{0,4}\.[\dA-Za-z]{0,4}\.[\dA-Za-z]{0,4}",
+                               self.conn.send_command(f"show ip arp {defaultGateway[0]}"))
+            command_results.append((Mac,f"show ip arp {defaultGateway[0]}"))
+            local_int = re.match("([a-zA-Z]{0,20}[\d]{0,3}\/[\d]{0,3}\/[\d]{0,3}|[\d]{0,3}\/[\d]{0,3}|[a-zA-Z]{0,20}[\d]{0,3}\/[\d]{0,3})",
+                               self.conn.send_command(f"show mac address-table | in {Mac[1]}"))
+            command_results.append((local_int,f"show mac address-table | in {Mac[1]}"))
+            command_results.append((self.conn.send_command(f"int {local_int[0]}"),f"int {local_int[0]}"))
+            command_results.append((self.conn.send_command("ip dhcp snooping trust"),"ip dhcp snooping trust"))
+        command_results.append((self.conn.send_command("end"),"end"))
+        command_results.append((self.conn.send_command("wri"),"wri"))
+        return command_results
 
 class Chassis(Stack):
     pass

@@ -766,6 +766,48 @@ class Router(Stack):
                 configs1 = configs1 + con1
         return configs1
 
+    def push_ipArpinspectionValidation_static(self,switchips):
+        """
+
+        @return:
+        @rtype:
+        """
+        command_results = []
+        aprs = self.conn.send_command("show ip arp")
+        command_results.append((aprs, "show ip arp"))
+        maping = re.findall("([\d]{0,3}\.[\d]{0,3}\.[\d]{0,3}\.[\d]{0,3}).* ([\dA-Za-z]{0,4}\.[\dA-Za-z]{0,4}\.[\dA-Za-z]{0,4})",aprs)
+        for switch in switchips:
+            local_mac_mapping = []
+            s = Stack(switch)
+            s.login()
+            s.getSwitchInfo()
+            s.assignattributes()
+            trusted_interfaces = []
+            accessPorts = []
+            for inter in s.allinterfaces():
+                if inter.trunk:
+                    trusted_interfaces.append(inter)
+                    continue
+                if inter.mac_addresses:
+                    if len(inter.mac_addresses) > 1:
+                        trusted_interfaces.append(inter)
+                    else:
+                        accessPorts.append(inter.mac_addresses[0])
+            for mac in accessPorts:
+                mac.dialect = mac_cisco
+                remove = None
+                for arp_mac in maping:
+                    if str(mac) == arp_mac[1]:
+                        local_mac_mapping.append(arp_mac)
+                        remove = arp_mac
+                        break
+                if remove:
+                    maping.remove(remove)
+
+        command_results.append((self.conn.send_command("ip dhcp snooping"), "ip dhcp snooping"))
+        command_results.append(
+            (self.conn.send_command(f"ip dhcp snooping vlan {vlan}"), f"ip dhcp snooping vlan {vlan}"))
+
     # def find_port(self,ip=None,mac=None):
     #     neighbor_ip = None
     #     if ip:
