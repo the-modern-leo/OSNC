@@ -53,3 +53,6 @@ class TestRouter(unittest.TestCase):
         except Exception as e:
             print(e)
             pass
+
+    def test_create_host_record_range(self):
+        pass

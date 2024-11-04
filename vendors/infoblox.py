@@ -61,7 +61,15 @@ class restapi():
         """
         netadd(str): ex - 10.0.0.0/16
         """
-        return self._get(f"network?network_container={netadd}")
+        data = {
+            "method": "GET",
+            "object": "ipv4address",
+            "data": {
+                "network": netadd,
+                "network_view": "default",
+                "status": "USED"
+            }}
+        return self._post(f"request", data)
     def createNetwork(self,data):
         jsondata = {
             "comment": f"""{data["comment"]}""",
@@ -146,6 +154,18 @@ Router: {net["router"]}""",
             data["failover_association"] = failover_association
 
         return self._post(f"range", data)
+
+    def delete_host_record(self, name=None, ipad=None):
+        if name:
+            ref = self.get_host_record(dns=name)
+        elif ipad:
+            ref = self.get_host_record(ipad=ipad)
+        else:
+            return ("Not able to serach for Host Record. No IP or DNS")
+
+        query = f"{ref[0]['_ref']}"
+        return self._delete(queryurl=query)
+
     def _get(self, queryurl):
         response = requests.get(infoblox.url + queryurl, headers=headers,
                                 auth=(SSH.username, SSH.password),verify=False)
