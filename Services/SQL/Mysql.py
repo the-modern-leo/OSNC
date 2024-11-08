@@ -1,19 +1,39 @@
 # https://dev.mysql.com/doc/connector-python/en/connector-python-example-ddl.html
 
 import mysql
-from mysql.connector import errorcode,connect
+from mysql.connector import errorcode,connect,Error
 from auth import mysql
 
 DBName = 'NetworkDB'
 
 TABLES = {}
-TABLES['Routers'] = (
-    "CREATE TABLE Routers ("
-    "  routerID int NOT NULL AUTO_INCREMENT,"
+TABLES['networkdevice'] = (
+    "CREATE TABLE networkdevice ("
+    "  NetID int NOT NULL AUTO_INCREMENT,"
     "  ipaddress VARCHAR(16) NOT NULL,"
     "  hostname VARCHAR(255) NOT NULL,"
     "  dnsname VARCHAR(255) default NULL,"
-    "  PRIMARY KEY (routerID)"
+    "  devicetype VARCHAR(255) default NULL,"
+    
+    "  PRIMARY KEY (NetID)"
+    
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;")
+
+TABLES['Endpoints'] = (
+    "CREATE TABLE Endpoints ("
+    "  endpointsID int NOT NULL,"
+    "  ipaddress VARCHAR(16) NULL,"
+    "  dnsname VARCHAR(255) default NULL,"
+    "  switchport VARCHAR(255) default NULL,"
+    "  macaddress VARCHAR(255) NOT NULL,"
+    "  networkdevice_NetID INT NOT NULL,"
+    
+    "  INDEX net_ID (networkdevice_NetID),"
+    
+    "  FOREIGN KEY (networkdevice_NetID)"
+    "  REFERENCES networkdevice(NetID)"
+    "  ON DELETE CASCADE"
+    
     ") ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;")
 
 class DB(object):
@@ -53,19 +73,47 @@ class DB(object):
             else:
                 print(err)
                 exit(1)
-    def create_table(self,DBName):
+    def create_tables(self):
         self.cursor.execute(f"USE {DBName}")
         for table_name in TABLES:
             table_description = TABLES[table_name]
             try:
                 print(f"Creating table {table_name}: ", end='')
                 self.cursor.execute(table_description)
-            except mysql.connector.Error as err:
+            except Error as err:
                 if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
                     print("already exists.")
                 else:
                     print(err.msg)
             else:
                 print("OK")
-
-    def UpdateData(self):
+    def _insert_record(self,SQL,val):
+        self.cursor.execute(f"USE {DBName}")
+        try:
+            print(SQL)
+            self.cursor.execute(f"INSERT INTO {SQL}",val)
+            self.cnx.commit()
+        except Error as err:
+                print(err.msg)
+        else:
+            print(f"record inserted.")
+    def _delete_record(self,SQL):
+        self.cursor.execute(f"USE {DBName}")
+        try:
+            print(SQL)
+            self.cursor.execute(f"DELETE FROM {SQL}")
+            self.cnx.commit()
+        except Error as err:
+                print(err.msg)
+        else:
+            print(f"record deleted.")
+    def _update_record(self,SQL):
+        self.cursor.execute(f"USE {DBName}")
+        try:
+            print(SQL)
+            self.cursor.execute(f"UPDATE {SQL}")
+            self.cnx.commit()
+        except Error as err:
+                print(err.msg)
+        else:
+            print(f"record updated.")
