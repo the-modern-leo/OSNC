@@ -7,9 +7,14 @@ class TestDB(unittest.TestCase):
             conn.create_database("Networkdb")
         pass
 
-    def test_connection(self):
+    def test_create_tables(self):
         with DB() as conn:
             conn.create_tables()
+        pass
+
+    def test_deletetable(self):
+        with DB() as conn:
+            conn.delete_tables("Endpoints")
         pass
 
     def test_UpdateData(self):
@@ -39,4 +44,9 @@ class TestDB(unittest.TestCase):
             conn._insert_record(SQLCreate, valueCreate)
             conn._update_record(SQL)
             conn._delete_record(SQLdelete)
+        pass
+    def test_select(self):
+        SQL = "* FROM networkdevice"
+        with DB() as conn:
+            results = conn._select_record(SQL)
         pass
