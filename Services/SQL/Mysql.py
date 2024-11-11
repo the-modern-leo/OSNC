@@ -87,6 +87,21 @@ class DB(object):
                     print(err.msg)
             else:
                 print("OK")
+    def delete_tables(self,tablename):
+        self.cursor.execute(f"USE {DBName}")
+        for table_name in TABLES:
+            if tablename == table_name:
+                table_description = f"DROP TABLE {table_name}"
+                try:
+                    print(f"Deleting table {table_name}: ", end='')
+                    self.cursor.execute(table_description)
+                except Error as err:
+                    if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
+                        print("already exists.")
+                    else:
+                        print(err.msg)
+                else:
+                    print("OK")
     def _insert_record(self,SQL,val):
         self.cursor.execute(f"USE {DBName}")
         try:
@@ -117,3 +132,14 @@ class DB(object):
                 print(err.msg)
         else:
             print(f"record updated.")
+
+    def _select_record(self,SQL):
+        self.cursor.execute(f"USE {DBName}")
+        try:
+            print(SQL)
+            self.cursor.execute(f"SELECT {SQL}")
+            myresult = self.cursor.fetchall()
+        except Error as err:
+                print(err.msg)
+        else:
+            return myresult
