@@ -10,10 +10,11 @@ TABLES = {}
 TABLES['networkdevice'] = (
     "CREATE TABLE networkdevice ("
     "  NetID int NOT NULL AUTO_INCREMENT,"
-    "  ipaddress VARCHAR(16) NOT NULL,"
+    "  ipaddress VARCHAR(16) NOT NULL UNIQUE,"
     "  hostname VARCHAR(255) NOT NULL,"
     "  dnsname VARCHAR(255) default NULL,"
     "  devicetype VARCHAR(255) default NULL,"
+    "  deafultgateway VARCHAR(100) default NULL,"
     
     "  PRIMARY KEY (NetID)"
     
@@ -21,16 +22,14 @@ TABLES['networkdevice'] = (
 
 TABLES['Endpoints'] = (
     "CREATE TABLE Endpoints ("
-    "  endpointsID int NOT NULL,"
+    "  endpointsID int NOT NULL AUTO_INCREMENT PRIMARY KEY,"
     "  ipaddress VARCHAR(16) NULL,"
     "  dnsname VARCHAR(255) default NULL,"
     "  switchport VARCHAR(255) default NULL,"
-    "  macaddress VARCHAR(255) NOT NULL,"
-    "  networkdevice_NetID INT NOT NULL,"
+    "  macaddress VARCHAR(255) NOT NULL UNIQUE,"
+    "  NetID INT NOT NULL,"
     
-    "  INDEX net_ID (networkdevice_NetID),"
-    
-    "  FOREIGN KEY (networkdevice_NetID)"
+    "  FOREIGN KEY (NetID)"
     "  REFERENCES networkdevice(NetID)"
     "  ON DELETE CASCADE"
     
@@ -110,6 +109,8 @@ class DB(object):
             self.cnx.commit()
         except Error as err:
                 print(err.msg)
+                if "duplicate entry" in str(err.msg).lower():
+                    return err.msg
         else:
             print(f"record inserted.")
     def _delete_record(self,SQL):
@@ -143,3 +144,8 @@ class DB(object):
                 print(err.msg)
         else:
             return myresult
+
+    def GetallSwitches(self):
+        return self._select_record("* FROM networkdevice WHERE devicetype = 'Switch'")
+    def addendpoint(self,sql,tuplevalue):
+        return self._insert_record(sql,tuplevalue)

@@ -754,7 +754,7 @@ class Stack():
                             elif 'switchport voice vlan' in line:
                                 p.voicevlan = re.sub('switchport voice vlan', '', line)
                         self.port_channels.append(p)
-                    elif "FastEthernet0" in inter:
+                    elif "FastEthernet0\r\n" in inter: #ManagementPorts on someSwitches
                         pass
                     else:
                         i = Interface()
@@ -1245,6 +1245,46 @@ class Stack():
         """
         print("Sorting 'show mac address-table' - Starting")
         try:
+            macaddresslines = re.findall("([0-9]{1,4})\s*([a-z0-9]{1,4}\.[a-z0-9]{1,4}\.[a-z0-9]{1,4})\s*([A-Za-z]{1,10})\s*((?:[A-Za-z]{1,5}(?:[\d]{0,3}\/){1,3}[\d]{0,3}|[A-Za-z]{1,5}[0-9]{1,4}))",mac_address_result)
+            if macaddresslines:
+                interfaces = self.allinterfaces()
+                for macline in macaddresslines:
+                    maclinecheck = len(macline)
+                    if len(macline) == 4:
+                        macaddress = EUI(macline[1])
+                        port = macline[3]
+                        vlan = int(macline[0])
+                        for vl in self.vlans:  # assign mac address to vlan
+                            if vlan == vl.number:
+                                vl.mac_addresses.append(macaddress)
+                        if "po" in port.lower():  # assign Mac address to Port-channel
+                            number = int(re.sub("Po", "", port))
+                            for po in self.port_channels:
+                                if number == po.number:
+                                    po.mac_addresses.append(macaddress)
+                        else:  # assign Mac address to Physical Port
+                            if "vl" in macline[3].lower():
+                                continue
+                            for inter in interfaces:
+                                if self._get_fullname_from_shortname(macline[3]).lower() == str(inter.fullname).lower():
+                                    for blade in self.blades:
+                                        if inter.blade == blade.stacknumber:
+                                            if str(inter) in blade.moduleinterfaces:
+                                                blade.moduleinterfaces[str(inter)].mac_addresses.append(macaddress)
+                                            if str(inter) in blade.interfaces:
+                                                blade.interfaces[str(inter)].mac_addresses.append(macaddress)
+                                    break
+                                else:
+                                    pass
+                    else:
+                        pass
+                return
+            else:
+                pass
+
+
+
+
             maclines = mac_address_result.split("\r\n")
             maclines = [x for x in maclines if x]
             macentries = []
@@ -2628,75 +2668,32 @@ class Stack():
             if 'Invalid input detected at' in self.environment_result:
                 pass
             else:
-                lines = self.environment_result.split('\r\n')
-                for count, line in enumerate(lines):
-                    if '--  ------------------  ----------  ---------------  -------  -------  -----' in line:
-                        power_supplies = lines[count+1:]
-                        for line in power_supplies:
-                            if '\r' == line:
-                                continue
-                            if line == '':
-                                continue
-                            if 'SW  Status          RPS Name          RPS Serial#  RPS Port#' in line:
-                                continue
-                            if '---------' in line:
-                                continue
-                            self.assign_environment_power_to_blade(line)
-        except Exception as e:
-            self.logout()
-            print(e)
-            _exception(e)
-            raise
-        else:
-            pass
-    def assign_environment_power_to_blade(self,line):
-        try:
-            line = line.split(' ')
-            line = [x for x in line if x != '']
-            if 'WS-C3560CX' in self.modelnumber:
-                blade = int(line[0])
-                for b in self.blades:
-                    if b.stacknumber == blade:
-                        b.slot_a_system_power = line[2]
-                        return
-            if 'Not' in line[1]:
-                sw = line[0]
-                blade = sw[0]
-                slot = sw[1]
-            else:
-                sw = line[0]
-                if isinstance(sw,str):
-                    blade = int(line[0])
-                    slot = line[1]
-                else:
-                    blade = int(sw[0])
-                    slot = sw[1]
-                for b in self.blades:
-                    if b.stacknumber == blade:
-                        if slot == 'A':
-                            b.slot_a_PID = line[1]
-                            b.slot_a_serial = line[2]
-                            if len(line) > 6:
-                                b.slot_a_status = ' '.join(line[3:6])
-                                b.slot_a_system_power = line[6]
-                                b.slot_a_watts = 0
-                            else:
-                                b.slot_a_status = line[3]
-                                b.slot_a_system_power = line[4]
-                                b.slot_a_poe_power = line[5]
-                                b.slot_a_watts = int(line[6])
-                        if slot == 'B':
-                            b.slot_b_PID = line[1]
-                            b.slot_b_serial = line[2]
-                            b.slot_b_status = line[3]
-                            if len(line) > 6:
-                                b.slot_b_status = ' '.join(line[3:6])
-                                b.slot_b_system_power = line[6]
-                                b.slot_b_watts = 0
-                            else:
-                                b.slot_b_system_power = line[4]
-                                b.slot_b_poe_power = line[5]
-                                b.slot_b_watts = int(line[6])
+                PowerModules = re.findall("(?:([\d])([AB])|([\d]))\s*(((?:[A-Za-z0-9]{1,10}-){1,10}[A-Za-z0-9]{1,10}))\s*([0-9A-Za-z]{11})\s*(OK|Disabled)\s*(Bad|Good)\s*(Bad|Good)\s*([\d]{1,5})",self.environment_result)
+                if not PowerModules:
+                    PowerModules = re.findall("(?:([\d][AB]|[\d]))\s*((?:[A-Za-z0-9]{1,10}-){1,10}[A-Za-z0-9]{1,10}|Built-in)\s*(Bad|Good)",self.environment_result)
+                    for module in PowerModules:
+                        PwrModule = {}
+                        PwrModule["PowerSourceModule"] = int(module[0])
+                        PwrModule["PID"] = module[1]
+                        PwrModule["SystemPower"] = module[2]
+                        for b in self.blades:
+                            if b.stacknumber == PwrModule["PowerSourceModule"]:
+                                b.PowerModules.append(PwrModule)
+                    return
+
+                for module in PowerModules:
+                    PwrModule = {}
+                    PwrModule["PowerSourceModule"] = int(module[0])
+                    PwrModule["PowerSourceSlot"] = module[1]
+                    PwrModule["PID"] = module[2]
+                    PwrModule["SerialNumber"] = module[3]
+                    PwrModule["Status"] = module[4]
+                    PwrModule["SystemPower"] = module[5]
+                    PwrModule["POEPower"] = module[6]
+                    PwrModule["Watts"] = module[7]
+                    for b in self.blades:
+                        if b.stacknumber == PwrModule["PowerSourceModule"]:
+                            b.PowerModules.append(PwrModule)
         except Exception as e:
             self.logout()
             print(e)
@@ -3608,6 +3605,7 @@ class Blade:
         self.slot_b_system_power = None
         self.slot_b_poe_power = None
         self.slot_b_watts = None
+        self.PowerModules = []
 
     def __hash__(self):
         return hash((self.serialnumber,

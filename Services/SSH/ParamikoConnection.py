@@ -341,12 +341,8 @@ class Connection(object):
                     if loop_counter > 1200: # stuck for more than 60 seconds, give up
                         end_time = time.time()
                         print(f"Waiting for Response: {str(end_time - start_time)}")
-                        if attempt >= 3:
-                            raise ValueError("Stuck in wait loop, " + str(output))
                         self.logout()
-                        self.login()
-                        self.enable_cisco()
-                        self.send_command(command,attempt=attempt)
+                        raise ValueError("Stuck in wait loop, " + str(output))
 
                 output += self.channel.recv(32768).decode("utf-8")
                 print(f'Loop Count:{loop_counter} - {output}')
