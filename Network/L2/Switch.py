@@ -1249,7 +1249,6 @@ class Stack():
             if macaddresslines:
                 interfaces = self.allinterfaces()
                 for macline in macaddresslines:
-                    maclinecheck = len(macline)
                     if len(macline) == 4:
                         macaddress = EUI(macline[1])
                         port = macline[3]
