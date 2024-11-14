@@ -1282,9 +1282,6 @@ class Stack():
             else:
                 pass
 
-
-
-
             maclines = mac_address_result.split("\r\n")
             maclines = [x for x in maclines if x]
             macentries = []
