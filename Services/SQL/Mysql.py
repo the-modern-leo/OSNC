@@ -27,6 +27,7 @@ TABLES['Endpoints'] = (
     "  dnsname VARCHAR(255) default NULL,"
     "  switchport VARCHAR(255) default NULL,"
     "  macaddress VARCHAR(255) NOT NULL UNIQUE,"
+    "  company VARCHAR(255) default NULL,"
     "  NetID INT NOT NULL,"
     
     "  FOREIGN KEY (NetID)"
@@ -149,3 +150,27 @@ class DB(object):
         return self._select_record("* FROM networkdevice WHERE devicetype = 'Switch'")
     def addendpoint(self,sql,tuplevalue):
         return self._insert_record(sql,tuplevalue)
+
+    def Getallendpoints(self):
+        return self._select_record(f"* FROM endpoints")
+    def GetAccessLayerSwitchsWithNoEndpoints(self):
+        switchestoCollectEndpoints = set()
+        switcheswithendpoints = set()
+        allswitches = set()
+        results = self.GetallSwitches()
+        endpoints = self.Getallendpoints()
+        for endpoint in endpoints:
+            switcheswithendpoints.add(endpoint[5])
+        for sw in results:
+            allswitches.add(sw[0])
+        switch_ids_with_no_endpoints = allswitches - switcheswithendpoints
+        switch_tuples_with_no_endpoints = set()
+        for swTuple in results:
+            if swTuple[0] in switch_ids_with_no_endpoints:
+                switch_tuples_with_no_endpoints.add(swTuple)
+        for switch in results:
+            for endpoint in endpoints:
+                if not endpoint[5] == switch[0]:
+                    switchestoCollectEndpoints.add(switch)
+                    continue
+        return list(switch_tuples_with_no_endpoints)
