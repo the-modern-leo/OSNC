@@ -728,7 +728,51 @@ class Stack():
                     if "Loopback" in inter:
                         pass
                     elif "Vlan" in inter:
-                        pass
+                        number = re.findall("Vlan([\d]{1,4})", inter)[0]
+                        alreadyinvlans = False
+                        for vl in self.vlans:
+                            number = re.findall("Vlan([\d]{1,4})",inter)[0]
+                            if int(number) == vl.number:
+                                alreadyinvlans = True
+                                ip = re.findall("ip address ((?:[\d]{1,3}\.){1,3}[\d]{1,3}) ((?:[\d]{1,3}\.){1,3}[\d]{1,3})",inter)
+                                iphelper = re.findall("ip helper-address ((?:[\d]{1,3}\.){1,3}[\d]{1,3})",
+                                                inter)
+                                description = re.findall("description (.*)",inter)
+                                standby = re.findall("standby (.*)",inter)
+                                vrfname = re.findall("vrf forwarding (.*)",inter)
+                                if ip:
+                                    vlanip = ipaddress.IPv4Network(ip[0][0]+"/"+ip[0][1],False)
+                                    vl.defaultgateway = ipaddress.ip_address(ip[0][0])
+                                    vl.ipaddress = vlanip
+                                if iphelper:
+                                    for address in iphelper:
+                                        vl.helper_addr.append(ipaddress.ip_address(address))
+                                if description:
+                                    vl.description = description[0]
+                                if vrfname:
+                                    vl.vrf = vrfname[0]
+                                break
+                        if not alreadyinvlans:
+                            v = vlan(number)
+                            ip = re.findall(
+                                "ip address ((?:[\d]{1,3}\.){1,3}[\d]{1,3}) ((?:[\d]{1,3}\.){1,3}[\d]{1,3})", inter)
+                            iphelper = re.findall("ip helper-address ((?:[\d]{1,3}\.){1,3}[\d]{1,3})",
+                                                  inter)
+                            description = re.findall("description (.*)", inter)
+                            standby = re.findall("standby (.*)", inter)
+                            vrfname = re.findall("vrf forwarding (.*)", inter)
+                            if ip:
+                                vlanip = ipaddress.IPv4Network(ip[0][0] + "/" + ip[0][1], False)
+                                v.defaultgateway = ipaddress.ip_address(ip[0][0])
+                                v.ipaddress = vlanip
+                            if iphelper:
+                                for address in iphelper:
+                                    v.helper_addr.append(ipaddress.ip_address(address))
+                            if description:
+                                v.description = description[0]
+                            if vrfname:
+                                v.vrf = vrfname[0]
+                            self.vlans.append(v)
                     elif "Port-channel" in inter:
                         p = PortChannel()
                         inter = inter.split("\n")
@@ -755,6 +799,10 @@ class Stack():
                                 p.voicevlan = re.sub('switchport voice vlan', '', line)
                         self.port_channels.append(p)
                     elif "FastEthernet0\r\n" in inter: #ManagementPorts on someSwitches
+                        pass
+                    elif "default" in inter:
+                        pass
+                    elif "AppGi" in inter:
                         pass
                     else:
                         i = Interface()
@@ -1185,57 +1233,37 @@ class Stack():
         """
 
         """
-        intstr = shortname
-        intstr = re.sub("HundredGigE", "", intstr)
-        intstr = re.sub("FortyGigabitEthernet", "", intstr)
-        intstr = re.sub("TwentyFiveGigE", "", intstr)
-        intstr = re.sub("TwentyFiveGig", "", intstr)
-        intstr = re.sub("TenGigabitEthernet", "", intstr)
-        intstr = re.sub("FiveGigabitEthernet", "", intstr)
-        intstr = re.sub("TwoGigabitEthernet", "", intstr)
-        intstr = re.sub("GigabitEthernet", "", intstr)
-        intstr = re.sub("FastEthernet", "", intstr)
-        intstr = re.sub("Ethernet", "", intstr)
-        intstr = re.sub("Hu", "", intstr)
-        intstr = re.sub("Twe", "", intstr)
-        intstr = re.sub("Tw", "", intstr)
-        intstr = re.sub("Te", "", intstr)
-        intstr = re.sub("Gi", "", intstr)
-        intstr = re.sub("Fa", "", intstr)
-        intstr = re.sub("Eth", "", intstr)
-        intstr = re.sub("Fi", "", intstr)
-        intstr = re.sub("Fo", "", intstr)
-        intstr = re.sub(" ", "", intstr)
-        intstr = re.sub("\x1b", "", intstr)
-        intstr = intstr.replace('\r', '')
-        intstr = intstr.rstrip()
-        if "Hu" in shortname:
-            fullname = "HundredGigE" + intstr
-            return fullname
-        if "Twe" in shortname:
-            fullname = "TwentyFiveGigE" + intstr
-            return fullname
-        if "Tw" in shortname:
-            fullname = "TwoGigabitEthernet" + intstr
-            return fullname
-        if "Te" in shortname:
-            fullname = "TenGigabitEthernet" + intstr
-            return fullname
-        if "Gi" in shortname:
-            fullname = "GigabitEthernet" + intstr
-            return fullname
-        if "Fa" in shortname:
-            fullname = "FastEthernet" + intstr
-            return fullname
-        if "Eth" in shortname:
-            fullname = "Ethernet" + intstr
-            return fullname
-        if "Fi" in shortname:
-            fullname = "FiveGigabitEthernet" + intstr
-            return fullname
-        if "Fo" in shortname:
-            fullname = "FortyGigabitEthernet" + intstr
-            return fullname
+        try:
+            portnumbers = re.findall("[a-zA-Z]{1,10}((?:[\d]\/){1,3}[\d]{1,3})",shortname)[0]
+            if "Hu" in shortname:
+                fullname = "HundredGigE" + portnumbers
+                return fullname
+            if "Twe" in shortname:
+                fullname = "TwentyFiveGigE" + portnumbers
+                return fullname
+            if "Tw" in shortname:
+                fullname = "TwoGigabitEthernet" + portnumbers
+                return fullname
+            if "Te" in shortname:
+                fullname = "TenGigabitEthernet" + portnumbers
+                return fullname
+            if "Gi" in shortname:
+                fullname = "GigabitEthernet" + portnumbers
+                return fullname
+            if "Fa" in shortname:
+                fullname = "FastEthernet" + portnumbers
+                return fullname
+            if "Eth" in shortname:
+                fullname = "Ethernet" + portnumbers
+                return fullname
+            if "Fi" in shortname:
+                fullname = "FiveGigabitEthernet" + portnumbers
+                return fullname
+            if "Fo" in shortname:
+                fullname = "FortyGigabitEthernet" + portnumbers
+                return fullname
+        except Exception as e:
+            print(e)
 
     def sort_mac_address(self, mac_address_result):
         """
@@ -1263,6 +1291,10 @@ class Stack():
                                     po.mac_addresses.append(macaddress)
                         else:  # assign Mac address to Physical Port
                             if "vl" in macline[3].lower():
+                                vlannmuber = int(re.sub("vl","",macline[3].lower()))
+                                for vl in self.vlans:
+                                    if vl.number == vlannmuber:
+                                        vl.gatewaymacaddress = EUI(macline[1])
                                 continue
                             for inter in interfaces:
                                 if self._get_fullname_from_shortname(macline[3]).lower() == str(inter.fullname).lower():
@@ -1742,6 +1774,22 @@ class Stack():
         assert isinstance(versionresult, str), f'versionresult: must be str, but got {type(versionresult)}'
         print("Sorting 'show Version' - Starting")
         try:
+            swVersion = re.findall("Software, Version ((?:[\d]{0,2}\.){1,5}[\d]{0,3})[a-zA-Z]{0,3}|[\d]{0,2}\.[\d]{0,2}\.[\da-zA-z]{0,4}",versionresult)
+            Uptime = re.findall(
+                "uptime is ((?:[\d]{1,3} [A-Za-z]{1,7}, ){1,5}[\d]{1,3} [A-Za-z]{1,7})",
+                versionresult)
+            SerialNumber = re.findall(
+                "Motherboard Serial Number\s*: ([\da-zA-Z]{1,12})",
+                versionresult)
+            ModelNumber = re.findall(
+                "Model Number\s*: ([\da-zA-Z\-]{1,20})",
+                versionresult)
+            bladesLines = re.findall(
+                "Switch Ports Model              SW Version        SW Image              Mode\n------ ----- -----              ----------        ----------            ----\n((?:.*\n){1,8})(?:Cisco|Configuration|Switch)",
+                versionresult)
+            if bladesLines:
+                blades = re.findall("(?:\*| )\s*(?:([\d]) ([\d]{1,2}))\s*([A-Za-z\d-]{1,20})\s*((?:[\d]{0,2}\.){1,5}[\d]{0,2})\s*([A-Za-z\d\-_]{1,30})\s*([A-Za-z]{1,20})",bladesLines[0])
+
             stackline = None
             # run code here
             # search through response to gather the indivigual info

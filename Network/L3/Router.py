@@ -573,41 +573,6 @@ class Router(Stack):
         else:
             return line
 
-    def _get_uptime(self, line):
-        """
-        Processes text, and removes only the date and time info.
-        Converts the text to datetime.datetime object
-        :param line (str): Takes the Line from the Version results
-
-        :return (datetime.dateime): the length of time the device has be running
-        """
-        text = ["years", "months", "weeks", "day", "hours", "minutes"]
-        try:
-            # filter out none useful info to a standard line
-            line = re.sub(self.hostname, '', line)
-            line = re.sub('uptime is', '', line)
-            line = re.sub('Kernel', '', line)
-            line = re.sub(' ', '', line)
-
-            deltadic = self._create_time(line.split(","))
-            # create a time object
-            delta = None
-            delta = relativedelta(year=-deltadic["years"],
-                                  months=-deltadic["months"],
-                                  weeks=-deltadic["days"],
-                                  hours=-deltadic["hours"],
-                                  minutes=-deltadic["minutes"])
-
-            # create Datetime object
-            lastrestart = datetime.now() - delta
-
-        except Exception as e:
-            print(e)
-            _exception(e)
-            raise
-        else:
-            return (delta, lastrestart)
-
     def _create_time(self, timelist):
         """
         This is a helper function that creates a standard dictionary that can be passed into deltatime function

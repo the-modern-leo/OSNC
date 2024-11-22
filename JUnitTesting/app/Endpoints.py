@@ -1,11 +1,18 @@
 import unittest
-from app.Endpoints import ScanNetworkForEndPoints,updateEndpoints
+from app.Endpoints import ScanNetworkForEndPoints,updateEndpoints,gatherVlansForRouters
+from Services.SQL.Mysql import DB
 
 
 class MyTestCase(unittest.TestCase):
     def test_something(self):
         updateEndpoints()
         self.assertEqual(True, False)  # add assertion here
+    def test_GetVlanInformationFromRouter(self):
+        gatherVlansForRouters()
+        self.assertEqual(True, False)  # add assertion here
+    def test_make_table(self):
+        with DB() as conn:
+            conn.create_tables()
 
 
 if __name__ == '__main__':

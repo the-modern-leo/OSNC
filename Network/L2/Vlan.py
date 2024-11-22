@@ -30,11 +30,15 @@ class vlan:
         self.subnetmask = ''
         self.hsrp = False
         self.helper_addr = []
+        self.defaultgateway = None
+        self.gatewaymacaddress = None
 
     def __eq__(self, other):
         if not isinstance(other, vlan):
             return NotImplemented
         return self.number == other.number
+    def __repr__(self):
+        return self.number
     def __hash__(self):
         return hash(self._number)
     def generate_config(self,vrf=None):

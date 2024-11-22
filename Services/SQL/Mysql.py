@@ -36,6 +36,20 @@ TABLES['Endpoints'] = (
     
     ") ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;")
 
+TABLES['Vlans'] = (
+    "CREATE TABLE Vlans ("
+    "  vlanID int NOT NULL AUTO_INCREMENT PRIMARY KEY,"
+    "  vlanNumber int default NULL,"
+    "  DefaultGatway VARCHAR(255) NOT NULL UNIQUE,"
+    "  MacAddress VARCHAR(255) NOT NULL UNIQUE,"
+    "  NetID INT NOT NULL,"
+
+    "  FOREIGN KEY (NetID)"
+    "  REFERENCES networkdevice(NetID)"
+    "  ON DELETE CASCADE"
+
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;")
+
 class DB(object):
     def __enter__(self):
         try:
@@ -148,7 +162,11 @@ class DB(object):
 
     def GetallSwitches(self):
         return self._select_record("* FROM networkdevice WHERE devicetype = 'Switch'")
+    def GetAllRouters(self):
+        return self._select_record("* FROM networkdevice WHERE devicetype = 'router'")
     def addendpoint(self,sql,tuplevalue):
+        return self._insert_record(sql,tuplevalue)
+    def AddVlans(self,sql,tuplevalue):
         return self._insert_record(sql,tuplevalue)
 
     def Getallendpoints(self):

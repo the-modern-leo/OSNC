@@ -86,5 +86,19 @@ def ScanNetworkForEndPoints(list_of_switches):
 def updateEndpoints():
     with DB() as conn:
         switches = conn.GetallSwitches()
-    ScanNetworkForEndPoints(switches[:5])
-
+    ScanNetworkForEndPoints(switches[:10])
+def gatherVlansForRouters():
+    with DB() as conn:
+        routers = conn.GetAllRouters()
+    for device in routers:
+        r = Router(device[1])
+        r.get_started()
+        with DB() as conn:
+            for v in r.vlans:
+                if v.defaultgateway:
+                    v.gatewaymacaddress.dialect = mac_cisco
+                    sql = f"Vlans (vlanNumber,DefaultGatway,MacAddress,NetID) VALUES (%s,%s,%s,%s)"
+                    vlansqlvalues = (v.number,str(v.defaultgateway),str(v.gatewaymacaddress),device[0])
+                    conn.AddVlans(sql,vlansqlvalues)
+                    pass
+            pass
