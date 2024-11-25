@@ -57,7 +57,9 @@ class restapi():
         }
         return self._post("networkcontainer",jsondict)
 
-    def get_Network_container(self,netadd):
+    def get_Network_container(self, netadd):
+        return self._get(f"network?network_container={netadd}&_return_fields%2B=network_container", )
+    def create_Network_container(self,netadd):
         """
         netadd(str): ex - 10.0.0.0/16
         """
