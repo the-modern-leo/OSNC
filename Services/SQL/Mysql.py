@@ -39,14 +39,25 @@ TABLES['Endpoints'] = (
 TABLES['Vlans'] = (
     "CREATE TABLE Vlans ("
     "  vlanID int NOT NULL AUTO_INCREMENT PRIMARY KEY,"
-    "  vlanNumber int default NULL,"
-    "  DefaultGatway VARCHAR(255) NOT NULL UNIQUE,"
-    "  MacAddress VARCHAR(255) NOT NULL UNIQUE,"
-    "  NetID INT NOT NULL,"
+    "  vlanNumber int NOT NULL,"
+    "  DefaultGatway VARCHAR(255) NOT NULL,"
+    "  MacAddress VARCHAR(255) NOT NULL,"
+    "  SwitchID INT,"
+    "  Standby BOOL,"
+    "  VirtualGatway VARCHAR(255) NULL,"
+    "  AsideIP VARCHAR(255) NULL,"
+    "  AsideMac VARCHAR(255) NULL,"
+    "  AsideRouterID int,"
+    "  BsideIP VARCHAR(255) NULL,"
+    "  BsideMac VARCHAR(255) NULL,"
+    "  BsideRouterID int,"
+    
 
-    "  FOREIGN KEY (NetID)"
+    "  FOREIGN KEY (AsideRouterID)"
+    "  REFERENCES networkdevice(NetID),"
+    
+    "  FOREIGN KEY (BsideRouterID)"
     "  REFERENCES networkdevice(NetID)"
-    "  ON DELETE CASCADE"
 
     ") ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;")
 
@@ -119,6 +130,7 @@ class DB(object):
     def _insert_record(self,SQL,val):
         self.cursor.execute(f"USE {DBName}")
         try:
+            print(val)
             print(SQL)
             self.cursor.execute(f"INSERT INTO {SQL}",val)
             self.cnx.commit()
@@ -168,6 +180,8 @@ class DB(object):
         return self._insert_record(sql,tuplevalue)
     def AddVlans(self,sql,tuplevalue):
         return self._insert_record(sql,tuplevalue)
+    def updateVlans(self,sql):
+        return self._update_record(sql)
 
     def Getallendpoints(self):
         return self._select_record(f"* FROM endpoints")

@@ -87,18 +87,54 @@ def updateEndpoints():
     with DB() as conn:
         switches = conn.GetallSwitches()
     ScanNetworkForEndPoints(switches[:10])
-def gatherVlansForRouters():
+
+def AddHSRPVlan(v,device):
+    if v.hsrp.ActiveMac:
+        sql = f"Vlans (vlanNumber,DefaultGatway,MacAddress,Standby,ActiveIP,ActiveMac,ActiveRouterID) VALUES (%s,%s,%s,%s,%s,%s)"
+        vlansqlvalues = (
+        v.number, str(v.defaultgateway), str(v.gatewaymacaddress[0]), True, str(v.hsrp.ActiveIp), str(v.hsrp.ActiveMac),
+        device[0])
+    if v.hsrp.StandbyMac:
+        sql = f"Vlans (vlanNumber,DefaultGatway,MacAddress,Standby,StandbyIP,StandbyMac,StandbyRouterID) VALUES (%s,%s,%s,%s,%s,%s)"
+        vlansqlvalues = (v.number, str(v.defaultgateway), str(v.gatewaymacaddress[0]), True, str(v.hsrp.StandbyIp),
+                         str(v.hsrp.StandbyMac), device[0])
     with DB() as conn:
-        routers = conn.GetAllRouters()
-    for device in routers:
-        r = Router(device[1])
-        r.get_started()
+        result = conn.AddVlans(sql, vlansqlvalues)
+def gatherVlansForRouters():
+    try:
         with DB() as conn:
-            for v in r.vlans:
-                if v.defaultgateway:
-                    v.gatewaymacaddress.dialect = mac_cisco
-                    sql = f"Vlans (vlanNumber,DefaultGatway,MacAddress,NetID) VALUES (%s,%s,%s,%s)"
-                    vlansqlvalues = (v.number,str(v.defaultgateway),str(v.gatewaymacaddress),device[0])
-                    conn.AddVlans(sql,vlansqlvalues)
-                    pass
-            pass
+            routers = conn.GetAllRouters()
+        for device in routers[16:]:
+            try:
+                r = Router(device[1])
+                r.get_started()
+                for v in r.vlans:
+                    if v.defaultgateway:
+                        for mac in v.gatewaymacaddress:
+                            mac.dialect = mac_cisco
+                        if v.hsrp:
+                            AddHSRPVlan(v,device)
+                        else:
+                            sql = f"Vlans (vlanNumber,DefaultGatway,MacAddress,ActiveRouterID,Standby) VALUES (%s,%s,%s,%s)"
+                            vlansqlvalues = (v.number,str(v.defaultgateway),str(v.gatewaymacaddress[0]),device[0],False)
+                            with DB() as conn:
+                                result = conn.AddVlans(sql, vlansqlvalues)
+                        if result:
+                            pass
+            except Exception as e:
+                continue
+    except Exception as e:
+        print(e)
+
+def AggregationSwitchMigration(SwitchIPS):
+    for switch in SwitchIPS:
+        SwitchConfigurations = ""
+        s = Stack(switch)
+        s.login()
+        s.getSwitchInfo()
+        s.assignattributes()
+        for interface in s.allinterfaces():
+            if interface.type == "copper":
+                pass
+            elif interface.type == "fiber":
+                pass

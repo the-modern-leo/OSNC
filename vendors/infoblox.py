@@ -43,11 +43,8 @@ class restapi():
     }
 
         self._post(queryurl=query,jsondict=data)
-
-
     def get_Network_containers_all(self,netadd):
         return self._get(f"network?network_container={netadd}&_return_fields%2B=network_container",)
-
     def createContainer(self,data):
         """
         netadd(str): ex - 10.0.0.0/16
@@ -57,7 +54,6 @@ class restapi():
             "network": f"""{ data['network']}/{data['size']}"""
         }
         return self._post("networkcontainer",jsondict)
-
     def get_Network_container(self,netadd):
         """
         netadd(str): ex - 10.0.0.0/16
@@ -105,16 +101,13 @@ Router: {net["router"]}""",
             }
             responses.append(self._post(f"network", data))
         return responses
-
     def create_HSRP_gateways(self,netcontainer,data):
         pass
-
     def _get(self, queryurl):
         response = requests.get(infoblox.url + queryurl, headers=headers,
                                 auth=(SSH.username, SSH.password),verify=False)
         if response.status_code == 200:
             return response.json()
-
     def _post(self, queryurl, jsondict):
         response = requests.post(infoblox.url + queryurl, data=json.dumps(jsondict), headers=headers,
                                  auth=(SSH.username, SSH.password),verify=False)
@@ -124,7 +117,6 @@ Router: {net["router"]}""",
             return response.json()
         else:
             print (response)
-
     def _put(self, queryurl, jsondict):
         response = requests.put(infoblox.url + queryurl, data=json.dumps(jsondict), headers=headers,
                                 auth=(SSH.username, SSH.password),verify=False)
@@ -133,7 +125,6 @@ Router: {net["router"]}""",
             return response
         elif response.status_code != 200 or response.status_code != 201:
             return "did not work"
-
     def _delete(self, queryurl, jsondict):
         response = requests.delete(infoblox.url + queryurl, data=json.dumps(jsondict), headers=headers,
                                    auth=(SSH.username, SSH.password),verify=False)

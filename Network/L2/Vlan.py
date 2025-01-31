@@ -31,7 +31,7 @@ class vlan:
         self.hsrp = False
         self.helper_addr = []
         self.defaultgateway = None
-        self.gatewaymacaddress = None
+        self.gatewaymacaddress = []
 
     def __eq__(self, other):
         if not isinstance(other, vlan):

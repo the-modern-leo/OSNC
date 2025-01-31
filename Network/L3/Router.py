@@ -9,7 +9,7 @@ import re
 from ipaddress import IPv4Network,ip_network,ip_address,IPv4Address
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
-from netaddr import EUI
+from netaddr import EUI, mac_cisco
 
 def _exception(e):
     print(e)
@@ -30,8 +30,10 @@ class routing_protocol():
         self.ASNumber = None
         self.interfaces = []
         self.neighbors = []
+        self.vrf = None
+        self.vrfName = None
 
-    def assign_config_attributes(self,config_text):
+    def assign_config_attributes(self,config_text,NeighborInfo):
         """
         Function for assigning all the aspects of the EIGRP
         """
@@ -41,20 +43,20 @@ class routing_protocol():
         self._assign_interface()
         self._assign_router_id()
         self._assign_vrf()
-        self._assign_neighbors()
+        self._assign_neighbors(NeighborInfo)
 
     def _assign_vrf(self):
+        self.vrf = None
+        self.vrfName = None
         router_line = re.findall(r"router [A-Za-z]{0,10} [\d]{0,10}.*", self.config_text, re.MULTILINE)
         if "vrf" in router_line[0]:
             self.vrf = True
             self.vrfName = re.sub(r"router [A-Za-z]{0,10} [\d]{0,10} vrf ","",re.sub(r"\r", "", router_line[0]))
 
     def _assign_router_id(self):
-        routerid = re.findall(r".*router-id.*$", self.config_text, re.MULTILINE)
-        for id in routerid:
-            id = re.sub("\r", "", id)
-            ipaddress = re.sub(" router-id ", "", id)
-            self.routerid = ip_address(ipaddress)
+        routerid = re.findall(r".*router-id ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})", self.config_text)
+        if routerid:
+            self.routerid = ip_address(routerid[0])
 
     def _assign_networks(self):
         """
@@ -62,8 +64,8 @@ class routing_protocol():
         """
         try:
             self.networks = []
-            networks = re.findall(r"network .*$",self.config_text,re.MULTILINE)
-            for line in networks:
+            RoutedNetworkStrings = re.findall("(?:network ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})(?: mask|) ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}) area ((?:(?:[\d]{1,3}\.){1,3}[\d]{1,3}|[\d]))|network ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})(?: mask|) ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})|network ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}))",self.config_text)
+            for line in RoutedNetworkStrings:
                 r = Routing_Network()
                 r.assign_config(line)
                 self.networks.append(r)
@@ -93,7 +95,7 @@ class routing_protocol():
                 i.assign_config_attributes_from_full_name()
                 i.shortname()
                 self.interfaces.append(i)
-    def _assign_neighbors(self):
+    def _assign_neighbors(self,NeighborInfo):
         self.neighbors = []
         neighborsText = re.findall(r"neighbor [\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}", self.config_text, re.MULTILINE)
         for nei in neighborsText:
@@ -102,10 +104,61 @@ class routing_protocol():
 class eigrp(routing_protocol):
     def __int__(self,*args, **kwargs):
         super(eigrp, self).__init__(*args, **kwargs)
+        self.vrf = False
+        self.vrfName = None
 
+    def _assign_networks(self):
+        """
+        a list of the configuration lines for a network
+        """
+        try:
+            self.networks = []
+            RoutedNetworkStrings = re.findall("(?:network ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})(?: mask|) ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})|network ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}))",self.config_text)
+            for line in RoutedNetworkStrings:
+                r = Routing_Network()
+                if not line[2]:
+                    r.network = IPv4Network(line[0] + "/" + str(IPv4Address(int(IPv4Address(line[1])) ^ (2 ** 32 - 1))))
+                else:
+                    slash24 = re.findall("[\d]{1,3}\.[\d]{1,3}\.[1-9]{1,3}\.(0)",line[0])
+                    if ".0.0.0" in line[2]:
+                        r.network = IPv4Network(line[2] + "/8")
+                    elif ".0.0" in line[2]:
+                        r.network = IPv4Network(line[2] + "/16")
+                    elif slash24:
+                        r.network = IPv4Network(line[2] + "/24")
+                self.networks.append(r)
+        except Exception as e:
+            print(e)
+            pass
+    def _assign_neighbors(self,NeighborInfo):
+        self.neighbors = []
+        neighborsText = []
+        neighborsText = neighborsText + re.findall(r"([\d]{1,3})\s*((?:[\d]{1,3}\.){1,3}[\d]{1,3})\s*([a-zA-z]{1,2}[\d]{1,4})\s*([\d]{1,3})\s*([\dwdh]{1,10})\s*([\d]{1,3})\s*([\d]{1,3})\s*([\d]{1,3})\s*([\d]{1,10})", NeighborInfo)
+        neighborsText = neighborsText + re.findall(
+            r"([\d]{1,3})\s*((?:[\d]{1,3}\.){1,3}[\d]{1,3})\s*([a-zA-z]{1,5}(?:[\d]{1,2}\/){1,3}[\d]{1,2})\s*([\d]{1,3})\s*([\dwdh]{1,10})\s*([\d]{1,3})\s*([\d]{1,3})\s*([\d]{1,3})\s*([\d]{1,10})",
+            NeighborInfo)
+        neighborsText = neighborsText + re.findall(
+            r"([\d]{1,3})\s*((?:[\d]{1,3}\.){1,3}[\d]{1,3})\s*([a-zA-z]{1,5}(?:[\d]{1,2}\/){1,3}[\d]{1,2}\.[\d]{1,4})\s*([\d]{1,3})\s*([\dwdh]{1,10})\s*([\d]{1,3})\s*([\d]{1,3})\s*([\d]{1,3})\s*([\d]{1,10})",
+            NeighborInfo)
+        for nei in neighborsText:
+            self.neighbors.append((nei[1],nei[2],nei[4]))
 class ospf(routing_protocol):
     def __int__(self,*args, **kwargs):
         super(ospf, self).__init__(*args, **kwargs)
+    def _assign_networks(self):
+        """
+        a list of the configuration lines for a network
+        """
+        try:
+            self.networks = []
+            RoutedNetworkStrings = re.findall("network ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}) ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}) area ((?:(?:[\d]{1,3}\.){1,3}[\d]{1,3}|[\d]))",self.config_text)
+            for line in RoutedNetworkStrings:
+                r = Routing_Network()
+                r.network = IPv4Network(line[0] + "/" + str(IPv4Address(int(IPv4Address(line[1])) ^ (2 ** 32 - 1))))
+                r.area = line[2]
+                self.networks.append(r)
+        except:
+            pass
     def generate_config(self,vrf=None):
         networksConfig = ""
         for net in self.networks:
@@ -126,9 +179,29 @@ router-id {str(self.routerid)}
 !
 """
 
+    def _assign_neighbors(self, NeighborInfo):
+        self.neighbors = []
+        neighborsText = re.findall(
+            r"((?:[\d]{1,3}\.){1,3}[\d]{1,3})\s*([\d])\s*([a-zA-z]{1,}\/[a-zA-z]{1,})\s*([\d]{1,2}:[\d]{1,2}:[\d]{1,2}|-)\s*((?:[\d]{1,3}\.){1,3}[\d]{1,3})\s*([a-zA-z]{1,5}(?:[\d]{1,2}\/){1,3}[\d]{1,2}\.[\d]{1,4}|Vlan[\d]{1,4}|[a-zA-z]{1,5}(?:[\d]{1,2}\/){1,3}[\d]{1,2})",
+            NeighborInfo)
+        for nei in neighborsText:
+            self.neighbors.append((nei[0], nei[2], nei[5]))
 class bgp(routing_protocol):
     def __int__(self,*args, **kwargs):
         super(bgp, self).__init__(*args, **kwargs)
+    def _assign_networks(self):
+        """
+        a list of the configuration lines for a network
+        """
+        try:
+            self.networks = []
+            RoutedNetworkStrings = re.findall("network ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}) mask ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})",self.config_text)
+            for line in RoutedNetworkStrings:
+                r = Routing_Network()
+                r.network = IPv4Network(line[0]+"/"+line[1])
+                self.networks.append(r)
+        except:
+            pass
 
     def generate_config(self, vrf=None):
         netconfig = ""
@@ -161,10 +234,39 @@ bgp router-id {str(self.routerid.ip)}
  exit-address-family
 !
 """
+    def _assign_neighbors(self, NeighborInfo):
+        self.neighbors = []
+        neighborsText = re.findall(
+            r"((?:[\d]{1,3}\.){1,3}[\d]{1,3})\s*([\d]{1,3})\s*([\d]{1,})\s*([\d]{1,})\s*([\d]{1,})\s*([\d]{1,})\s*([\d]{1,})\s*([\d]{1,})\s*([\dwdh]{1,})\s*([\d]{1,})",
+            NeighborInfo)
+        for nei in neighborsText:
+            self.neighbors.append((nei[0], nei[2], nei[5]))
 
 class rip(routing_protocol):
     def __int__(self,*args, **kwargs):
         super(rip, self).__init__(*args, **kwargs)
+
+    def _assign_networks(self):
+        try:
+            self.networks = []
+            RoutedNetworkStrings = re.findall(
+                "(?:network ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})(?: mask|) ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})|network ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}))",
+                self.config_text)
+            for line in RoutedNetworkStrings:
+                r = Routing_Network()
+                if line[2]:
+                    r.network = IPv4Network(line[0] + "/" + str(IPv4Address(int(IPv4Address(line[0])) ^ (2 ** 32 - 1))))
+                else:
+                    slash24 = re.findall("[\d]{1,3}\.[\d]{1,3}\.[1-9]{1,3}\.(0)", line[0])
+                    if ".0.0.0" in line[0]:
+                        r.network = IPv4Network(line[0] + "/8")
+                    elif ".0.0" in line[0]:
+                        r.network = IPv4Network(line[0] + "/16")
+                    elif slash24 in line[0]:
+                        r.network = IPv4Network(line[0] + "/24")
+                self.networks.append(r)
+        except:
+            pass
 
 class Router(Stack):
     """
@@ -184,9 +286,10 @@ class Router(Stack):
         self.conn.enable_cisco()
         self.getSwitchInfo()
         self.assignattributes()
+        self._SortL3Interfaces()
         self._get_route_protocols()
         self._sort_arp()
-        pass
+        self._SortStandby()
 
     def sort_object_groups(self):
         """
@@ -204,6 +307,56 @@ class Router(Stack):
             network_objects.append(result)
         self.network_objects = network_objects
 
+    def AssignVlanAttributes(self,vl,inter):
+        vl.config = inter
+        ip = re.findall("ip address ((?:[\d]{1,3}\.){1,3}[\d]{1,3}) ((?:[\d]{1,3}\.){1,3}[\d]{1,3})", inter)
+        iphelper = re.findall("ip helper-address ((?:[\d]{1,3}\.){1,3}[\d]{1,3})",
+                              inter)
+        description = re.findall("description (.*)", inter)
+        standby = re.findall("standby (.*)", inter)
+        vrfname = re.findall("vrf forwarding (.*)", inter)
+        if standby:
+            vl.hsrp = True
+            h = HSRP()
+            h.Config = "".join(standby)
+            h.groupnumber = re.findall("standby ([\d]{1,4}) ", inter)[0]
+            if re.findall("standby [\d]{1,4} (preempt)", inter):
+                h.Preemption = True
+            h.VirtualIp = ip_address(re.findall("standby [\d]{1,4} ip ((?:[\d]{1,3}\.){1,3}[\d]{1,3})", inter)[0])
+            h.VlanNumber = re.findall("Vlan([\d]{1,4})", inter)[0]
+            if re.findall("standby [\d]{1,4} priority ([\d]{1,4})", inter):
+                h.Priority = re.findall("standby [\d]{1,4} priority ([\d]{1,4})", inter)[0]
+            if ip:
+                h.localIP = ip_address(ip[0][0])
+            vl.h = h
+        if ip:
+            vlanip = IPv4Network(ip[0][0] + "/" + ip[0][1], False)
+            vl.defaultgateway = ip_address(ip[0][0])
+            vl.ipaddress = vlanip
+        if iphelper:
+            for address in iphelper:
+                vl.helper_addr.append(ip_address(address))
+        if description:
+            vl.description = description[0]
+        if vrfname:
+            vl.vrf = vrfname[0]
+        return vl
+    def _SortL3Interfaces(self):
+        interfaces = re.findall(r"(?<=interface Vlan)(.*?)(?=interface Vlan)", self.interface_result, re.S)
+        for inter in interfaces:
+            inter = "Vlan" + inter
+            number = re.findall("Vlan([\d]{1,4})", inter)[0]
+            alreadyinvlans = False
+            for vl in self.vlans:
+                number = re.findall("Vlan([\d]{1,4})", inter)[0]
+                if int(number) == vl.number:
+                    alreadyinvlans = True
+                    self.AssignVlanAttributes(vl, inter)
+                    break
+            if not alreadyinvlans:
+                v = vlan(int(number))
+                VlanObj = self.AssignVlanAttributes(v, inter)
+                self.vlans.append(VlanObj)
     def _sort_object_lines(self,line):
         """
 
@@ -672,28 +825,35 @@ class Router(Stack):
         else:
             return v
     def _get_route_protocols(self):
-        self.route_protocols = []
-        self.route_protocols_results = self.conn.send_command('show run | sec router ', manypages=True)
-        router_configs = self.route_protocols_results.split("router ")
-        for router in router_configs:
-            if router == "":
-                continue
-            if "eigrp" in router:
-                e = eigrp()
-                e.assign_config_attributes("router " + router)
-                self.route_protocols.append(e)
-            if "ospf" in router:
-                e = ospf()
-                e.assign_config_attributes("router " + router)
-                self.route_protocols.append(e)
-            if "bgp" in router:
-                e = bgp()
-                e.assign_config_attributes("router " + router)
-                self.route_protocols.append(e)
-            if "rip" in router:
-                e = rip()
-                e.assign_config_attributes("router " + router)
-                self.route_protocols.append(e)
+        try:
+            self.route_protocols = []
+            self.route_protocols_results = self.conn.send_command('show run | sec router ', manypages=True)
+            router_configs = self.route_protocols_results.split("router ")
+            for router in router_configs:
+                if router == "":
+                    continue
+                elif "eigrp" in router[:5]:
+                    NeighborsInfo = self.conn.send_command('show ip eigrp nei', manypages=True)
+                    e = eigrp()
+                    e.assign_config_attributes("router " + router,NeighborsInfo)
+                    self.route_protocols.append(e)
+                elif "ospf" in router[:5]:
+                    NeighborsInfo = self.conn.send_command('show ip ospf nei', manypages=True)
+                    e = ospf()
+                    e.assign_config_attributes("router " + router,NeighborsInfo)
+                    self.route_protocols.append(e)
+                elif "bgp" in router[:5]:
+                    NeighborsInfo = self.conn.send_command('show ip bgp summary', manypages=True)
+                    e = bgp()
+                    e.assign_config_attributes("router " + router,NeighborsInfo)
+                    self.route_protocols.append(e)
+                elif "rip" in router[:5]:
+                    NeighborsInfo = self.conn.send_command('show ip rip nei', manypages=True)
+                    e = rip()
+                    e.assign_config_attributes("router " + router,NeighborsInfo)
+                    self.route_protocols.append(e)
+        except Exception as e:
+            pass
     def _sort_sub_interface(self,interface_lines):
         """
         Sorts the routed interfaces on a port.
@@ -701,15 +861,32 @@ class Router(Stack):
         pass
 
     def _sort_arp(self):
-        self.arps = []
-        self.arp_result = self.conn.send_command('show ip arp', manypages=True)
-        arps = re.findall(
-            r"(Internet  ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})\s*([\d]{0,3}|-)\s*([\da-z]{0,4}.[\da-z]{0,4}.[\da-z]{0,4})\s*ARPA\s*(Vlan([\d]{0,10})|[A-za-z]{0,20}([\d]{0,2}/[\d]{0,3}/[\d]{0,3}|[\d]{0,2}\/[\d]{0,3})))",
-            self.arp_result, re.MULTILINE)
-        for line in arps:
-            a = arp_line()
-            a.assign_arp(line)
-            self.arps.append(a)
+        try:
+            self.arps = []
+            self.arp_result = self.conn.send_command('show ip arp', manypages=True)
+            for router in self.route_protocols:
+                if router.vrf:
+                    self.arp_result = self.arp_result + self.conn.send_command(f'show ip arp vrf {router.vrfName}', manypages=True)
+            arps = re.findall(
+                r"(Internet  ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})\s*([\d]{0,3}|-)\s*([\da-z]{0,4}.[\da-z]{0,4}.[\da-z]{0,4})\s*ARPA\s*(Vlan([\d]{0,10})|[A-za-z]{0,20}([\d]{0,2}/[\d]{0,3}/[\d]{0,3}|[\d]{0,2}\/[\d]{0,3})))",
+                self.arp_result, re.MULTILINE)
+            for line in arps:
+                a = arp_line()
+                a.assign_arp(line)
+                self.arps.append(a)
+            for IndivigualArp in self.arps:
+                if hasattr(IndivigualArp,"vlan"):
+                    for vlan in self.vlans:
+                        if int(IndivigualArp.vlan) == (vlan.number):
+                            vlan.arp.append(IndivigualArp)
+                            break
+                else:
+                    for inter in self.allinterfaces():
+                        if inter.fullname == IndivigualArp.interface:
+                            inter.arp = IndivigualArp
+                            break
+        except Exception as e:
+            pass
 
     def generate_vlan_config(self,vrf=None):
         configs2 = ""
@@ -773,6 +950,108 @@ class Router(Stack):
         command_results.append(
             (self.conn.send_command(f"ip dhcp snooping vlan {vlan}"), f"ip dhcp snooping vlan {vlan}"))
 
+    def _assignStandbyAtrributes(self,vl,h=None):
+        wholeConfig = vl[0] + vl[1] + vl[2]
+        if not h:
+            h = HSRP()
+        if not h.VlanNumber:
+            h.VlanNumber = re.findall(r"Vlan([0-9]{1,4})", wholeConfig)[0]
+        h.State = re.findall(r"State is ([A-Za-z]{1,15})", wholeConfig)[0]
+        if not h.VirtualMac:
+            h.VirtualMac = \
+            re.findall(r"Active virtual MAC address is ([A-Za-z0-9]{1,4}\.[A-Za-z0-9]{1,4}\.[A-Za-z0-9]{1,4}|unknown)",
+                       wholeConfig)[0]
+        if h.VirtualMac == "unknown":
+            h.VirtualMac = re.findall(
+                r"Local virtual MAC address is ([A-Za-z0-9]{1,4}\.[A-Za-z0-9]{1,4}\.[A-Za-z0-9]{1,4})",
+                wholeConfig)[0]
+        if not h.Preemption:
+            h.Preemption = re.findall(r"Preemption (enabled|disabled)", wholeConfig)[0]
+        if not h.Priority:
+            h.Priority = re.findall(r"Priority ([0-9]{1,4})", wholeConfig)[0]
+        h.groupname = re.findall(r'Group name is \"(hsrp-[A-Za-z0-9]{1,6}\-[A-Za-z0-9]{1,6})\"', wholeConfig)[0]
+        if not h.VirtualIp:
+            h.VirtualIp = \
+            re.findall(r'Virtual IP address is ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})', wholeConfig)[0]
+        ActIP = re.findall(r'Active router is ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})', wholeConfig)
+        for vlan in self.vlans:
+            if int(h.VlanNumber) == int(vlan.number):
+                if ActIP:
+                    h.ActiveIp = ActIP[0]
+                    h.ActiveRouter = self.ip
+                    for mac in vlan.gatewaymacaddress:
+                        if not mac == EUI(h.VirtualMac):
+                            h.ActiveMac = mac
+                            break
+                StandIP = re.findall(r'Standby router is ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})', wholeConfig)
+                if StandIP:
+                    h.StandbyIp = StandIP[0]
+                    h.StandbyRouter = self.ip
+                    for mac in vlan.gatewaymacaddress:
+                        if not mac == EUI(h.VirtualMac):
+                            h.StandbyMac = mac
+                            break
+                StateChanges = re.findall(r'([0-9]{1,4}) state [a-z]{1,10}, last state change ([0-9wdyms]{1,10})',
+                                          wholeConfig)
+                if StateChanges:
+                    h.StateChangesNumber = StateChanges[0][0]
+                    h.LastStateChange = StateChanges[0][1]
+                break
+        return h
+
+    def _SortStandby(self):
+        try:
+            self.StandbyResult = self.conn.send_command('show standby', manypages=True)
+            if self.StandbyResult:
+                vlans = re.findall(r"(Vlan)(?<=Vlan)(.*?)(?=FLAG)(FLAGS: [0-9]\/[0-9])", self.StandbyResult, re.S)
+                for vl in vlans:
+                    wholeConfig = vl[0] + vl[1] + vl[2]
+                    VlanNumber = re.findall(r"Vlan([0-9]{1,4})", wholeConfig)[0]
+                    for vlan in self.vlans:
+                        if vlan.hsrp:
+                            if vlan.h.VlanNumber == VlanNumber:
+                                self._assignStandbyAtrributes(vl,vlan.h)
+                                break
+                    # h = HSRP()
+                    # h.VlanNumber = re.findall(r"Vlan([0-9]{1,4})", wholeConfig)[0]
+                    # h.State = re.findall(r"State is ([A-Za-z]{1,15})", wholeConfig)[0]
+                    # h.VirtualMac = re.findall(r"Active virtual MAC address is ([A-Za-z0-9]{1,4}\.[A-Za-z0-9]{1,4}\.[A-Za-z0-9]{1,4}|unknown)", wholeConfig)[0]
+                    # if h.VirtualMac == "unknown":
+                    #     h.VirtualMac = re.findall(
+                    #         r"Local virtual MAC address is ([A-Za-z0-9]{1,4}\.[A-Za-z0-9]{1,4}\.[A-Za-z0-9]{1,4})",
+                    #         wholeConfig)[0]
+                    # h.Preemption = re.findall(r"Preemption (enabled|disabled)", wholeConfig)[0]
+                    # h.Priority = re.findall(r"Priority ([0-9]{1,4})", wholeConfig)[0]
+                    # h.groupname = re.findall(r'Group name is \"(hsrp-[A-Za-z0-9]{1,6}\-[A-Za-z0-9]{1,6})\"', wholeConfig)[0]
+                    # h.VirtualIp = re.findall(r'Virtual IP address is ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})', wholeConfig)[0]
+                    # ActIP = re.findall(r'Active router is ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})', wholeConfig)
+                    # for vlan in self.vlans:
+                    #     if int(h.VlanNumber) == int(vlan.number):
+                    #         if ActIP:
+                    #             h.ActiveIp = ActIP[0]
+                    #             h.ActiveRouter = self.ip
+                    #             for mac in vlan.gatewaymacaddress:
+                    #                 if not mac == EUI(h.VirtualMac):
+                    #                     h.ActiveMac = mac
+                    #                     break
+                    #         StandIP = re.findall(r'Standby router is ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})', wholeConfig)
+                    #         if StandIP:
+                    #             h.StandbyIp = StandIP[0]
+                    #             h.StandbyRouter = self.ip
+                    #             for mac in vlan.gatewaymacaddress:
+                    #                 if not mac == EUI(h.VirtualMac):
+                    #                     h.StandbyMac = mac
+                    #                     break
+                    #         StateChanges = re.findall(r'([0-9]{1,4}) state [a-z]{1,10}, last state change ([0-9wdyms]{1,10})', wholeConfig)
+                    #         if StateChanges:
+                    #             h.StateChangesNumber = StateChanges[0][0]
+                    #             h.LastStateChange = StateChanges[0][1]
+                    #         vlan.hsrp = h
+                    #         break
+        except Exception as e:
+            print(e)
+            raise e
+
     # def find_port(self,ip=None,mac=None):
     #     neighbor_ip = None
     #     if ip:
@@ -806,8 +1085,6 @@ class Routing_Network():
         self.network_object_wrong = False
     def assign_config(self,line):
         self.network = None
-        config_line = line
-        line = re.sub("\r", "", line)
         wildcard = re.findall(
             r"network [\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3} ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})",
             line, re.MULTILINE)
@@ -816,9 +1093,6 @@ class Routing_Network():
             self.network = IPv4Network(line[1] + "/" + str(IPv4Address(int(IPv4Address(wildcard[0])) ^ (2 ** 32 - 1))))
         else:
             self.network = IPv4Network(line[1])
-        if "area" in line:
-            area = re.findall(r"network .* area ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}|[\d])", config_line, re.MULTILINE)
-            self.area = area[0]
 
 class arp_line():
     def __int__(self):
@@ -863,3 +1137,24 @@ address-family ipv4
 exit-address-family
 !
 """
+
+class HSRP():
+    def __init__(self):
+        self.Config = None
+        self.VlanNumber = None
+        self.State = None
+        self.VirtualMac = None
+        self.Preemption = None
+        self.Priority = None
+        self.groupname = None
+        self.VirtualIp = None
+        self.ActiveIp = None
+        self.StandbyIp = None
+        self.StateChangesNumber = None
+        self.LastStateChange = None
+        self.StandbyRouter = None
+        self.ActiveRouter = None
+        self.StandbyMac = None
+        self.ActiveMac = None
+    def __repr__(self):
+        return self.groupname

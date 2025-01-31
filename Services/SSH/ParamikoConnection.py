@@ -31,7 +31,6 @@ def remove_byte_strings(result):
         new_result.append(l.decode('utf-8'))
     return '\r\n'.join(new_result)
 
-
 class Connection(object):
     """An SSH Object for managing connections to network switches and routers.
 
@@ -359,12 +358,12 @@ class Connection(object):
                     output = re.sub(f'{self.configifprompt} {command}', '', output)
                 if f'{self.configifrangeprompt} {command}' in output:
                     output = re.sub(f'{self.configifrangeprompt} {command}', '', output)
-                elif command in output:
-                    output = re.sub(f'{command}', '', output)
-                elif f'{command}\r\n' in output:
-                    output = re.sub(f'{command}\r\n', '', output)
-                elif f'{command}\r' in output:
-                    output = re.sub(f'{command}\r', '', output)
+                # elif command in output:
+                #     output = re.sub(f'{command}', '', output)
+                # elif f'{command}\r\n' in output:
+                #     output = re.sub(f'{command}\r\n', '', output)
+                # elif f'{command}\r' in output:
+                #     output = re.sub(f'{command}\r', '', output)
 
                 if output == '':
                     continue

@@ -728,55 +728,29 @@ class Stack():
                     if "Loopback" in inter:
                         pass
                     elif "Vlan" in inter:
-                        number = re.findall("Vlan([\d]{1,4})", inter)[0]
-                        alreadyinvlans = False
-                        for vl in self.vlans:
-                            number = re.findall("Vlan([\d]{1,4})",inter)[0]
-                            if int(number) == vl.number:
-                                alreadyinvlans = True
-                                ip = re.findall("ip address ((?:[\d]{1,3}\.){1,3}[\d]{1,3}) ((?:[\d]{1,3}\.){1,3}[\d]{1,3})",inter)
-                                iphelper = re.findall("ip helper-address ((?:[\d]{1,3}\.){1,3}[\d]{1,3})",
-                                                inter)
-                                description = re.findall("description (.*)",inter)
-                                standby = re.findall("standby (.*)",inter)
-                                vrfname = re.findall("vrf forwarding (.*)",inter)
-                                if ip:
-                                    vlanip = ipaddress.IPv4Network(ip[0][0]+"/"+ip[0][1],False)
-                                    vl.defaultgateway = ipaddress.ip_address(ip[0][0])
-                                    vl.ipaddress = vlanip
-                                if iphelper:
-                                    for address in iphelper:
-                                        vl.helper_addr.append(ipaddress.ip_address(address))
-                                if description:
-                                    vl.description = description[0]
-                                if vrfname:
-                                    vl.vrf = vrfname[0]
-                                break
-                        if not alreadyinvlans:
-                            v = vlan(number)
-                            ip = re.findall(
-                                "ip address ((?:[\d]{1,3}\.){1,3}[\d]{1,3}) ((?:[\d]{1,3}\.){1,3}[\d]{1,3})", inter)
-                            iphelper = re.findall("ip helper-address ((?:[\d]{1,3}\.){1,3}[\d]{1,3})",
-                                                  inter)
-                            description = re.findall("description (.*)", inter)
-                            standby = re.findall("standby (.*)", inter)
-                            vrfname = re.findall("vrf forwarding (.*)", inter)
-                            if ip:
-                                vlanip = ipaddress.IPv4Network(ip[0][0] + "/" + ip[0][1], False)
-                                v.defaultgateway = ipaddress.ip_address(ip[0][0])
-                                v.ipaddress = vlanip
-                            if iphelper:
-                                for address in iphelper:
-                                    v.helper_addr.append(ipaddress.ip_address(address))
-                            if description:
-                                v.description = description[0]
-                            if vrfname:
-                                v.vrf = vrfname[0]
-                            self.vlans.append(v)
+                        ip = re.findall("ip address ((?:[\d]{1,3}\.){1,3}[\d]{1,3}) ((?:[\d]{1,3}\.){1,3}[\d]{1,3})", inter)
+                        if ip:
+                            if self.defaultgateway:
+                                iptocheck = ipaddress.ip_address(ip[0])
+                                gatewaytocheck = ipaddress.ip_network(self.defaultgateway)
+                                if iptocheck in gatewaytocheck:
+                                    number = re.findall("Vlan([\d]{1,4})", inter)[0]
+                                    alreadyinvlans = False
+                                    for vl in self.vlans:
+                                        if int(number) == vl.number:
+                                            alreadyinvlans = True
+                                            vl.ipaddress = iptocheck
+                                            break
+                                    if not alreadyinvlans:
+                                        v = vlan(int(number))
+                                        v.ipaddress = iptocheck
+                                        self.vlans.append(v)
+                            else:
+                                continue
                     elif "Port-channel" in inter:
                         p = PortChannel()
                         inter = inter.split("\n")
-                        p.fullname = int[0]
+                        p.fullname = inter[0]
                         p.ponumber = int(re.sub("Port-channel", "", p.fullname))
                         p.fullname = re.sub("interface", "", p.fullname)
                         # handle adding port channels
@@ -801,6 +775,8 @@ class Stack():
                     elif "FastEthernet0\r\n" in inter: #ManagementPorts on someSwitches
                         pass
                     elif "default" in inter:
+                        pass
+                    elif "monitor session" in inter:
                         pass
                     elif "AppGi" in inter:
                         pass
@@ -1294,7 +1270,7 @@ class Stack():
                                 vlannmuber = int(re.sub("vl","",macline[3].lower()))
                                 for vl in self.vlans:
                                     if vl.number == vlannmuber:
-                                        vl.gatewaymacaddress = EUI(macline[1])
+                                        vl.gatewaymacaddress.append(EUI(macline[1]))
                                 continue
                             for inter in interfaces:
                                 if self._get_fullname_from_shortname(macline[3]).lower() == str(inter.fullname).lower():
@@ -1774,22 +1750,41 @@ class Stack():
         assert isinstance(versionresult, str), f'versionresult: must be str, but got {type(versionresult)}'
         print("Sorting 'show Version' - Starting")
         try:
-            swVersion = re.findall("Software, Version ((?:[\d]{0,2}\.){1,5}[\d]{0,3})[a-zA-Z]{0,3}|[\d]{0,2}\.[\d]{0,2}\.[\da-zA-z]{0,4}",versionresult)
+            swVersion = re.findall("(?:Software, Version|Software Version) ((?:[\d]{0,2}\.){1,5}[\d\(\)]{0,10})[a-zA-Z]{0,3}|[\d]{0,2}\.[\d]{0,2}\.[\da-zA-z]{0,4}",versionresult)
+
             Uptime = re.findall(
-                "uptime is ((?:[\d]{1,3} [A-Za-z]{1,7}, ){1,5}[\d]{1,3} [A-Za-z]{1,7})",
+                "(?:uptime is|up) ((?:[\d]{1,3} [A-Za-z]{1,7}(?:,|) ){1,5}[\d]{1,3} [A-Za-z]{1,7})",
                 versionresult)
             SerialNumber = re.findall(
                 "Motherboard Serial Number\s*: ([\da-zA-Z]{1,12})",
                 versionresult)
+            if not SerialNumber:
+                SerialNumber = re.findall(
+                    "Serial Number\s*: ([\da-zA-Z]{1,12})",
+                    versionresult)
             ModelNumber = re.findall(
-                "Model Number\s*: ([\da-zA-Z\-]{1,20})",
+                "(?:Model Number\s*:|Hardware:)\s*([\da-zA-Z\-]{1,20})",
                 versionresult)
             bladesLines = re.findall(
                 "Switch Ports Model              SW Version        SW Image              Mode\n------ ----- -----              ----------        ----------            ----\n((?:.*\n){1,8})(?:Cisco|Configuration|Switch)",
                 versionresult)
             if bladesLines:
                 blades = re.findall("(?:\*| )\s*(?:([\d]) ([\d]{1,2}))\s*([A-Za-z\d-]{1,20})\s*((?:[\d]{0,2}\.){1,5}[\d]{0,2})\s*([A-Za-z\d\-_]{1,30})\s*([A-Za-z]{1,20})",bladesLines[0])
-
+            if ModelNumber and SerialNumber:
+                self.modelnumber = ModelNumber[0]
+                count = 1
+                self.blades = set()
+                for model,serial in zip(ModelNumber,SerialNumber):
+                    B = Blade(serial)
+                    B.modelnumber = model
+                    B.stacknumber = count
+                    count += 1
+                    B.ISOversion = swVersion[0]
+                    self.blades.add(B)
+            if Uptime:
+                self.uptime = self._get_uptime(Uptime[0])
+            if self.uptime and self.blades and self.modelnumber:
+                return
             stackline = None
             # run code here
             # search through response to gather the indivigual info
@@ -3209,21 +3204,38 @@ class Stack():
         text = ["years", "months", "weeks", "day", "hours", "minutes"]
         try:
             # filter out none useful info to a standard line
-            if not self.hostname:
-                self.get_hostname()
-            line = re.sub(self.hostname.rstrip(), '', line)
-            line = re.sub('uptime is', '', line)
-            line = re.sub('Kernel', '', line)
-            line = re.sub(' ', '', line)
+            deltadict = {"years": 0,
+                         "months": 0,
+                         "weeks": 0,
+                         "days": 0,
+                         "hours": 0,
+                         "minutes": 0}
+            year = re.findall("([\d]{1,4})\s*(?:years|year)",line)
+            if year:
+                deltadict["years"] = int(year[0])
+            month = re.findall("([\d]{1,4})\s*(?:months|month)",line)
+            if month:
+                deltadict["months"] = int(month[0])
+            week = re.findall("([\d]{1,4})\s*(?:weeks|week)",line)
+            if week:
+                deltadict["weeks"] = int(week[0])
+            day = re.findall("([\d]{1,4})\s*(?:days|day)",line)
+            if day:
+                deltadict["days"] = int(day[0])
+            hour = re.findall("([\d]{1,4})\s*(?:hours|hour)",line)
+            if hour:
+                deltadict["hours"] = int(hour[0])
+            minute = re.findall("([\d]{1,4})\s*(?:minutes|minute)",line)
+            if minute:
+                deltadict["minutes"] = int(minute[0])
 
-            deltadic = self._create_time(line.split(","))
             # create a time object
             delta = None
-            delta = relativedelta(years=-deltadic["years"],
-                                  months=-deltadic["months"],
-                                  weeks=-deltadic["days"],
-                                  hours=-deltadic["hours"],
-                                  minutes=-deltadic["minutes"])
+            delta = relativedelta(years=-deltadict["years"],
+                                  months=-deltadict["months"],
+                                  weeks=-deltadict["days"],
+                                  hours=-deltadict["hours"],
+                                  minutes=-deltadict["minutes"])
 
             # create Datetime object
             lastrestart = datetime.now() - delta
