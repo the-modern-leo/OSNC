@@ -1,16 +1,16 @@
 from tornado.web import RequestHandler,Application,url
+from tornado.template import Loader
 
 class MainHandler(RequestHandler):
     def get(self):
-        self.render("MainPage.html", title="My title")
-
-class StoryHandler(RequestHandler):
-    def get(self, story_id):
-        items = ["Item 1", "Item 2", "Item 3"]
-        self.render("template.html", title="My title", items=items)
+        self.render("MainPage.html", title="NetRunner")
+class VlanHandler(RequestHandler):
+    def get(self):
+        items = ["1", "2", "3"]
+        self.render("VlanHomePage.html", title="Vlans",items=items)
 
 
 app = Application([
     url(r"/", MainHandler),
-    url(r"/story/([0-9]+)", StoryHandler, name="story")
-    ],autoreload=True)
+    url(r"/Vlans", VlanHandler, name="Vlans"),
+    ],autoreload=True,debug=True)

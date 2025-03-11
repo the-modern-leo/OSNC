@@ -1,7 +1,5 @@
 import asyncio
-from tornado.web import Application,url
-from app.WebHandler import MainHandler,StoryHandler,app
-
+from app.WebHandler import app
 
 
 async def main():
