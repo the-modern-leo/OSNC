@@ -102,30 +102,98 @@ def AddHSRPVlan(v,device):
         result = conn.AddVlans(sql, vlansqlvalues)
 def gatherVlansForRouters():
     try:
+        HSRPVlans = []
         with DB() as conn:
             routers = conn.GetAllRouters()
-        for device in routers[16:]:
+        for device in routers:
             try:
                 r = Router(device[1])
                 r.get_started()
                 for v in r.vlans:
+                    HsrpDict = {}
+                    HsrpDict["Routers"] = []
                     if v.defaultgateway:
                         for mac in v.gatewaymacaddress:
                             mac.dialect = mac_cisco
                         if v.hsrp:
-                            AddHSRPVlan(v,device)
+                            if not HSRPVlans:
+                                HsrpDict["Routers"].append(r)
+                                HsrpDict["vlan"] = v
+                                HSRPVlans.append(HsrpDict)
+                            else:
+                                missingvl = False
+                                for vlan in HSRPVlans:  # update existing vlans
+                                    if v == vlan["vlan"]:
+                                        for router in vlan["Routers"]:
+                                            if r.IPAddress == router.IPAddress:
+                                                continue
+                                        vlan["Routers"].append(r)
+                                        break
+                                    else:
+                                        missingvl = True
+                                if missingvl:
+                                    HsrpDict["Routers"].append(r)
+                                    HsrpDict["vlan"] = v
+                                    HSRPVlans.append(HsrpDict)
+                            continue
+                        # else:
+                        #     sql = f"Vlans (vlanNumber,DefaultGatway,MacAddress,ActiveRouterID,Standby) VALUES (%s,%s,%s,%s)"
+                        #     vlansqlvalues = (v.number,str(v.defaultgateway),str(v.gatewaymacaddress[0]),device[0],False)
+                            # with DB() as conn:
+                            #     result = conn.AddVlans(sql, vlansqlvalues)
+                        # if result:
+                        #     pass
+            except Exception as e:
+                continue
+        pass
+    except Exception as e:
+        print(e)
+def gatherVlansForSingleRouters(routers):
+    try:
+        HSRPVlans = []
+        for device in routers:
+            try:
+                r = Router(device[1])
+                r.get_started()
+                for v in r.vlans:
+                    HsrpDict = {}
+                    HsrpDict["Routers"] = []
+                    HsrpDict["vlan"] = None
+                    if v.defaultgateway:
+                        for mac in v.gatewaymacaddress:
+                            mac.dialect = mac_cisco
+                        if v.hsrp:
+                            if not HSRPVlans:
+                                HsrpDict["Routers"].append(r)
+                                HsrpDict["vlan"] = v
+                                HSRPVlans.append(HsrpDict)
+                            else:
+                                missingvl = False
+                                for vlan in HSRPVlans: # update existing vlans
+                                    if v == vlan["vlan"]:
+                                        for router in vlan["Routers"]:
+                                            if r.IPAddress == router.IPAddress:
+                                                continue
+                                        vlan["Routers"].append(r)
+                                        break
+                                    else:
+                                        missingvl = True
+                                if missingvl:
+                                    HsrpDict["Routers"].append(r)
+                                    HsrpDict["vlan"] = v
+                                    HSRPVlans.append(HsrpDict)
+                            continue
                         else:
                             sql = f"Vlans (vlanNumber,DefaultGatway,MacAddress,ActiveRouterID,Standby) VALUES (%s,%s,%s,%s)"
                             vlansqlvalues = (v.number,str(v.defaultgateway),str(v.gatewaymacaddress[0]),device[0],False)
-                            with DB() as conn:
-                                result = conn.AddVlans(sql, vlansqlvalues)
-                        if result:
-                            pass
+                            # with DB() as conn:
+                            #     result = conn.AddVlans(sql, vlansqlvalues)
+                        # if result:
+                        #     pass
             except Exception as e:
                 continue
     except Exception as e:
         print(e)
-
 def AggregationSwitchMigration(SwitchIPS):
     for switch in SwitchIPS:
         SwitchConfigurations = ""

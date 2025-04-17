@@ -722,9 +722,8 @@ class Stack():
                 interfaces = re.findall(r"(?<=interface)(.*?)(?=interface)", interface_result, re.S)
                 all_inteface_objects =[]
                 for inter in interfaces:
-                    test_string = re.sub(
-                        "([a-zA-Z]{0,20}[\d]{0,3}\/[\d]{0,3}\/[\d]{0,3}|[\d]{0,3}\/[\d]{0,3}|[a-zA-Z]{0,20}[\d]{0,3}\/[\d]{0,3})",
-                        "", inter)
+                    if inter == "\r" or not inter or inter == "\r\n":
+                        continue
                     if "Loopback" in inter:
                         pass
                     elif "Vlan" in inter:

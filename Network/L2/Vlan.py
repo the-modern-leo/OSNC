@@ -38,7 +38,7 @@ class vlan:
             return NotImplemented
         return self.number == other.number
     def __repr__(self):
-        return self.number
+        return str(self.number)
     def __hash__(self):
         return hash(self._number)
     def generate_config(self,vrf=None):
