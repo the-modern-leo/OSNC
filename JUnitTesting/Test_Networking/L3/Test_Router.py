@@ -9,6 +9,7 @@ import re
 from netaddr import mac_cisco,IPNetwork
 import os
 
+
 class TestRouter(unittest.TestCase):
 
     def test_upper(self):

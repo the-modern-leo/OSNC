@@ -27,6 +27,19 @@ import concurrent
 from concurrent.futures import ThreadPoolExecutor
 import itertools
 
+def RegexOrMatchReturnOnlyTrueValues(HardwareModel):
+    HardwareModellist = []
+    for number in HardwareModel:
+        if type(number) is not tuple and type(number) is not list and type(number) is not set:
+            if number and number != ' ':
+                HardwareModellist.append(number)
+        else:
+            for match in number:
+                if match:
+                    HardwareModellist.append(match)
+    if not HardwareModellist:
+        pass
+    return HardwareModellist
 def _exception(e):
     print(e)
     raise
@@ -574,7 +587,7 @@ class Stack():
         """
         try:
             # gatjers the model numbers for device
-            self.sortVersion(versionresult=self.version_result)
+            self.assignVersionVariables(versionresult=self.version_result)
             self.sortInventory(self.inv_result)
             if self.modelnumber in chw.chassis:
                 # gathers blades for chassis
@@ -606,7 +619,7 @@ class Stack():
         try:
             #TODO Add a function to sort the output of show 'hw-module all attribute'
             # gatjers the model numbers for device
-            self.sortVersion(versionresult=self.version_result)
+            self.assignVersionVariables(versionresult=self.version_result)
             self.sortInventory(self.inv_result)
             if self.modelnumber in chw.chassis:
                 # gathers blades for chassis
@@ -652,7 +665,7 @@ class Stack():
         """
         try:
             # gatjers the model numbers for device
-            self.sortVersion(versionresult=self.version_result)
+            self.assignVersionVariables(versionresult=self.version_result)
             self.sortInventory(self.inv_result)
             if self.modelnumber in chw.chassis:
                 # gathers blades for chassis
@@ -1811,8 +1824,17 @@ class Stack():
             raise
         else:
             pass
+    def _assignBladeInfo(self,dictofbladeinfo):
+        # blade = self.findBlades(dictofbladeinfo["serialnumber"])
+        # if not blade:
+        #     blade = Blade(dictofbladeinfo["serialnumber"])
+        # for key in dictofbladeinfo.keys():
+        pass
 
-    def sortVersion(self, versionresult):
+
+
+
+    def assignVersionVariables(self, versionresult):
         """
         This functions pulls out the Stack information, Version number, Model Number, Serial number,
         and switch uptime for the 'show version' response
@@ -1836,8 +1858,9 @@ class Stack():
             serialnumber = set()
             ModelNumber = []
             software_version = set()
-            SerialNumbers = re.findall(r"System Serial Number.*: ([A-Z\d]{11})", versionresult)
+            SerialNumbers = re.findall(r"[Ss]ystem [Ss]erial [Nn]umber.*: ([A-Z\d]{11})|Processor [Bb]oard ID ([A-Z\d]{1,30})", versionresult)
             if SerialNumbers:
+                SerialNumbers = RegexOrMatchReturnOnlyTrueValues(SerialNumbers)
                 counter = 0
                 for number in SerialNumbers:
                     counter += 1
@@ -1847,247 +1870,59 @@ class Stack():
                         b = Blade(number)
                         b.stacknumber = counter
                         self.blades.add(b)
-            else:
-                pass
-            HardwareModel = re.findall(r"(?:Model Number.*|Hardware): ([A-Z\d-]{1,20})", versionresult)
+            HardwareModel = re.findall(r"(?:[Mm]odel [Nn]umber.*|[Hh]ardware): ([A-Z\d-]{1,20})|Hardware\s*cisco\s*Nexus\s*([A-Z\d]{0,30})|^cisco ([A-Z\d]{1,20}/[A-Z\d]{1,20})|^Cisco ([A-Z\d]{1,20}) \([A-Z\d]{1,20}\) processor", versionresult,re.MULTILINE)
             if HardwareModel:
+                HardwareModel = RegexOrMatchReturnOnlyTrueValues(HardwareModel)
                 for number in HardwareModel:
                     ModelNumber.append(number)
-            else:
-                pass
-            SoftwareVersionIOSXE = re.findall(r"Cisco IOS XE .*([\d]{2}\.[\d]{2}\.[\d]{2})", versionresult)
+            SoftwareVersionIOSXE = re.findall(r"^Cisco IOS.* ([\d]{1,4}\.[\d]{1,4}\([\d]{1,4}\)[\da-zA-z]{1,4}|.*([\d]{2}\.[\d]{2}\.[\d]{2}))|^BOOTLDR:.* ([\d]{1,2}\.[\d]{1,2})", versionresult,re.MULTILINE)
             if SoftwareVersionIOSXE:
                 self.SystemSoftwareVersion = SoftwareVersionIOSXE[0]
                 for software in SoftwareVersionIOSXE:
                     software_version.add(software)
-            else:
-                pass
-            SoftwareReleaseIOSXE = re.findall(r"RELEASE SOFTWARE \(([a-z\d]{1,5})\)", versionresult)
-            if SoftwareReleaseIOSXE:
-                self.SystemSoftwareRelease = SoftwareReleaseIOSXE[0]
-            else:
+            SoftwareVersionNXOS = re.findall(
+                r"system:\s*version\s*([\d]{1,4}\.[\d]{1,4}\([\d]{1,4}\)[\dA-Z]{1,4}\([\d]{1,4}\))",
+                versionresult, re.MULTILINE)
+            if SoftwareVersionNXOS:
+                self.SystemSoftwareVersion = SoftwareVersionNXOS[0]
+                for software in SoftwareVersionNXOS:
+                    software_version.add(software)
+            if not self.SystemSoftwareVersion:
                 pass
             Uptime = re.findall(r"uptime is ((?:([\d]{1,5}) (?:seconds|second\(s\)|second|minutes|minute\(s\)|minute|hours|hour\(s\)|hour|days|day\(s\)|day|weeks|week\(s\)|week|months|month\(s\)|month|years|year\(s\)|year), ){1,10}(?:([\d]{1,5}) (?:seconds|second\(s\)|second|minutes|minute\(s\)|minute|hours|hour\(s\)|hour|days|day\(s\)|day|weeks|week\(s\)|week|months|month\(s\)|month|years|year\(s\)|year)))", versionresult)
             if Uptime:
                 self.uptime = self._get_uptime("".join(Uptime[0]))
-            else:
-                pass
             NumberofSwitches = re.findall(
-                r"(?:\*| )\s*([\d]) ([\d][\d])\s*([A-Z\d-]{1,20})\s*([\d]{1,2}\.[\d]{1,2}\.[\d]{1,2})\s*([A-Z\d_]{1,20})\s*([A-Z]{1,20})",
-                versionresult)
+                r"(?:(\*[\d]|\*|[\d]| ) +([\d]{1,2}) +([\d]{1,2}) +([A-Za-z\d-]{1,30}) +([\d]{1,2}\.[a-zA-Z\d\(\)]{1,10}\.[a-zA-Z\d\(\)]{1,5}|[\d]{1,2}\.[a-zA-Z\d\(\)]{1,10}) +([A-Za-z\d\/_-]{1,30}) +([A-Z]{1,15})|(\*[\d]|\*|[\d]| ) +([\d]{1,2}) +([\d]{1,2}) +([A-Za-z\d-]{1,30}) +([a-z\d\(\)]{1,2}\.[a-z\d]{1,2}\.[a-z\d]{1,2}|[a-z\d\(\)]{1,2}\.[a-zA-Z\d\(\)]{1,10}) +([A-Za-z\d\/_-]{1,30})|^(\*[0-9])[ \t]+([A-Z\d\/]{1,20}) +([A-Z\d\/]{1,20}))",
+                versionresult, re.MULTILINE)
             if NumberofSwitches:
                 for switch,serialnumber in zip(NumberofSwitches,SerialNumbers):
+                    switchBlade = RegexOrMatchReturnOnlyTrueValues(switch)
                     blade = self.findBlades(serialnumber)
                     if not blade:
-                        b = Blade(serialnumber)
-                        b.stacknumber = int(switch[0])
-                        b.portcount = switch[1]
-                        b.model = switch[2]
-                        b.seftwareversion = switch[3]
-                        b.softwarebundle = switch[4]
-                        b.InstallMode = switch[5]
-                        self.blades.add(b)
+                        blade = Blade(serialnumber)
+                    if switchBlade[0] == '*':
+                        switchBlade.pop(0)
+                    if '*' in switchBlade[0]:
+                        switchBlade[0] = re.sub(r'\*','',switchBlade[0])
+                    blade.stacknumber = int(switchBlade[0])
+                    if len(switchBlade) == 3:
+                        blade.model = switchBlade[1]
                     else:
-                        blade.stacknumber = int(switch[0])
-                        blade.portcount = switch[1]
-                        blade.model = switch[2]
-                        blade.seftwareversion = switch[3]
-                        blade.softwarebundle = switch[4]
-                        blade.InstallMode = switch[5]
-            else:
-                count = 0
-                for number, model in zip(serialnumber, ModelNumber):
-                    count += 1
-                    blade = self.findBlades(number)
-                    if not blade:
-                        b = Blade(number)
-                        b.modelnumber = model
-                        b.stacknumber = count
-                        self.blades.add(b)
+                        blade.stacknumber = int(switchBlade[0])
+                        blade.portcount = int(switchBlade[1])
+                        blade.model = switchBlade[2]
+                        blade.softwareversion = switchBlade[3]
+                        blade.softwarebundle = switchBlade[4]
+                        if len(switchBlade) == 6:
+                            blade.InstallMode = switchBlade[5]
 
-            # stackline = None
-            # run code here
-            # search through response to gather the indivigual info
-            # if "Cisco IOS Software" in versionresult:
-            #     self.nexus = False
-            # elif "Cisco Nexus Operating System" in versionresult:
-            #     self.nexus = True
-            # else:
-            #     self.nexus = False
-            # if not '\r\n' in versionresult:
-            #     ver = versionresult.split('\n')
-            # else:
-            #     ver = versionresult.split('\r\n')
-            #
-            # # sort version using nexus sort methods
-            # if self.nexus:
-            #     for count, line2 in enumerate(ver):
-            #         if 'system:' in line2:
-            #             self.version = re.sub('version', '', line2)
-            #             self.version = re.sub('system:', '', self.version)
-            #             self.version = re.sub(' ', '', self.version)
-            #         elif 'Device name:' in line2:
-            #             self.hostname = re.sub('Device name:', '', line2)
-            #             self.hostname = re.sub(' ', '', self.hostname)
-            #         elif 'Kernel uptime' in line2:
-            #             self.uptime = re.sub('Kernel uptime is', '', line2)
-            #             self.uptime = re.sub(' ', '', self.uptime)
-            #         elif 'Hardware' in line2:
-            #             self.modelnumber = re.sub('cisco', '', ver[count + 1])
-            #             self.modelnumber = re.sub('"20x10GE/Supervisor"', '', self.modelnumber)
-            #             self.modelnumber = re.sub('Chassis', '', self.modelnumber)
-            #             self.modelnumber = re.sub(' ', '', self.modelnumber)
-            #             self.modelnumber = self.modelnumber.rstrip('()')
-            #             self.modelnumber = self.modelnumber.strip()
-            #             # self.blades = set()
-            #             # b = Blade()
-            #             # b.stacknumber = 1
-            #             # self.blades.add(b)
-            #     print("Sorting 'show Version' - Success")
-            #     return self
-            #
-            # for count, line in enumerate(ver):
-            #     # discover if there is more than one blade in this stack by counting serial numbers
-            #     if 'System Serial Number' in line or 'System serial number' in line or 'Processor board ID' in line:
-            #         line = re.sub('System Serial Number', '', line)
-            #         line = re.sub('System serial number', '', line)
-            #         line = re.sub('Processor board ID', '', line)
-            #         line = re.sub(':', '', line)
-            #         line = re.sub(' ', '', line)
-            #         serialnumber.add(line)
-            #     if 'Hardware: ' in line:
-            #         self.modelnumber = re.sub('Hardware: ','',line)
-            #         self.modelnumber = self.modelnumber.split(',')[0]
-            #         self.modelnumber = self.modelnumber.strip()
-            #         pass
-            #     if 'Model Number ' in line:
-            #         self.modelnumber = re.sub("Model Number ", "", line)
-            #         self.modelnumber = re.sub(":", "", self.modelnumber)
-            #         self.modelnumber = [x for x in self.modelnumber if x]
-            #         self.modelnumber = ''.join([x for x in self.modelnumber if x != ' '])
-            #         self.modelnumber = self.modelnumber.strip()
-            #     if "------ ----- -----              ----------        ----------            ----" in line:
-            #         stackline = count + 1
-            #     # discover if device is a nexus device
-            #     if 'uptime is' in line:
-            #         time = self._get_uptime(line)
-            #         self.uptime = self._get_uptime(line)
-            #     # discovers if the switch is a chassis
-            #     for model in chw.chassis:
-            #         if model in line:
-            #             self.modelnumber = model
-            #             # gets the all possible data points from Version
-            #             for line in ver:
-            #                 # gets restart time
-            #                 if 'System restarted at' in line:
-            #                     self.uptime = line.split('at')[1]
-            #                 if "Cisco IOS Software, IOS-XE Software," in line:
-            #                     match = re.findall('[\d]{0,2}\.[\d]{0,2}\.[\da-zA-z]{0,3}\.[a-zA-Z]{0,3}|[\d]{0,2}\.[\d]{0,2}\.[\da-zA-z]{0,4}',line)
-            #                     if match:
-            #                         self.version = match[0]
-            #
-            #
-            #             print("Sorting 'show Version' - Success")
-            #             return self
-            #
-            # if self.modelnumber not in chw.chassis:  # handle working on a Stack of Switches_syntax_compatability
-            #     if len(serialnumber) > 1:
-            #         self.__setattr__('stack', True)
-            #         if not stackline or stackline == None:
-            #             self.serial = []
-            #             # collects everything for all blades in stack
-            #             for line in ver:
-            #                 if ('Switch' in line and
-            #                         'Ports' in line and
-            #                         'Model' in line and
-            #                         'SW Version' in line):
-            #                     stackline = ver.index(line) + 2
-            #                 # finds Serial Number
-            #                 elif 'System Serial Number' in line or 'System serial number' in line:
-            #                     line = line.split(':')[1]
-            #                     line = re.sub(' ', '', line)
-            #                     self.serial.append(line)
-            #                     pass
-            #                 # finds Switch uptime
-            #                 elif 'uptime is' in line:
-            #                     uptime = line.split('is')[1]
-            #                     self.uptime = uptime
-            #         stackinfo = ver[stackline:stackline + 8]
-            #
-            #         endofstackline = None
-            #         for line in stackinfo:
-            #             if line == '' or line.strip() == '':
-            #                 endofstackline = stackinfo.index(line)
-            #                 break
-            #         stackinfo = stackinfo[:endofstackline]
-            #         tports = 0
-            #         self.blades = set()
-            #         bl = [x for x in stackinfo if x != '']
-            #         for bl in stackinfo:
-            #             bl = bl.split(' ')
-            #             bl = [x for x in bl if x != '']
-            #             bl = [x for x in bl if x != '*']
-            #             # get ports
-            #             b = Blade(None)
-            #             b.portcount = int(bl[1])
-            #             tports += int(bl[1])
-            #             b.modelnumber = bl[2]
-            #             b.ISOversion = bl[3]
-            #             b.stacknumber = int(bl[0])
-            #             self.blades.add(b)
-            #         self.portcount = tports
-            #
-            #     else:
-            #         # collects information as just one switch
-            #         for line in ver:
-            #             if 'System Serial Number' in line or 'System serial number' in line:
-            #                 line = line.split(':')[1]
-            #                 line = re.sub(' ', '', line)
-            #                 self.serial = line
-            #             # finds hardware type
-            #             elif 'Model Number' in line:
-            #                 self.modelnumber = line.split(':')[1]
-            #                 self.modelnumber = self.modelnumber.strip()
-            #             # finds Switch uptime
-            #             elif 'System restarted at' in line:
-            #                 self.uptime = line.split('at')[1]
-            #             # finds up time on older switches
-            #             elif 'uptime is' in line:
-            #                 uptime = line.split('is')[1]
-            #                 self.uptime = uptime
-            #             # gets the index number of the titles for the stacks
-            #             elif ('Switch' in line and
-            #                   'Ports' in line and
-            #                   'Model' in line and
-            #                   'SW Version' in line):
-            #                 stackline = ver.index(line)
-            #         # gets the first stack line
-            #         if stackline: #create blades if there is information to do so else skip creation.
-            #             self.blades = set()
-            #             b = Blade(serialnumber.pop())
-            #             firststack = ver[int(stackline) + 2]
-            #             firststack = firststack.split(' ')
-            #             firststack = list(filter(None, firststack))
-            #             b.stacknumber = int(firststack[1])
-            #             b.portcount = firststack[2]
-            #             b.modelnumber = firststack[3]
-            #             b.ISOversion = firststack[4]
-            #             self.modelnumber = firststack[3]
-            #             self.modelnumber = self.modelnumber.strip()
-            #             self.version = firststack[4]
-            #             self.blades.add(b)
-            #         if self.blades == set():
-            #             bl = Blade(serialnumber.pop())
-            #             bl.modelnumber = self.modelnumber
-            #             bl.stacknumber = 1
-            #             for line in ver:
-            #                 if 'TwentyFive Gigabit Ethernet interfaces' in line: # get mac address for blade
-            #                     bl.portcount = int(re.sub('TwentyFive Gigabit Ethernet interfaces','',line).strip())
-            #                 elif 'Cisco IOS XE Software, Version' in line:
-            #                     bl.ISOversion = re.sub("Cisco IOS XE Software, Version","",line).strip()
-            #             self.blades.add(bl)
-            if not self.blades or not self.uptime or not self.SystemSoftwareRelease or not self.SystemSoftwareVersion:
-                print("Did not complete")
+            if SoftwareVersionNXOS:
+                if not self.uptime or not self.SystemSoftwareVersion:
+                    print("Did not complete")
+            else:
+                if not self.blades or not self.uptime or not self.SystemSoftwareVersion:
+                    print("Did not complete")
         except Exception as e:
             print("Sorting 'show Version' - failed")
             print(e)
@@ -3717,7 +3552,7 @@ class Stack():
                 s = Stack(str(neighbor_ip))
                 s.login()
                 s.conn.enable_cisco()
-                s.sortVersion(s.conn.send_command('show version', manypages=True))
+                s.assignVersionVariables(s.conn.send_command('show version', manypages=True))
                 s.sortinterfaces(s.conn.send_command('show run | section interface', manypages=True))
                 s.sortCdpNeiDetail(s.conn.send_command(f'show cdp nei detail', manypages=True))
                 result = s.find_port_quick(mac=mac)
