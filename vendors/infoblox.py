@@ -22,27 +22,27 @@ class restapi():
         else:
             return
         self._get(queryurl=query)
-    def create_host_record(self,network,name,comment,nextavailable=None,ipad=None):
-        query = "record:host"
-        if nextavailable:
-            data = {
-                "comment": comment,
-                "name" : f"{name}",
-                "ipv4addrs": [{"_object_function": "next_available_network"}]
-            }
-        else:
-            data ={
-        "ipv4addrs": [
-            {
-                "configure_for_dhcp": False,
-                "ipv4addr": f"{ipad}"
-            }
-        ],
-        "name": f"{name}",
-        "view": "default"
-    }
 
-        self._post(queryurl=query,jsondict=data)
+    def create_host_record(self,host_name, ip_address, dns_view="default"):
+        """
+        Create a host record in Infoblox using WAPI.
+
+        :param host_name: Fully qualified domain name for the host (e.g., host.example.com)
+        :param ip_address: IP address to assign to the host
+        :param dns_view: DNS view name (default: "default")
+        :return: Response from the API (JSON)
+        """
+
+        payload = {
+            "name": host_name,
+            "ipv4addrs": [
+                {
+                    "ipv4addr": ip_address
+                }
+            ],
+            "view": dns_view
+        }
+        return self._post("/record:host",payload)
 
     def get_Network_containers_all(self,netadd):
         return self._get(f"network?network_container={netadd}&_return_fields%2B=network_container",)
@@ -56,7 +56,6 @@ class restapi():
             "network": f"""{ data['network']}/{data['size']}"""
         }
         return self._post("networkcontainer",jsondict)
-
     def get_Network_container(self, netadd):
         return self._get(f"network?network_container={netadd}&_return_fields%2B=network_container", )
     def create_Network_container(self,netadd):
@@ -175,15 +174,18 @@ Router: {net["router"]}""",
             return response.json()
 
     def _post(self, queryurl, jsondict):
-        response = requests.post(infoblox.url + queryurl, data=json.dumps(jsondict), headers=headers,
-                                 auth=(SSH.username, SSH.password),verify=False)
-        if response.status_code == 200:
-            return response.json()
-        elif response.status_code == 201:
-            return response.json()
-        else:
-            print (response)
-
+        try:
+            response = requests.post(infoblox.url + queryurl, data=json.dumps(jsondict), headers=headers,
+                                     auth=(SSH.username, SSH.password),verify=False)
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 201:
+                return response.json()
+            else:
+                print (response)
+        except requests.exceptions.RequestException as e:
+            print(f"Error creating host record: {e}")
+            return None
     def _put(self, queryurl, jsondict):
         response = requests.put(infoblox.url + queryurl, data=json.dumps(jsondict), headers=headers,
                                 auth=(SSH.username, SSH.password),verify=False)
