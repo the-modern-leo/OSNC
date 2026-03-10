@@ -26,6 +26,7 @@ from datetime import timedelta,datetime
 import concurrent
 from concurrent.futures import ThreadPoolExecutor
 import itertools
+import traceback
 
 def RegexOrMatchReturnOnlyTrueValues(HardwareModel):
     HardwareModellist = []
@@ -554,8 +555,7 @@ class Stack():
             self.environment_result = results[22][1]
         except Exception as e:
             print(f"Gathering Switch data - Failed")
-            print(e)
-            _exception(e)
+            traceback.print_exc()
         else:
             print(f"Gathering Switch data - Success")
 
@@ -573,9 +573,7 @@ class Stack():
                 raise ValueError
         except Exception as e:
             print(f"Gathering Switch Run data - Failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print(f"Gathering Switch Run data - Success")
 
@@ -655,9 +653,7 @@ class Stack():
                         self.portcount += len(blade.moduleinterfaces)
             self.sortCdpNeiDetail(self.cdpnei_result) # applies the uplinks
         except Exception as e:
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
     def assignattributes_thread(self):
         """
         takes the responses from get switch info, and applies those responses to the object attributes
@@ -714,8 +710,7 @@ class Stack():
                     if blade.moduleinterfaces:
                         self.portcount += len(blade.moduleinterfaces)
         except Exception as e:
-            print(e)
-            _exception(e)
+            traceback.print_exc()
             _exception(e)
             raise
 
@@ -728,165 +723,172 @@ class Stack():
         assert hasattr(self, 'blades'), f'the blades have not been set on this object'
         assert self.blades is not None, f'the blades have not been set on this object'
         try:
-            if 'Invalid input detected at' in self.interfacedetails_result_in:
-                self.interfacedetails_result_in = self.conn.send_command('show interface', manypages=True)
-            if self.interfacedetails_result_in:
-                self.sortinterfacedetails(self.interfacedetails_result_in)
-            self.interface_result = self.conn.send_command('show run | section interface', manypages=True)
-            interface_result = self.interface_result
-            if 'Invalid input detected at' in self.interface_result:
-                self.interface_name_r = self.conn.send_command('show run | in interface', manypages=True)
-                interface_result = self.interface_name_r
-            elif not self.interface_result:
-                pass
+            if interface_result:
+                self.interface_result = interface_result
+            if interfacedetails_result_in:
+                self.interfacedetails_result = interfacedetails_result_in
+            if not interface_result:
+                self.interface_result = self.conn.send_command('show run | section interface', manypages=True)
+            if self.interface_result:
+                if 'Invalid input detected at' in self.interface_result:
+                    self.interface_name_r = self.conn.send_command('show run | in interface', manypages=True)
+                    pass
             else:
-                interfaces = re.findall(r"(?<=^(interface))(.*?)(?=interface)", interface_result, re.MULTILINE | re.S)
-                all_inteface_objects = []
-                for inter in interfaces:
-                    inter = ''.join(inter)
-                    if "Loopback" in inter:
-                        pass
-                    elif "Vlan" in inter:
-                        pass
-                    elif "Port-channel" in inter:
-                        p = PortChannel()
-                        if type(inter) == str:
-                            inter = inter.split("\n")
-                        p.fullname = re.sub("interface ","",inter[0])
-                        p.ponumber = int(re.sub("Port-channel", "", p.fullname))
-                        p.fullname = re.sub("interface", "", p.fullname)
-                        # handle adding port channels
-                        for line in inter:
-                            if 'switchport mode trunk' in line:
-                                p.trunk = True
-                            elif 'switchport mode trunk allowed vlan' in line:
-                                p.trunkvlan.append(re.sub('switchport mode trunk allowed vlan', '', line))
-                            elif 'switchport mode trunk allowed vlan add' in line:
-                                p.trunkvlan.append(re.sub('switchport mode trunk allowed vlan add', '', line))
-                            elif 'description' in line:
-                                p.description = re.sub('description', '', line)
-                            elif 'switchport access vlan' in line:
-                                line2 = re.sub('--More--', '', line)
-                                line2 = re.sub('\\x1b\\r', '', line2)
-                                p.vlan = int(re.sub('switchport access vlan', '', line2))
-                            elif 'spanning-tree portfast' in line:
-                                p.stpf = True
-                            elif 'switchport voice vlan' in line:
-                                p.voicevlan = re.sub('switchport voice vlan', '', line)
-                        self.port_channels.append(p)
-                    elif "FastEthernet0" in inter:
-                        pass
-                    elif "Bluetooth" in inter:
-                        pass
-                    else:
-                        i = Interface()
-                        i.rawdata = inter
-                        patterninter = re.findall(r"([A-Za-z]{1,20}([\d]{1,3}\/[\d]{1,3}\/[\d]{1,3}|[\d]{1,3}\/[\d]{1,3}))", inter, re.S)
-                        if patterninter:
-                            blandport = patterninter[0][1]
-                            i.fullname = patterninter[0][0]
-                        if i.fullname:
-                            if i.fullname in self.combinedinterfaces:
-                                i = self.combinedinterfaces[i.fullname]
-                        if not type(blandport) == list:
-                            blandport = blandport.split("/")
-                        if len(blandport) > 2:  # handle 3 long
-                            i.blade = int(blandport[0])
-                            i.module = int(blandport[1])
-                            if "." in blandport[2]:
-                                continue
-                            else:
-                                i.portnumber = int(blandport[2])
+                pass
+            if not interfacedetails_result_in:
+                self.interfacedetails_result_in = self.conn.send_command('show interface', manypages=True)
+                if 'Invalid input detected at' in self.interfacedetails_result_in:
+                    pass
+            if self.interfacedetails_result_in:
+                if 'Invalid input detected at' in self.interfacedetails_result_in:
+                    pass
+            else:
+                pass
+            interfaces = re.findall(r"(?<=^(interface))(.*?)(?=interface)", self.interface_result, re.MULTILINE | re.S)
+            all_inteface_objects = []
+            for inter in interfaces:
+                inter = ''.join(inter)
+                if "Loopback" in inter:
+                    pass
+                elif "Vlan" in inter:
+                    pass
+                elif "Port-channel" in inter:
+                    p = PortChannel()
+                    if type(inter) == str:
+                        inter = inter.split("\n")
+                    p.fullname = re.sub("interface ","",inter[0])
+                    p.ponumber = int(re.sub("Port-channel", "", p.fullname))
+                    p.fullname = re.sub("interface", "", p.fullname)
+                    # handle adding port channels
+                    for line in inter:
+                        if 'switchport mode trunk' in line:
+                            p.trunk = True
+                        elif 'switchport mode trunk allowed vlan' in line:
+                            p.trunkvlan.append(re.sub('switchport mode trunk allowed vlan', '', line))
+                        elif 'switchport mode trunk allowed vlan add' in line:
+                            p.trunkvlan.append(re.sub('switchport mode trunk allowed vlan add', '', line))
+                        elif 'description' in line:
+                            p.description = re.sub('description', '', line)
+                        elif 'switchport access vlan' in line:
+                            line2 = re.sub('--More--', '', line)
+                            line2 = re.sub('\\x1b\\r', '', line2)
+                            p.vlan = int(re.sub('switchport access vlan', '', line2))
+                        elif 'spanning-tree portfast' in line:
+                            p.stpf = True
+                        elif 'switchport voice vlan' in line:
+                            p.voicevlan = re.sub('switchport voice vlan', '', line)
+                    self.port_channels.append(p)
+                elif "FastEthernet0" in inter:
+                    pass
+                elif "Bluetooth" in inter:
+                    pass
+                else:
+                    i = Interface()
+                    i.rawdata = inter
+                    patterninter = re.findall(r"([A-Za-z]{1,20}([\d]{1,3}\/[\d]{1,3}\/[\d]{1,3}|[\d]{1,3}\/[\d]{1,3}))", inter, re.S)
+                    if patterninter:
+                        blandport = patterninter[0][1]
+                        i.fullname = patterninter[0][0]
+                    if i.fullname:
+                        if i.fullname in self.combinedinterfaces:
+                            i = self.combinedinterfaces[i.fullname]
+                    if not type(blandport) == list:
+                        blandport = blandport.split("/")
+                    if len(blandport) > 2:  # handle 3 long
+                        i.blade = int(blandport[0])
+                        i.module = int(blandport[1])
+                        if "." in blandport[2]:
+                            continue
                         else:
-                            i.module = int(0)
-                            i.blade = int(blandport[0])
-                            if "." in blandport[1]:
-                                continue
-                            else:
-                                i.portnumber = int(blandport[1])
-                        if re.findall(r"((?:[\d]{1,3}\.){1,4}\.[\d]{1,3})", inter, re.S): #finding ip addresses (Layer 3 physical interfaces)
-                            i.virtual = True
-                            i.layer = "3"
-                            i.trunk = False
-                            ipaddressinter = re.findall(r"((?:[\d]{1,3}\.){1,4}\.[\d]{1,3})", inter, re.S)
-                            i.ipaddress = ipaddress.ip_address(f"{ipaddressinter[0]}/{ipaddressinter[1]}")
-                        if re.findall(r"vrf forwarding(.*?)\n", inter):
-                            i.vrf = re.findall(r"vrf forwarding (.*?)\n", inter)
-                        if re.findall(r"vrf forwarding(.*?)\n", inter):
-                            i.vrf = re.findall(r"vrf forwarding (.*?)\n", inter)
-                        if re.findall(r"description (.*?)\n", inter):
-                            i.description = re.findall(r"description (.*?)\n", inter)
-                        for line in inter:
-                            if 'switchport mode trunk' in line:
-                                i.trunk = True
-                            elif 'switchport mode trunk allowed vlan' in line:
-                                i.trunkvlan.append(re.sub('switchport mode trunk allowed vlan', '', line))
-                            elif 'switchport mode trunk allowed vlan add' in line:
-                                i.trunkvlan.append(re.sub('switchport mode trunk allowed vlan add', '', line))
-                            elif 'description' in line:
-                                i.description = re.sub('description', '', line)
-                            elif 'switchport access vlan' in line:
-                                line2 = re.sub('--More--', '', line)
-                                line2 = re.sub('\\x1b\\r', '', line2)
-                                i.vlan = int(re.sub('switchport access vlan', '', line2))
-                            elif 'spanning-tree portfast' in line:
-                                i.stpf = True
-                            elif 'switchport voice vlan' in line:
-                                i.voicevlan = re.sub('switchport voice vlan', '', line)
-                        if i.blade == 0:
-                            i.blade = 1
-                        all_inteface_objects.append(i)
-                        # assign the interface to the blade it is on.
-                blades = set()
-                for interface in all_inteface_objects:
-                    blades.add(interface.blade)
+                            i.portnumber = int(blandport[2])
+                    else:
+                        i.module = int(0)
+                        i.blade = int(blandport[0])
+                        if "." in blandport[1]:
+                            continue
+                        else:
+                            i.portnumber = int(blandport[1])
+                    if re.findall(r"((?:[\d]{1,3}\.){1,4}\.[\d]{1,3})", inter, re.S): #finding ip addresses (Layer 3 physical interfaces)
+                        i.virtual = True
+                        i.layer = "3"
+                        i.trunk = False
+                        ipaddressinter = re.findall(r"((?:[\d]{1,3}\.){1,4}\.[\d]{1,3})", inter, re.S)
+                        i.ipaddress = ipaddress.ip_address(f"{ipaddressinter[0]}/{ipaddressinter[1]}")
+                    if re.findall(r"vrf forwarding(.*?)\n", inter):
+                        i.vrf = re.findall(r"vrf forwarding (.*?)\n", inter)
+                    if re.findall(r"vrf forwarding(.*?)\n", inter):
+                        i.vrf = re.findall(r"vrf forwarding (.*?)\n", inter)
+                    if re.findall(r"description (.*?)\n", inter):
+                        i.description = re.findall(r"description (.*?)\n", inter)
+                    for line in inter:
+                        if 'switchport mode trunk' in line:
+                            i.trunk = True
+                        elif 'switchport mode trunk allowed vlan' in line:
+                            i.trunkvlan.append(re.sub('switchport mode trunk allowed vlan', '', line))
+                        elif 'switchport mode trunk allowed vlan add' in line:
+                            i.trunkvlan.append(re.sub('switchport mode trunk allowed vlan add', '', line))
+                        elif 'description' in line:
+                            i.description = re.sub('description', '', line)
+                        elif 'switchport access vlan' in line:
+                            line2 = re.sub('--More--', '', line)
+                            line2 = re.sub('\\x1b\\r', '', line2)
+                            i.vlan = int(re.sub('switchport access vlan', '', line2))
+                        elif 'spanning-tree portfast' in line:
+                            i.stpf = True
+                        elif 'switchport voice vlan' in line:
+                            i.voicevlan = re.sub('switchport voice vlan', '', line)
+                    if i.blade == 0:
+                        i.blade = 1
+                    all_inteface_objects.append(i)
+                    # assign the interface to the blade it is on.
+            blades = set()
+            for interface in all_inteface_objects:
+                blades.add(interface.blade)
 
-                for i in all_inteface_objects:
-                    self.assigninterfacetoblades(i)
-                    if i.portchannel:  # add interface to port channels
-                        for port_channel in self.port_channels:
-                            if port_channel.ponumber == i.portchannel.ponumber:
-                                port_channel.interfaces.append(i)
-                    for blade in self.blades:
-                        if blade.stacknumber == i.blade:
-                            blade.interfaces[i.fullname] = i
-                    # if blades == testblades:  # handle module information for single blade
-                    #     for blade in self.blades:
-                    #         if blade.stacknumber == 1:
-                    #             if i.module == 0:  # assign to blade 1
-                    #                 blade.interfaces[f"{i.fullname}"] = i
-                    #             if i.module == 1:
-                    #                 blade.moduleinterfaces[f"{i.fullname}"] = i
-                    # else:  # handle standard formating of 0/1 and 1/0/1 formats
-                    #     for blade in self.blades:
-                    #         if i.blade == 0:
-                    #             if blade.stacknumber == 1:
-                    #                 blade.interfaces[f"{i.fullname}"] = i
-                    #         elif hasattr(i, "module"):
-                    #             if i.module != 0:
-                    #                 if i.blade == blade.stacknumber:
-                    #                     blade.moduleinterfaces[f"{i.fullname}"] = i
-                    #             else:
-                    #                 if i.blade == blade.stacknumber:
-                    #                     if i.portnumber == 49 or i.portnumber == 50 or i.portnumber == 51 or i.portnumber == 52:
-                    #                         blade.moduleinterfaces[f"{i.fullname}"] = i
-                    #                     else:
-                    #                         blade.interfaces[f"{i.fullname}"] = i
-                    #         elif i.blade == blade.stacknumber:
-                    #             if i.portnumber == 49 or i.portnumber == 50 or i.portnumber == 51 or i.portnumber == 52:
-                    #                 blade.moduleinterfaces[f"{i.fullname}"] = i
-                    #             else:
-                    #                 blade.interfaces[f"{i.fullname}"] = i
-
+            for i in all_inteface_objects:
+                self.assigninterfacetoblades(i)
+                if i.portchannel:  # add interface to port channels
+                    for port_channel in self.port_channels:
+                        if port_channel.ponumber == i.portchannel.ponumber:
+                            port_channel.interfaces.append(i)
                 for blade in self.blades:
-                    if blade.interfaces == {} and blade.moduleinterfaces == {}:
-                        raise AttributeError("was not able to assign Interfaces to blades")
+                    if blade.stacknumber == i.blade:
+                        blade.interfaces[i.fullname] = i
+                # if blades == testblades:  # handle module information for single blade
+                #     for blade in self.blades:
+                #         if blade.stacknumber == 1:
+                #             if i.module == 0:  # assign to blade 1
+                #                 blade.interfaces[f"{i.fullname}"] = i
+                #             if i.module == 1:
+                #                 blade.moduleinterfaces[f"{i.fullname}"] = i
+                # else:  # handle standard formating of 0/1 and 1/0/1 formats
+                #     for blade in self.blades:
+                #         if i.blade == 0:
+                #             if blade.stacknumber == 1:
+                #                 blade.interfaces[f"{i.fullname}"] = i
+                #         elif hasattr(i, "module"):
+                #             if i.module != 0:
+                #                 if i.blade == blade.stacknumber:
+                #                     blade.moduleinterfaces[f"{i.fullname}"] = i
+                #             else:
+                #                 if i.blade == blade.stacknumber:
+                #                     if i.portnumber == 49 or i.portnumber == 50 or i.portnumber == 51 or i.portnumber == 52:
+                #                         blade.moduleinterfaces[f"{i.fullname}"] = i
+                #                     else:
+                #                         blade.interfaces[f"{i.fullname}"] = i
+                #         elif i.blade == blade.stacknumber:
+                #             if i.portnumber == 49 or i.portnumber == 50 or i.portnumber == 51 or i.portnumber == 52:
+                #                 blade.moduleinterfaces[f"{i.fullname}"] = i
+                #             else:
+                #                 blade.interfaces[f"{i.fullname}"] = i
+
+            for blade in self.blades:
+                if blade.interfaces == {} and blade.moduleinterfaces == {}:
+                    raise AttributeError("was not able to assign Interfaces to blades")
 
         except Exception as e:
             print("Sorting 'show run | section interface' - failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print("Sorting 'show run | section interface' - Success")
 
@@ -1073,9 +1075,7 @@ class Stack():
 
         except Exception as e:
             print(f"Sorting 'show run | section access-list' - FAILED")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print(f"Sorting 'show run | section access-list' - Success")
             self.access_lists = ACCESS
@@ -1207,10 +1207,7 @@ class Stack():
             if type == "mac":
                 pass
         except Exception as e:
-            print(e)
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             return a
 
@@ -1460,9 +1457,7 @@ class Stack():
 
         except Exception as e:
             print("Sorting 'show mac address-table' - failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             pass
 
@@ -1526,9 +1521,7 @@ class Stack():
 
         except Exception as e:
             print("Sorting 'show module all' - failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             return self
 
@@ -1583,9 +1576,7 @@ class Stack():
                                     interface.downtime = date_obj
         except Exception as e:
             print("Sorting 'show interfaces link' - Failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print("Sorting 'show interfaces link' - Success")
 
@@ -1687,9 +1678,7 @@ class Stack():
             #                         out = True
         except Exception as e:
             print("Sorting 'show interfaces counters' - Failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print("Sorting 'show interfaces counters' - Success")
 
@@ -1729,9 +1718,7 @@ class Stack():
 
         except Exception as e:
             print("Sorting 'show Inventory' - Failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print("Sorting 'show Inventory' - Success")
             return self
@@ -1819,9 +1806,7 @@ class Stack():
 
         except Exception as e:
             print("Sorting 'show Inventory' - Failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             pass
     def _assignBladeInfo(self,dictofbladeinfo):
@@ -1925,9 +1910,7 @@ class Stack():
                     print("Did not complete")
         except Exception as e:
             print("Sorting 'show Version' - failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print("Sorting 'show Version' - Success")
 
@@ -1992,9 +1975,7 @@ class Stack():
                     vlans.append(vl)
         except Exception as e:
             print("Sorting 'show run' - Failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             return vlans
 
@@ -2142,9 +2123,7 @@ class Stack():
                 self.aclnumbers.add(line[1])
         except Exception as e:
             print("Sorting 'show run' - Failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print("Sorting 'show run' - Success")
             return self
@@ -2172,11 +2151,11 @@ class Stack():
                 cdpneiobj = self._get_neighbor(switch)
                 self.cdpneighbors.append(cdpneiobj)
                 self.uplinklist.append(cdpneiobj.interface)
+            if not self.cdpneighbors:
+                raise Exception('No CdpNeighbors found')
         except Exception as e:
             print("Sorting 'show cdp nei detail' - Failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print("Sorting 'show cdp nei detail' - Success")
     def sortlogging(self, logging_result):
@@ -2202,9 +2181,7 @@ class Stack():
 
         except Exception as e:
             print("Sorting 'show run | section looging' - Failed")
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print("Sorting 'show run | section looging' - Success")
             self.logging_data = logginglines
@@ -2428,9 +2405,7 @@ class Stack():
                 string = "\r\n".join(newlist)
                 interface_configurations = interface_configurations + string + "\r\n"
         except Exception as e:
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             self.interface_result = interface_configurations
     def sort_memoory_Usage(self):
@@ -2570,9 +2545,7 @@ class Stack():
                         self.assign_power_inline_to_interface(line)
         except Exception as e:
             self.logout()
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             pass
     def assign_power_inline_to_interface(self,line):
@@ -2590,9 +2563,7 @@ class Stack():
                         i.Max = line_segs[6]
                         return
         except Exception as e:
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             pass
     def _convert_power_info(self,b,line_segs):
@@ -2612,9 +2583,7 @@ class Stack():
                     b.remaining_watts = float(self._get_just_power_int(line_segs[3]))
         except Exception as e:
             self.logout()
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             return b
 
@@ -2627,9 +2596,7 @@ class Stack():
             self.remaining_watts = float(self._get_just_power_int(line_segs[2]))
         except Exception as e:
             self.logout()
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             pass
 
@@ -2649,9 +2616,7 @@ class Stack():
                     b = self._convert_power_info(b,line_segs)
         except Exception as e:
             self.logout()
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             pass
 
@@ -2687,9 +2652,7 @@ class Stack():
 
         except Exception as e:
             self.logout()
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             pass
     def assign_environment_power_to_blade(self,line):
@@ -2721,9 +2684,7 @@ class Stack():
                             b.slot_b_watts = int(line[7])
         except Exception as e:
             self.logout()
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             pass
     def L2_Interfaces(self):
@@ -2813,8 +2774,7 @@ class Stack():
             result = self.conn.send_command('wri')
         except Exception as e:
             print("Writing Port configs to device - Failed")
-            print(e)
-            _exception(e)
+            traceback.print_exc()
         else:
             print("Writing Port configs to device - Success")
 
@@ -2882,9 +2842,7 @@ class Stack():
             result = self.conn.send_command(f"end")
             result = self.conn.send_command(f"wri")
         except Exception as e:
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
     # def _remove_snmp(self,snmpobj):
     #     """
     #
@@ -3059,10 +3017,7 @@ class Stack():
             #         if blade.stacknumber == localport[0]:
             #             blade.interfaces[n.interface.fullname].neighbor = n
         except Exception as e:
-            print(e)
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             return n
 
@@ -3112,10 +3067,7 @@ class Stack():
                                     Inter = interface
                                 break
         except Exception as e:
-            print(e)
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             return Inter
 
@@ -3138,10 +3090,7 @@ class Stack():
             if Inter:
                 return Inter
         except Exception as e:
-            print(e)
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             return Inter
 
@@ -3356,9 +3305,7 @@ class Stack():
                         allconfigs.append(line)
         except Exception as e:
             print('Generating Port Configuration - Failed')
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             print('Generating Port Configuration - Success')
             self.portconfig = allconfigs
@@ -3477,9 +3424,7 @@ class Stack():
 
 
         except Exception as e:
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             return newhostname
 
@@ -3499,9 +3444,7 @@ class Stack():
                     vlans.append(vlan)
             self.vlans = vlans
         except Exception as e:
-            print(e)
-            _exception(e)
-            raise
+            traceback.print_exc()
         else:
             return
 
@@ -3521,7 +3464,7 @@ class Stack():
         try:
             self.login()
             self.sortinterfaces()
-            self.sortCdpNeiDetail()
+            self.sortCdpNeiDetail(self.conn.send_command('show cdp nei detail', manypages=True))
             neighbor_ip = None
             if ip:
                 mac_results = self.conn.send_command(f'show ip arp | in {str(ip)}', manypages=True)
@@ -3538,10 +3481,12 @@ class Stack():
                 mac = EUI(mac)
                 mac.dialect = mac_cisco
                 mac_results = self.conn.send_command(f'show mac address-table | in {str(mac)}', manypages=True)
-                physicalports = re.findall(r"([A-Za-z]{1,20}(([\d]{1,3})\/([\d]{1,3})\/([\d]{1,3})))",
+                physicalports = re.findall(r"(([A-Za-z]{1,20})((?:([\d]{1,3})\/){1,3}([\d]{1,3})))",
                                     mac_results)
                 if physicalports:
                     result = physicalports[0][0]
+                if not physicalports:
+                    pass
                 for neighbor in self.cdpneighbors:
                     if neighbor.interface.shortname().lower() == result.lower():
                         neighbor_ip = neighbor.ip
@@ -3560,7 +3505,7 @@ class Stack():
                     return result
             return
         except Exception as e:
-            print(e)
+            traceback.print_exc()
             pass
     def find_port(self,ip=None,mac=None):
         try:

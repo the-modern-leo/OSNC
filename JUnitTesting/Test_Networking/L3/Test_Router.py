@@ -6,7 +6,7 @@ from Network.L3.Router import Router, VRF, bgp, ospf
 from Network.L2.Vlan import vlan
 from vendors.infoblox import restapi
 import re
-from netaddr import mac_cisco,IPNetwork
+from netaddr import mac_cisco,IPNetwork,EUI
 import os
 
 
@@ -18,23 +18,12 @@ class TestRouter(unittest.TestCase):
         self.assertEqual()
 
     def test_find_port_quick(self):
-        r = Router("192.168.100.178")
+        r = Router("")
         r.get_started()
-        aprs = []
-        all_ports = []
-        for arp in r.arps:
-            third_octet = re.findall(r"[\d]{0,3}.[\d]{0,3}.([\d]{0,3}).[\d]{0,3}", arp.ip)
-            for octet in third_octet:
-                if "14" in octet:
-                    aprs.append(arp)
-                    break
-        for arp in aprs:
-            port = r.find_port_quick(mac=arp.mac)
-            all_ports.append(port)
-        for ports in all_ports:
-            mac = ports[2]
-            mac.dialect = mac_cisco
-            print(f"IP address:{ports[0]},interface:{str(ports[1])}, Mac Address: {str(mac)}")
+        mac = EUI('')
+        mac.dialect = mac_cisco
+        result = r.find_port_quick(mac=mac)
+        print(result)
 
     def test_port_finder(self):
         r = Router("192.168.100.202")
