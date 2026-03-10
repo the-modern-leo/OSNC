@@ -10,6 +10,7 @@ from ipaddress import IPv4Network,ip_network,ip_address,IPv4Address
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
 from netaddr import EUI
+import traceback
 
 def _exception(e):
     print(e)
@@ -94,10 +95,12 @@ class routing_protocol():
                 i.shortname()
                 self.interfaces.append(i)
     def _assign_neighbors(self):
-        self.neighbors = []
-        neighborsText = re.findall(r"neighbor [\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}", self.config_text, re.MULTILINE)
-        for nei in neighborsText:
-            nei = re.sub("\r", "", int)
+        self.neighbors = set()
+        neighborsText = re.findall(r"neighbor ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})", self.config_text, re.MULTILINE)
+        if neighborsText:
+            for nei in neighborsText:
+                self.neighbors.add(re.sub("\r", "", nei))
+
 
 class eigrp(routing_protocol):
     def __int__(self,*args, **kwargs):
@@ -581,23 +584,42 @@ class Router(Stack):
 
         :return (datetime.dateime): the length of time the device has be running
         """
-        text = ["years", "months", "weeks", "day", "hours", "minutes"]
         try:
-            # filter out none useful info to a standard line
-            line = re.sub(self.hostname, '', line)
-            line = re.sub('uptime is', '', line)
-            line = re.sub('Kernel', '', line)
-            line = re.sub(' ', '', line)
+            deltadict = {"years": 0,
+                         "months": 0,
+                         "weeks": 0,
+                         "days": 0,
+                         "hours": 0,
+                         "minutes": 0,
+                         "seconds": 0}
+            years = re.findall(r"([\d]{1,5}) (?:years|year)", line)
+            months = re.findall(r"([\d]{1,5}) (?:months|month)", line)
+            weeks = re.findall(r"([\d]{1,5}) (?:weeks|week)", line)
+            days = re.findall(r"([\d]{1,5}) (?:days|day)", line)
+            hours = re.findall(r"([\d]{1,5}) (?:hours|hour)", line)
+            minutes = re.findall(r"([\d]{1,5}) (?:minutes|minute)", line)
+            seconds = re.findall(r"([\d]{1,5}) (?:seconds|second)", line)
+            if years:
+                deltadict["years"] = int(years[0])
+            if months:
+                deltadict["months"] = int(months[0])
+            if weeks:
+                deltadict["weeks"] = int(weeks[0])
+            if days:
+                deltadict["days"] = int(days[0])
+            if hours:
+                deltadict["hours"] = int(hours[0])
+            if minutes:
+                deltadict["minutes"] = int(minutes[0])
+            if seconds:
+                deltadict["seconds"] = int(seconds[0])
 
-            deltadic = self._create_time(line.split(","))
-            # create a time object
-            delta = None
-            delta = relativedelta(year=-deltadic["years"],
-                                  months=-deltadic["months"],
-                                  weeks=-deltadic["days"],
-                                  hours=-deltadic["hours"],
-                                  minutes=-deltadic["minutes"])
-
+            delta = relativedelta(years=-deltadict["years"],
+                                  months=-deltadict["months"],
+                                  weeks=-deltadict["days"],
+                                  hours=-deltadict["hours"],
+                                  minutes=-deltadict["minutes"],
+                                  seconds=-deltadict["seconds"])
             # create Datetime object
             lastrestart = datetime.now() - delta
 
