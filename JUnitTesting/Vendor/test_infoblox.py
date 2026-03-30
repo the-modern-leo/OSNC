@@ -9,7 +9,7 @@ class TestRouter(unittest.TestCase):
 
     def test_get_network_contrainer(self):
         rest = restapi()
-        result = rest.get_Network_container(netadd="10.24.4.0/22")
+        result = rest.get_Network_container(netadd="10.23.16.0/20")
         print(result)
 
     def test_createNetwork(self):
