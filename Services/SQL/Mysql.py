@@ -42,7 +42,7 @@ TABLES['CRCErrors'] = (
     "  crcID int NOT NULL AUTO_INCREMENT,"
     "  networkdeviceID INT NOT NULL,"
     "  switchport VARCHAR(255) NOT NULL,"
-    "  FirstCRC BIGINT NOT NULL,"
+    "  initialCRC BIGINT NOT NULL,"
     "  CompareCRC BIGINT NOT NULL,"
 
     "  PRIMARY KEY (crcID),"
