@@ -6,6 +6,7 @@ class TestRouter(unittest.TestCase):
     def test_login(self):
         rest = restapi()
         rest.get_Network_containers_all(netadd="10.0.0.0/8")
+
     def test_get_network_contrainer(self):
         rest = restapi()
         result = rest.get_Network_container(netadd="10.24.4.0/22")
@@ -17,6 +18,7 @@ class TestRouter(unittest.TestCase):
             rest = restapi()
             result = rest.createNetwork(networks)
             print(result)
+
     def test_createContainer(self):
         datalist = []
         for data in datalist:
@@ -30,14 +32,22 @@ class TestRouter(unittest.TestCase):
 
     def test_create_host_record(self):
         r = restapi()
-        records = []
+        records =  [
+ ]
         for tvm in records:
             comment = ""
-            r.create_host_record(tvm[2],tvm[0] + "",comment=comment,nextavailable=None,ipad=tvm[1])
+            r.create_host_record(tvm[1],tvm[0])
 
     def test_get_host_record(self):
         r = restapi()
         r.get_host_record("10.23.0.4")
+
+    def test_create_host_record(self):
+        hostrecords = [
+ ]
+        r = restapi()
+        for recods in hostrecords:
+            r.create_host_record(recods[1],recods[0],dns_view="default")
 
     def test_sort(self):
         List_1 = []
@@ -53,3 +63,6 @@ class TestRouter(unittest.TestCase):
         except Exception as e:
             print(e)
             pass
+
+    def test_create_host_record_range(self):
+        pass
