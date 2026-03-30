@@ -32,20 +32,22 @@ class TestRouter(unittest.TestCase):
 
     def test_create_host_record(self):
         r = restapi()
-        records = []
+        records =  [
+ ]
         for tvm in records:
             comment = ""
-            r.create_host_record(tvm[2],tvm[0] + "",comment=comment,nextavailable=None,ipad=tvm[1])
+            r.create_host_record(tvm[1],tvm[0])
 
     def test_get_host_record(self):
         r = restapi()
         r.get_host_record("10.23.0.4")
 
     def test_create_host_record(self):
-        hostrecords = []
+        hostrecords = [
+ ]
         r = restapi()
         for recods in hostrecords:
-            r.create_host_record(recods[1],recods[0])
+            r.create_host_record(recods[1],recods[0],dns_view="default")
 
     def test_sort(self):
         List_1 = []
