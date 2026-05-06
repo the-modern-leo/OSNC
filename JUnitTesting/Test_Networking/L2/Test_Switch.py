@@ -1,9 +1,11 @@
 import unittest
 from Network.L2.Switch import Stack, Blade
 from unittest.mock import Mock
+import os
 from os import listdir
 from os.path import isfile, join
 import json
+from auth import testing
 
 class TestStack(unittest.TestCase):
 
@@ -80,3 +82,39 @@ class TestStack(unittest.TestCase):
                     self.assertTrue(s.SystemSoftwareVersion)
             except Exception as e:
                 print(e)
+
+    def test_assignattributes_version_result(self):
+        if os.path.exists(testing.directory_path):
+            # Iterate through files in the directory
+            for item in os.listdir(testing.directory_path):
+                item_path = os.path.join(testing.directory_path, item)
+                with open(item_path, 'r') as json_file:
+                    data = json.load(json_file)
+                    s = Stack("10.10.10.10")
+                    s.assignVersionVariables(data["version_result"])
+                    self.assertTrue(s.blades)
+                    self.assertTrue(s.SystemSoftwareVersion)
+                    self.assertTrue(s.SystemSoftwareVersion)
+                    self.assertTrue(s.SystemSoftwareVersion)
+                    self.assertTrue(s.uptime)
+                    pass
+        else:
+            print(f"Directory not found: {testing.directory_path}")
+
+    def test_assignattributes(self):
+        if os.path.exists(testing.directory_path):
+            # Iterate through files in the directory
+            for item in os.listdir(testing.directory_path):
+                item_path = os.path.join(testing.directory_path, item)
+                with open(item_path, 'r') as json_file:
+                    data = json.load(json_file)
+                    s = Stack("10.10.10.10")
+                    s.assignVersionVariables(data["version_result"])
+                    self.assertTrue(s.blades)
+                    self.assertTrue(s.SystemSoftwareVersion)
+                    self.assertTrue(s.SystemSoftwareVersion)
+                    self.assertTrue(s.SystemSoftwareVersion)
+                    self.assertTrue(s.uptime)
+                    pass
+        else:
+            print(f"Directory not found: {testing.directory_path}")
