@@ -363,48 +363,6 @@ class DNS():
         }
         return _post('record:host', data)
 
-    def create_network(self, network, netmask, network_view="default", **kwargs):
-        """
-        Create a network in Infoblox for IP address management.
-
-        Args:
-            network (str): Network address (e.g., "192.168.1.0")
-            netmask (str): Netmask for the network (e.g., "255.255.255.0")
-            network_view (str): Network view to create the network in (default: "default")
-            **kwargs: Additional network properties (e.g., comment, disable, etc.)
-
-        Returns:
-            dict or None: JSON response containing reference to created network, or None if request failed
-        """
-        data = {
-            'network': network,
-            'netmask': netmask,
-            'network_view': network_view
-        }
-        data.update(kwargs)
-        return _post('network', data)
-
-    def create_network_container(self, network, netmask, network_view="default", **kwargs):
-        """
-        Create a network container in Infoblox for hierarchical IP management.
-
-        Args:
-            network (str): Network address for the container (e.g., "10.0.0.0")
-            netmask (str): Netmask for the container (e.g., "255.0.0.0")
-            network_view (str): Network view to create the container in (default: "default")
-            **kwargs: Additional container properties (e.g., comment, disable, etc.)
-
-        Returns:
-            dict or None: JSON response containing reference to created network container, or None if request failed
-        """
-        data = {
-            'network': network,
-            'netmask': netmask,
-            'network_view': network_view
-        }
-        data.update(kwargs)
-        return _post('networkcontainer', data)
-
     def find_a_record(self, name=None, ipv4addr=None, view="default"):
         """
         Find A record(s) in Infoblox.
@@ -480,42 +438,6 @@ class DNS():
         if ipv4addr:
             params['ipv4addr'] = ipv4addr
         return _get('record:host', params=params)
-
-    def find_network(self, network=None, network_view="default", **kwargs):
-        """
-        Find network(s) in Infoblox.
-
-        Args:
-            network (str, optional): Network address to search for (e.g., "192.168.1.0")
-            network_view (str): Network view to search in (default: "default")
-            **kwargs: Additional search parameters
-
-        Returns:
-            dict or None: JSON response containing matching networks, or None if request failed
-        """
-        params = {'network_view': network_view}
-        if network:
-            params['network'] = network
-        params.update(kwargs)
-        return _get('network', params=params)
-
-    def find_network_container(self, network=None, network_view="default", **kwargs):
-        """
-        Find network container(s) in Infoblox.
-
-        Args:
-            network (str, optional): Network address to search for (e.g., "10.0.0.0")
-            network_view (str): Network view to search in (default: "default")
-            **kwargs: Additional search parameters
-
-        Returns:
-            dict or None: JSON response containing matching network containers, or None if request failed
-        """
-        params = {'network_view': network_view}
-        if network:
-            params['network'] = network
-        params.update(kwargs)
-        return _get('networkcontainer', params=params)
 
     def modify_a_record(self, ref, **kwargs):
         """
@@ -993,6 +915,140 @@ class DNS():
 
         Args:
             ref (str): Object reference of the SRV record to delete (from find or create)
+
+        Returns:
+            dict or None: JSON response confirming deletion, or None if request failed
+        """
+        return _delete(ref)
+
+class IPAM:
+    """
+    IPAM class for managing Infoblox networks and network containers.
+    Uses global _get, _post, _put, and _delete functions for WAPI operations.
+    """
+
+    def get_network_container(self, network=None, network_view="default", **kwargs):
+        """
+        Retrieve network container(s) from Infoblox.
+
+        Args:
+            network (str, optional): Network address to search for (e.g., "192.168.1.0/24")
+            network_view (str): Network view to search in (default: "default")
+            **kwargs: Additional search parameters
+
+        Returns:
+            dict or None: JSON response containing matching network containers, or None if request failed
+        """
+        params = {'network_view': network_view}
+        if network:
+            params['network'] = network
+        params.update(kwargs)
+        return _get('networkcontainer', params=params)
+
+    def create_network_container(self, network, netmask, network_view="default", **kwargs):
+        """
+        Create a network container in Infoblox.
+
+        Args:
+            network (str): Network address for the container (e.g., "10.0.0.0")
+            netmask (str): Netmask for the container (e.g., "255.0.0.0")
+            network_view (str): Network view to create the container in (default: "default")
+            **kwargs: Additional container properties (e.g., comment, disable, etc.)
+
+        Returns:
+            dict or None: JSON response containing reference to created network container, or None if request failed
+        """
+        data = {
+            'network': network,
+            'netmask': netmask,
+            'network_view': network_view
+        }
+        data.update(kwargs)
+        return _post('networkcontainer', data=data)
+
+    def update_network_container(self, ref, **kwargs):
+        """
+        Update an existing network container.
+
+        Args:
+            ref (str): Object reference of the network container to update (from get or create)
+            **kwargs: Properties to modify (network, netmask, network_view, comment, etc.)
+
+        Returns:
+            dict or None: JSON response containing updated network container, or None if request failed
+        """
+        return _put(ref, data=kwargs)
+
+    def delete_network_container(self, ref):
+        """
+        Delete a network container.
+
+        Args:
+            ref (str): Object reference of the network container to delete (from get or create)
+
+        Returns:
+            dict or None: JSON response confirming deletion, or None if request failed
+        """
+        return _delete(ref)
+
+    def get_network(self, network=None, network_view="default", **kwargs):
+        """
+        Retrieve network(s) from Infoblox.
+
+        Args:
+            network (str, optional): Network address to search for (e.g., "192.168.1.0")
+            network_view (str): Network view to search in (default: "default")
+            **kwargs: Additional search parameters
+
+        Returns:
+            dict or None: JSON response containing matching networks, or None if request failed
+        """
+        params = {'network_view': network_view}
+        if network:
+            params['network'] = network
+        params.update(kwargs)
+        return _get('network', params=params)
+
+    def create_network(self, network, netmask, network_view="default", **kwargs):
+        """
+        Create a network in Infoblox.
+
+        Args:
+            network (str): Network address (e.g., "192.168.1.0")
+            netmask (str): Netmask for the network (e.g., "255.255.255.0")
+            network_view (str): Network view to create the network in (default: "default")
+            **kwargs: Additional network properties (e.g., comment, disable, etc.)
+
+        Returns:
+            dict or None: JSON response containing reference to created network, or None if request failed
+        """
+        data = {
+            'network': network,
+            'netmask': netmask,
+            'network_view': network_view
+        }
+        data.update(kwargs)
+        return _post('network', data=data)
+
+    def update_network(self, ref, **kwargs):
+        """
+        Update an existing network.
+
+        Args:
+            ref (str): Object reference of the network to update (from get or create)
+            **kwargs: Properties to modify (network, netmask, network_view, comment, etc.)
+
+        Returns:
+            dict or None: JSON response containing updated network, or None if request failed
+        """
+        return _put(ref, data=kwargs)
+
+    def delete_network(self, ref):
+        """
+        Delete a network.
+
+        Args:
+            ref (str): Object reference of the network to delete (from get or create)
 
         Returns:
             dict or None: JSON response confirming deletion, or None if request failed

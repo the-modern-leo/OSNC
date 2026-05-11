@@ -3,10 +3,6 @@ from vendors.infoblox import DNS
 
 class TestRouter(unittest.TestCase):
 
-    def test_login(self):
-        rest = DNS()
-        rest.get_Network_containers_all(netadd="10.0.0.0/8")
-
     def test_get_network_contrainer(self):
         rest = DNS()
         result = rest.get_Network_container(netadd="10.24.4.0/22")
