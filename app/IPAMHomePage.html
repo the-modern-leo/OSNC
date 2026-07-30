@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+{% include "Header.html" %}
+  <body>
+  {% include "Nav.html" %}
+  <div class="container mt-5">
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h2 class="cyber-text-gradient uppercase mb-0" style="letter-spacing: 2px;">IP ADDRESS MANAGEMENT</h2>
+        </div>
+        <div class="col-auto">
+            <div class="d-flex gap-2">
+                <button class="btn btn-cyber" style="padding: 8px 25px;" data-bs-toggle="modal" data-bs-target="#addIpModal">ADD</button>
+                <button class="btn btn-primary" style="padding: 8px 25px;">MODIFY</button>
+                <button class="btn btn-danger-cyber" style="padding: 8px 25px;">DELETE</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4 ms-auto">
+            <div class="input-group">
+                <span class="input-group-text" style="background: var(--cp-dark); border-color: var(--cp-blue); color: var(--cp-yellow); border-radius: 0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                      <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                    </svg>
+                </span>
+                <input type="text" id="tableFilter" class="form-control" placeholder="FILTER NODES..." style="background: var(--cp-dark); border-left: none;">
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-cyber">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="ipamTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)" style="cursor: pointer;">NETWORK ADDRESS <span class="sort-icon"></span></th>
+                            <th onclick="sortTable(1)" style="cursor: pointer;">COMMENTS <span class="sort-icon"></span></th>
+                            <th onclick="sortTable(2)" style="cursor: pointer;">PHYSICAL LOCATION <span class="sort-icon"></span></th>
+                            <th onclick="sortTable(3)" style="cursor: pointer;">SVI LOCATION <span class="sort-icon"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="ipamTableBody">
+                        {% if items %}
+                            {% for item in items %}
+                            <tr>
+                                <td class="fw-bold" style="color: var(--cp-blue);">{{ item['ip'] }}</td>
+                                <td>{{ item['comments'] }}</td>
+                                <td class="uppercase" style="font-size: 0.85rem;">{{ item['location'] }}</td>
+                                <td class="uppercase" style="font-size: 0.85rem;">{{ item['svi'] }}</td>
+                            </tr>
+                            {% end %}
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">
+                                <span style="letter-spacing: 3px; font-weight: 600;">// NO ACTIVE NODES DETECTED IN THIS SECTOR //</span>
+                            </td>
+                        </tr>
+                        {% end %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <!-- Add IP Modal -->
+  <div class="modal fade" id="addIpModal" tabindex="-1" aria-labelledby="addIpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addIpModalLabel">// INITIALIZE NEW NODE //</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form id="addIpForm">
+            <div class="mb-4 form-check">
+              <input type="checkbox" class="form-check-input" id="networkContainer" name="network_container">
+              <label class="form-check-label" for="networkContainer">Network Container</label>
+            </div>
+            <div class="mb-4">
+              <label for="ipAddress" class="form-label uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">IP Address</label>
+              <input type="text" class="form-control" id="ipAddress" name="ip_address" placeholder="e.g. 192.168.1.1">
+            </div>
+            <div class="mb-4">
+              <label for="comments" class="form-label uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">Comments</label>
+              <input type="text" class="form-control" id="comments" name="comments" placeholder="Node description...">
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-4">
+                <label for="physicalLocation" class="form-label uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">Physical Location</label>
+                <select class="form-select form-control" id="physicalLocation" name="physical_location">
+                  <option selected disabled>Select Location...</option>
+                  {% for loc in physical_locations %}
+                  <option value="{{ loc }}">{{ loc }}</option>
+                  {% end %}
+                </select>
+              </div>
+              <div class="col-md-6 mb-4">
+                <label for="sviLocation" class="form-label uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">SVI Location</label>
+                <select class="form-select form-control" id="sviLocation" name="svi_location">
+                  <option selected disabled>Select SVI...</option>
+                  {% for loc in svi_locations %}
+                  <option value="{{ loc }}">{{ loc }}</option>
+                  {% end %}
+                </select>
+              </div>
+            </div>
+            <div class="mb-4">
+              <label for="subnetType" class="form-label uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">Subnet Type</label>
+              <select class="form-select form-control" id="subnetType" name="subnet_type">
+                <option selected disabled>Select Type...</option>
+                {% for stype in subnet_types %}
+                <option value="{{ stype }}">{{ stype }}</option>
+                {% end %}
+              </select>
+            </div>
+            <div class="mb-4">
+              <label for="sizeSlider" class="form-label d-flex justify-content-between uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">
+                <span>Prefix Size</span>
+                <span id="sliderValue" style="color: var(--cp-yellow);">/24</span>
+              </label>
+              <input type="range" class="form-range" min="1" max="32" step="1" id="sizeSlider" name="prefix_size" value="24" oninput="updateNetworkDetails()">
+              
+              <div class="mt-3 p-3" style="background: rgba(0, 240, 255, 0.05); border: 1px dashed rgba(0, 240, 255, 0.3); position: relative; overflow: hidden;">
+                <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--cp-blue);"></div>
+                <div class="d-flex justify-content-between uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">
+                  <span style="color: var(--cp-blue); font-weight: 600;">Usable Hosts:</span>
+                  <span id="usableHostsCount" style="color: var(--cp-yellow); font-weight: 700;">254</span>
+                </div>
+                <div class="d-flex justify-content-between uppercase" style="font-size: 0.75rem; letter-spacing: 1px;">
+                  <span style="color: var(--cp-blue); font-weight: 600;">Host Range:</span>
+                  <span id="hostRangeDisplay" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" style="border-radius: 0; text-transform: uppercase; color: white;">Abort</button>
+          <button type="submit" form="addIpForm" class="btn btn-cyber">Execute Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updateNetworkDetails() {
+        const ipInput = document.getElementById('ipAddress').value.trim();
+        const prefix = parseInt(document.getElementById('sizeSlider').value);
+        
+        // Update prefix label
+        document.getElementById('sliderValue').innerText = '/' + prefix;
+        
+        // Calculate Usable Hosts
+        let usableHosts = 0;
+        if (prefix === 32) {
+            usableHosts = 1;
+        } else if (prefix === 31) {
+            usableHosts = 2;
+        } else {
+            usableHosts = Math.pow(2, 32 - prefix) - 2;
+        }
+        document.getElementById('usableHostsCount').innerText = usableHosts.toLocaleString();
+
+        // Calculate Range if IP is valid
+        const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+        if (ipRegex.test(ipInput)) {
+            const parts = ipInput.split('.').map(Number);
+            if (parts.every(p => p >= 0 && p <= 255)) {
+                // IP to 32-bit unsigned int
+                const ipInt = ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+                
+                // Mask calculation
+                const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                
+                const network = (ipInt & mask) >>> 0;
+                const broadcast = (network | ~mask) >>> 0;
+
+                let first, last;
+                if (prefix === 32) {
+                    first = last = network;
+                } else if (prefix === 31) {
+                    first = network;
+                    last = broadcast;
+                } else {
+                    first = network + 1;
+                    last = broadcast - 1;
+                }
+
+                const intToIp = (i) => [
+                    (i >>> 24) & 0xFF,
+                    (i >>> 16) & 0xFF,
+                    (i >>> 8) & 0xFF,
+                    i & 0xFF
+                ].join('.');
+
+                document.getElementById('hostRangeDisplay').innerText = intToIp(first) + ' - ' + intToIp(last);
+                return;
+            }
+        }
+        document.getElementById('hostRangeDisplay').innerText = '---';
+    }
+
+    // Add listeners
+    document.getElementById('ipAddress').addEventListener('input', updateNetworkDetails);
+    
+    // Initialize when modal is shown
+    const addModal = document.getElementById('addIpModal');
+    if (addModal) {
+        addModal.addEventListener('shown.bs.modal', updateNetworkDetails);
+    }
+
+    // --- Table Filtering Logic ---
+    document.getElementById('tableFilter').addEventListener('keyup', function() {
+        const value = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#ipamTableBody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.indexOf(value) > -1 ? '' : 'none';
+        });
+    });
+
+    // --- Table Sorting Logic ---
+    let currentSortCol = -1;
+    let sortAsc = true;
+
+    window.sortTable = function(colIndex) {
+        const table = document.getElementById('ipamTable');
+        const tbody = document.getElementById('ipamTableBody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const headers = table.querySelectorAll('th');
+
+        // Check if table is empty (mock message row)
+        if (rows.length === 1 && rows[0].cells.length === 1) return;
+
+        // Determine sort direction
+        if (currentSortCol === colIndex) {
+            sortAsc = !sortAsc;
+        } else {
+            sortAsc = true;
+            currentSortCol = colIndex;
+        }
+
+        // Update Header Classes for Icons
+        headers.forEach((th, idx) => {
+            th.classList.remove('asc', 'desc');
+            if (idx === colIndex) {
+                th.classList.add(sortAsc ? 'asc' : 'desc');
+            }
+        });
+
+        // Sort Rows
+        rows.sort((a, b) => {
+            let valA = a.cells[colIndex].textContent.trim().toLowerCase();
+            let valB = b.cells[colIndex].textContent.trim().toLowerCase();
+            
+            // Basic IP Address Sorting for the first column
+            if (colIndex === 0) {
+                const ipToNum = (ip) => ip.split('/')[0].split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet), 0) >>> 0;
+                try {
+                    return sortAsc ? ipToNum(valA) - ipToNum(valB) : ipToNum(valB) - ipToNum(valA);
+                } catch(e) { /* fallback to string compare */ }
+            }
+            
+            return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        });
+
+        // Re-append sorted rows
+        rows.forEach(row => tbody.appendChild(row));
+    };
+
+    // Handle Form Submission
+    document.getElementById('addIpForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        fetch('/IPAM', {
+            method: 'POST',
+            body: new URLSearchParams(formData)
+        })
+        .then(response => response.json())
+        .then(result => {
+            console.log('Success:', result);
+            // Hide modal
+            const modalElement = document.getElementById('addIpModal');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            modal.hide();
+            
+            // Reset form
+            this.reset();
+            updateNetworkDetails();
+            
+            // Visual feedback could be added here
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('CRITICAL SYSTEM ERROR: DATA UPLOAD FAILED');
+        });
+    });
+  </script>
+
+  {% include "Footer.html" %}
+  </body>
+</html>
