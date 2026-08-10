@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+{% include "Header.html" %}
+  <body>
+  {% include "Nav.html" %}
+  <div class="input-group mb-3">
+    <button class="btn btn-outline-secondary" type="button" id="button-addon1">Find</button>
+    <input type="text" class="form-control" placeholder="" aria-label="Example text with button addon" aria-describedby="button-addon1">
+  </div>
+  <div class="container">
+    <div class="row">
+      {% for item in items %}
+      <div class="col">
+        <div class="card" style="width: 18rem;">
+          <img src="..." class="card-img-top" alt="...">
+          <div class="card-body">
+            <h5 class="card-title">Card title {{ escape(item) }}</h5>
+            <p class="card-text">{{ escape(item) }} Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+            <a href="#" class="btn btn-primary">Vlan {{ escape(item) }}</a>
+          </div>
+        </div>
+      </div>
+      {% end %}
+    </div>
+  </div>
+  {% include "Footer.html" %}
+  </body>
+</html>
