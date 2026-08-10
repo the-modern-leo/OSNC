@@ -7,16 +7,39 @@
     <div class="row mb-4 align-items-center">
         <div class="col">
             <h2 class="cyber-text-gradient uppercase mb-0" style="letter-spacing: 2px;">IP ADDRESS MANAGEMENT</h2>
+            {% if parent_network %}
+            <p class="mt-2 mb-0 uppercase" style="letter-spacing: 1px; font-size: 0.85rem;">
+                <a href="/IPAM" style="color: var(--cp-blue); text-decoration: none;">&larr; BACK TO ALL NETWORKS</a>
+                <span class="ms-3" style="color: var(--cp-yellow);">// VIEWING {% if is_ip_view %}IP ADDRESSES{% else %}SUBNETS{% end %} WITHIN <strong>{{ parent_network }}</strong> //</span>
+            </p>
+            {% if parent_item %}
+            <div class="mt-3 d-flex align-items-center">
+                {% if parent_item.get('is_container') %}
+                <span class="me-2" title="Network Container" style="color: var(--cp-yellow);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-box-seam" viewBox="0 0 16 16">
+                      <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.744V6.838L1 4.24v7.921l6.5 2.6zM2.958 3.598L8 5.615l5.042-2.017L8 1.582 2.958 3.598zM0 3.5a.5.5 0 0 1 .306-.462l7.5-3a.5.5 0 0 1 .388 0l7.5 3A.5.5 0 0 1 16 3.5v9a.5.5 0 0 1-.306.462l-7.5 3a.5.5 0 0 1-.388 0l-7.5-3A.5.5 0 0 1 0 12.5v-9z"/>
+                    </svg>
+                </span>
+                {% else %}
+                <span class="me-2" title="Subnet" style="color: var(--cp-blue);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-diagram-2" viewBox="0 0 16 16">
+                      <path fill-rule="evenodd" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H11a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 5 7h2.5V6A1.5 1.5 0 0 1 6 4.5v-1zM8.5 5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1zM3 11.5A1.5 1.5 0 0 1 4.5 10h1A1.5 1.5 0 0 1 7 11.5v1A1.5 1.5 0 0 1 5.5 14h-1A1.5 1.5 0 0 1 3 12.5v-1zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1zm4.5.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1z"/>
+                    </svg>
+                </span>
+                {% end %}
+                <h4 class="mb-0 uppercase" style="letter-spacing: 2px; color: var(--cp-blue);">{{ parent_item['ip'] }}</h4>
+            </div>
+            {% end %}
+            {% end %}
         </div>
         <div class="col-auto">
             <div class="d-flex gap-2">
                 <button class="btn btn-cyber" style="padding: 8px 25px;" data-bs-toggle="modal" data-bs-target="#addIpModal">ADD</button>
-                <button class="btn btn-primary" style="padding: 8px 25px;">MODIFY</button>
-                <button class="btn btn-danger-cyber" style="padding: 8px 25px;">DELETE</button>
+                <button class="btn btn-primary" id="modifyBtn" style="padding: 8px 25px;" disabled>MODIFY</button>
+                <button class="btn btn-danger-cyber" id="deleteBtn" style="padding: 8px 25px;" disabled>DELETE</button>
             </div>
         </div>
     </div>
-
     <div class="row mb-3">
         <div class="col-md-4 ms-auto">
             <div class="input-group">
@@ -36,26 +59,62 @@
                 <table class="table table-hover mb-0" id="ipamTable">
                     <thead>
                         <tr>
-                            <th onclick="sortTable(0)" style="cursor: pointer;">NETWORK ADDRESS <span class="sort-icon"></span></th>
-                            <th onclick="sortTable(1)" style="cursor: pointer;">COMMENTS <span class="sort-icon"></span></th>
-                            <th onclick="sortTable(2)" style="cursor: pointer;">PHYSICAL LOCATION <span class="sort-icon"></span></th>
-                            <th onclick="sortTable(3)" style="cursor: pointer;">SVI LOCATION <span class="sort-icon"></span></th>
+                            <th style="width: 40px;">
+                                <input type="checkbox" class="form-check-input" id="selectAllCheckbox" title="Select All">
+                            </th>
+                            {% if is_ip_view %}
+                                <th onclick="sortTable(1)" style="cursor: pointer;">IP ADDRESS <span class="sort-icon"></span></th>
+                                <th onclick="sortTable(2)" style="cursor: pointer;">COMMENTS <span class="sort-icon"></span></th>
+                            {% else %}
+                                <th onclick="sortTable(1)" style="cursor: pointer;">NETWORK ADDRESS <span class="sort-icon"></span></th>
+                                <th onclick="sortTable(2)" style="cursor: pointer;">COMMENTS <span class="sort-icon"></span></th>
+                                <th onclick="sortTable(3)" style="cursor: pointer;">PHYSICAL LOCATION <span class="sort-icon"></span></th>
+                                <th onclick="sortTable(4)" style="cursor: pointer;">SVI LOCATION <span class="sort-icon"></span></th>
+                            {% end %}
                         </tr>
                     </thead>
                     <tbody id="ipamTableBody">
                         {% if items %}
                             {% for item in items %}
                             <tr>
-                                <td class="fw-bold" style="color: var(--cp-blue);">{{ item['ip'] }}</td>
-                                <td>{{ item['comments'] }}</td>
-                                <td class="uppercase" style="font-size: 0.85rem;">{{ item['location'] }}</td>
-                                <td class="uppercase" style="font-size: 0.85rem;">{{ item['svi'] }}</td>
+                                <td>
+                                    <input type="checkbox" class="form-check-input row-checkbox" value="{{ item['ip'] }}">
+                                </td>
+                                {% if is_ip_view %}
+                                    <td class="fw-bold" style="color: var(--cp-blue);">{{ item['ip'] }}</td>
+                                    <td>{{ item['comments'] }}</td>
+                                {% else %}
+                                    <td class="fw-bold">
+                                        {% if item.get('is_container') %}
+                                            <span class="me-2" title="Network Container" style="color: var(--cp-yellow);">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-seam" viewBox="0 0 16 16">
+                                                  <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.744V6.838L1 4.24v7.921l6.5 2.6zM2.958 3.598L8 5.615l5.042-2.017L8 1.582 2.958 3.598zM0 3.5a.5.5 0 0 1 .306-.462l7.5-3a.5.5 0 0 1 .388 0l7.5 3A.5.5 0 0 1 16 3.5v9a.5.5 0 0 1-.306.462l-7.5 3a.5.5 0 0 1-.388 0l-7.5-3A.5.5 0 0 1 0 12.5v-9z"/>
+                                                </svg>
+                                            </span>
+                                            <a href="/IPAM/{{ item['ip'].split('/')[0] }}/{{ item['ip'].split('/')[1] }}" class="text-decoration-none" style="color: var(--cp-blue);">{{ item['ip'] }}</a>
+                                        {% else %}
+                                            <span class="me-2" title="Subnet" style="color: var(--cp-blue);">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-diagram-2" viewBox="0 0 16 16">
+                                                  <path fill-rule="evenodd" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H11a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 5 7h2.5V6A1.5 1.5 0 0 1 6 4.5v-1zM8.5 5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1zM3 11.5A1.5 1.5 0 0 1 4.5 10h1A1.5 1.5 0 0 1 7 11.5v1A1.5 1.5 0 0 1 5.5 14h-1A1.5 1.5 0 0 1 3 12.5v-1zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1zm4.5.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1z"/>
+                                                </svg>
+                                            </span>
+                                            <a href="/IPAM/{{ item['ip'].split('/')[0] }}/{{ item['ip'].split('/')[1] }}" class="text-decoration-none" style="color: var(--cp-blue);">{{ item['ip'] }}</a>
+                                        {% end %}
+                                    </td>
+                                    <td>{{ item['comments'] }}</td>
+                                    <td class="uppercase" style="font-size: 0.85rem;">{{ item['location'] }}</td>
+                                    <td class="uppercase" style="font-size: 0.85rem;">{{ item['svi'] }}</td>
+                                {% end %}
                             </tr>
                             {% end %}
                         {% else %}
                         <tr>
-                            <td colspan="4" class="text-center py-5 text-muted">
+                            <td colspan="{% if is_ip_view %}3{% else %}5{% end %}" class="text-center py-5 text-muted">
+                                {% if parent_network %}
+                                <span style="letter-spacing: 3px; font-weight: 600;">// NO SUBNETS DETECTED WITHIN {{ parent_network }} //</span>
+                                {% else %}
                                 <span style="letter-spacing: 3px; font-weight: 600;">// NO ACTIVE NODES DETECTED IN THIS SECTOR //</span>
+                                {% end %}
                             </td>
                         </tr>
                         {% end %}
@@ -68,7 +127,7 @@
 
   <!-- Add IP Modal -->
   <div class="modal fade" id="addIpModal" tabindex="-1" aria-labelledby="addIpModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered resizable-draggable-modal">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="addIpModalLabel">// INITIALIZE NEW NODE //</h5>
@@ -82,7 +141,12 @@
             </div>
             <div class="mb-4">
               <label for="ipAddress" class="form-label uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">IP Address</label>
-              <input type="text" class="form-control" id="ipAddress" name="ip_address" placeholder="e.g. 192.168.1.1">
+              <input type="text" class="form-control" id="ipAddress" name="ip_address" placeholder="e.g. 192.168.1.1" autocomplete="off">
+              <div class="invalid-feedback" id="ipAddressError">// INVALID IP ADDRESS FORMAT //</div>
+            </div>
+            <div class="mb-4" id="defaultGatewayGroup">
+              <label for="defaultGateway" class="form-label uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">Default Gateway</label>
+              <input type="text" class="form-control" id="defaultGateway" name="default_gateway" placeholder="e.g. 192.168.1.1">
             </div>
             <div class="mb-4">
               <label for="comments" class="form-label uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">Comments</label>
@@ -91,21 +155,31 @@
             <div class="row">
               <div class="col-md-6 mb-4">
                 <label for="physicalLocation" class="form-label uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">Physical Location</label>
-                <select class="form-select form-control" id="physicalLocation" name="physical_location">
+                <select class="form-select form-control" id="physicalLocation" name="physical_location" onchange="handleLocationSelect(this, 'newPhysicalLocationGroup')">
                   <option selected disabled>Select Location...</option>
                   {% for loc in physical_locations %}
                   <option value="{{ loc }}">{{ loc }}</option>
                   {% end %}
+                  <option value="__new__">+ CREATE NEW LOCATION...</option>
                 </select>
+                <div class="input-group mt-2 d-none" id="newPhysicalLocationGroup">
+                  <input type="text" class="form-control" id="newPhysicalLocationInput" placeholder="New location name..." onkeydown="if(event.key==='Enter'){event.preventDefault(); confirmNewLocation('physicalLocation', 'newPhysicalLocationInput', 'newPhysicalLocationGroup');}">
+                  <button type="button" class="btn btn-cyber" style="padding: 6px 15px; clip-path: none;" onclick="confirmNewLocation('physicalLocation', 'newPhysicalLocationInput', 'newPhysicalLocationGroup')">ADD</button>
+                </div>
               </div>
               <div class="col-md-6 mb-4">
                 <label for="sviLocation" class="form-label uppercase" style="color: var(--cp-blue); font-weight: 600; letter-spacing: 1px;">SVI Location</label>
-                <select class="form-select form-control" id="sviLocation" name="svi_location">
+                <select class="form-select form-control" id="sviLocation" name="svi_location" onchange="handleLocationSelect(this, 'newSviLocationGroup')">
                   <option selected disabled>Select SVI...</option>
                   {% for loc in svi_locations %}
                   <option value="{{ loc }}">{{ loc }}</option>
                   {% end %}
+                  <option value="__new__">+ CREATE NEW SVI...</option>
                 </select>
+                <div class="input-group mt-2 d-none" id="newSviLocationGroup">
+                  <input type="text" class="form-control" id="newSviLocationInput" placeholder="New SVI name..." onkeydown="if(event.key==='Enter'){event.preventDefault(); confirmNewLocation('sviLocation', 'newSviLocationInput', 'newSviLocationGroup');}">
+                  <button type="button" class="btn btn-cyber" style="padding: 6px 15px; clip-path: none;" onclick="confirmNewLocation('sviLocation', 'newSviLocationInput', 'newSviLocationGroup')">ADD</button>
+                </div>
               </div>
             </div>
             <div class="mb-4">
@@ -147,6 +221,57 @@
   </div>
 
   <script>
+    // --- Dynamic Location/SVI Creation Logic ---
+    function handleLocationSelect(selectEl, groupId) {
+        const group = document.getElementById(groupId);
+        if (!group) return;
+        if (selectEl.value === '__new__') {
+            group.classList.remove('d-none');
+            const input = group.querySelector('input');
+            input.value = '';
+            input.classList.remove('is-invalid');
+            input.focus();
+        } else {
+            group.classList.add('d-none');
+        }
+    }
+
+    function confirmNewLocation(selectId, inputId, groupId) {
+        const select = document.getElementById(selectId);
+        const input = document.getElementById(inputId);
+        const group = document.getElementById(groupId);
+        const value = input.value.trim();
+
+        if (!value) {
+            input.classList.add('is-invalid');
+            input.focus();
+            return;
+        }
+        input.classList.remove('is-invalid');
+
+        // Avoid duplicate entries (case-insensitive)
+        const exists = Array.from(select.options).some(opt => opt.value.toLowerCase() === value.toLowerCase());
+        if (!exists) {
+            const newOption = document.createElement('option');
+            newOption.value = value;
+            newOption.textContent = value;
+            const createOption = select.querySelector('option[value="__new__"]');
+            select.insertBefore(newOption, createOption);
+        }
+        select.value = value;
+        group.classList.add('d-none');
+    }
+
+    function isValidIPv4(ip) {
+        const ipRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+        const match = ip.match(ipRegex);
+        if (!match) return false;
+        return match.slice(1, 5).every(octet => {
+            const num = Number(octet);
+            return octet === String(num) && num >= 0 && num <= 255;
+        });
+    }
+
     function updateNetworkDetails() {
         const ipInput = document.getElementById('ipAddress').value.trim();
         const prefix = parseInt(document.getElementById('sizeSlider').value);
@@ -205,13 +330,94 @@
     }
 
     // Add listeners
-    document.getElementById('ipAddress').addEventListener('input', updateNetworkDetails);
+    document.getElementById('ipAddress').addEventListener('input', function() {
+        this.classList.remove('is-invalid');
+        updateNetworkDetails();
+    });
+
+    // Toggle Default Gateway visibility
+    document.getElementById('networkContainer').addEventListener('change', function() {
+        const gatewayGroup = document.getElementById('defaultGatewayGroup');
+        if (this.checked) {
+            gatewayGroup.classList.add('d-none');
+        } else {
+            gatewayGroup.classList.remove('d-none');
+        }
+    });
     
     // Initialize when modal is shown
     const addModal = document.getElementById('addIpModal');
     if (addModal) {
-        addModal.addEventListener('shown.bs.modal', updateNetworkDetails);
+        addModal.addEventListener('shown.bs.modal', function() {
+            updateNetworkDetails();
+            // Ensure Gateway visibility matches checkbox state on open
+            const isContainer = document.getElementById('networkContainer').checked;
+            const gatewayGroup = document.getElementById('defaultGatewayGroup');
+            if (isContainer) gatewayGroup.classList.add('d-none');
+            else gatewayGroup.classList.remove('d-none');
+        });
     }
+
+    // --- Draggable & Resizable Modal Logic ---
+    (function() {
+        const modalEl = document.getElementById('addIpModal');
+        if (!modalEl) return;
+        const dialog = modalEl.querySelector('.modal-dialog');
+        const content = modalEl.querySelector('.modal-content');
+        const header = modalEl.querySelector('.modal-header');
+
+        let isDragging = false;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        function startDrag(e) {
+            if (e.target.closest('.btn-close')) return;
+            isDragging = true;
+            const rect = dialog.getBoundingClientRect();
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+            dialog.style.position = 'fixed';
+            dialog.style.margin = '0';
+            dialog.style.left = rect.left + 'px';
+            dialog.style.top = rect.top + 'px';
+            dialog.classList.add('dragging');
+            document.body.style.userSelect = 'none';
+        }
+
+        function onDrag(e) {
+            if (!isDragging) return;
+            const width = dialog.offsetWidth;
+            const height = dialog.offsetHeight;
+            let newLeft = e.clientX - dragOffsetX;
+            let newTop = e.clientY - dragOffsetY;
+            newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - width));
+            newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
+            dialog.style.left = newLeft + 'px';
+            dialog.style.top = newTop + 'px';
+        }
+
+        function stopDrag() {
+            if (isDragging) {
+                isDragging = false;
+                dialog.classList.remove('dragging');
+                document.body.style.userSelect = '';
+            }
+        }
+
+        header.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', stopDrag);
+
+        // Reset position and size whenever the modal is closed
+        modalEl.addEventListener('hidden.bs.modal', function() {
+            dialog.style.position = '';
+            dialog.style.margin = '';
+            dialog.style.left = '';
+            dialog.style.top = '';
+            content.style.width = '';
+            content.style.height = '';
+        });
+    })();
 
     // --- Table Filtering Logic ---
     document.getElementById('tableFilter').addEventListener('keyup', function() {
@@ -222,6 +428,41 @@
             const text = row.textContent.toLowerCase();
             row.style.display = text.indexOf(value) > -1 ? '' : 'none';
         });
+    });
+
+    // --- Row Selection Logic ---
+    function updateActionButtons() {
+        const checkedCount = document.querySelectorAll('#ipamTableBody .row-checkbox:checked').length;
+        const deleteBtn = document.getElementById('deleteBtn');
+        const modifyBtn = document.getElementById('modifyBtn');
+        if (deleteBtn) deleteBtn.disabled = checkedCount === 0;
+        if (modifyBtn) modifyBtn.disabled = checkedCount !== 1;
+    }
+
+    function refreshSelectAllState() {
+        const rowCheckboxes = document.querySelectorAll('#ipamTableBody .row-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (!selectAllCheckbox) return;
+        const total = rowCheckboxes.length;
+        const checked = document.querySelectorAll('#ipamTableBody .row-checkbox:checked').length;
+        selectAllCheckbox.checked = total > 0 && checked === total;
+        selectAllCheckbox.indeterminate = checked > 0 && checked < total;
+    }
+
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const rowCheckboxes = document.querySelectorAll('#ipamTableBody .row-checkbox');
+            rowCheckboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+            updateActionButtons();
+        });
+    }
+
+    document.getElementById('ipamTableBody').addEventListener('change', function(e) {
+        if (e.target.classList.contains('row-checkbox')) {
+            refreshSelectAllState();
+            updateActionButtons();
+        }
     });
 
     // --- Table Sorting Logic ---
@@ -258,8 +499,8 @@
             let valA = a.cells[colIndex].textContent.trim().toLowerCase();
             let valB = b.cells[colIndex].textContent.trim().toLowerCase();
             
-            // Basic IP Address Sorting for the first column
-            if (colIndex === 0) {
+            // Basic IP Address Sorting for the Network Address column
+            if (colIndex === 1) {
                 const ipToNum = (ip) => ip.split('/')[0].split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet), 0) >>> 0;
                 try {
                     return sortAsc ? ipToNum(valA) - ipToNum(valB) : ipToNum(valB) - ipToNum(valA);
@@ -276,7 +517,21 @@
     // Handle Form Submission
     document.getElementById('addIpForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        
+
+        const ipInputField = document.getElementById('ipAddress');
+        const ipAddressError = document.getElementById('ipAddressError');
+        const ipValue = ipInputField.value.trim();
+
+        // Client-side IP validation
+        if (!isValidIPv4(ipValue)) {
+            ipInputField.classList.add('is-invalid');
+            ipAddressError.textContent = '// INVALID IP ADDRESS FORMAT //';
+            ipAddressError.style.display = 'block';
+            ipInputField.focus();
+            return;
+        }
+        ipInputField.classList.remove('is-invalid');
+
         const formData = new FormData(this);
         
         fetch('/IPAM', {
@@ -285,6 +540,13 @@
         })
         .then(response => response.json())
         .then(result => {
+            if (result.status === 'error') {
+                // Backend rejected the request (e.g. failed validation)
+                ipInputField.classList.add('is-invalid');
+                ipAddressError.textContent = result.message || '// INVALID IP ADDRESS FORMAT //';
+                ipAddressError.style.display = 'block';
+                return;
+            }
             console.log('Success:', result);
             // Hide modal
             const modalElement = document.getElementById('addIpModal');
@@ -294,6 +556,9 @@
             // Reset form
             this.reset();
             updateNetworkDetails();
+            document.getElementById('newPhysicalLocationGroup').classList.add('d-none');
+            document.getElementById('newSviLocationGroup').classList.add('d-none');
+            document.getElementById('defaultGatewayGroup').classList.remove('d-none');
             
             // Visual feedback could be added here
         })
