@@ -135,6 +135,15 @@
         </div>
         <div class="modal-body p-4">
           <form id="addIpForm">
+            <!-- Hidden fields for derived network data -->
+            <input type="hidden" name="network_address" id="hiddenNetworkAddress">
+            <input type="hidden" name="subnet_mask" id="hiddenSubnetMask">
+            <input type="hidden" name="wildcard_mask" id="hiddenWildcardMask">
+            <input type="hidden" name="ip_class" id="hiddenIpClass">
+            <input type="hidden" name="in_addr_arpa" id="hiddenInAddrArpa">
+            <input type="hidden" name="ipv4_mapped" id="hiddenIpv4Mapped">
+            <input type="hidden" name="six_to_four_prefix" id="hiddenSixToFourPrefix">
+
             <div class="mb-4 form-check">
               <input type="checkbox" class="form-check-input" id="networkContainer" name="network_container">
               <label class="form-check-label" for="networkContainer">Network Container</label>
@@ -200,13 +209,72 @@
               
               <div class="mt-3 p-3" style="background: rgba(0, 240, 255, 0.05); border: 1px dashed rgba(0, 240, 255, 0.3); position: relative; overflow: hidden;">
                 <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--cp-blue);"></div>
-                <div class="d-flex justify-content-between uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">
-                  <span style="color: var(--cp-blue); font-weight: 600;">Usable Hosts:</span>
-                  <span id="usableHostsCount" style="color: var(--cp-yellow); font-weight: 700;">254</span>
-                </div>
-                <div class="d-flex justify-content-between uppercase" style="font-size: 0.75rem; letter-spacing: 1px;">
-                  <span style="color: var(--cp-blue); font-weight: 600;">Host Range:</span>
-                  <span id="hostRangeDisplay" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                
+                <div class="row g-2" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                  <div class="col-6">
+                    <div class="d-flex justify-content-between uppercase">
+                      <span style="color: var(--cp-blue); font-weight: 600;">Net Address:</span>
+                      <span id="networkAddressDisplay" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="d-flex justify-content-between uppercase">
+                      <span style="color: var(--cp-blue); font-weight: 600;">Subnet Mask:</span>
+                      <span id="subnetMaskDisplay" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="d-flex justify-content-between uppercase">
+                      <span style="color: var(--cp-blue); font-weight: 600;">Wildcard:</span>
+                      <span id="wildcardMaskDisplay" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="d-flex justify-content-between uppercase">
+                      <span style="color: var(--cp-blue); font-weight: 600;">IP Class:</span>
+                      <span id="ipClassDisplay" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="d-flex justify-content-between uppercase">
+                      <span style="color: var(--cp-blue); font-weight: 600;">Usable Hosts:</span>
+                      <span id="usableHostsCount" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="d-flex justify-content-between uppercase">
+                      <span style="color: var(--cp-blue); font-weight: 600;">Prefix:</span>
+                      <span style="color: var(--cp-yellow); font-weight: 700;" class="current-prefix-display">/24</span>
+                    </div>
+                  </div>
+                  
+                  <div class="col-12 mt-1 pt-1 border-top" style="border-color: rgba(0, 240, 255, 0.1) !important;">
+                    <div class="d-flex justify-content-between uppercase">
+                      <span style="color: var(--cp-blue); font-weight: 600;">Host Range:</span>
+                      <span id="hostRangeDisplay" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                    </div>
+                  </div>
+                  
+                  <div class="col-12">
+                    <div class="d-flex justify-content-between uppercase">
+                      <span style="color: var(--cp-blue); font-weight: 600;">in-addr.arpa:</span>
+                      <span id="inAddrArpaDisplay" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                    </div>
+                  </div>
+                  
+                  <div class="col-12">
+                    <div class="d-flex justify-content-between uppercase">
+                      <span style="color: var(--cp-blue); font-weight: 600;">IPv4 Mapped:</span>
+                      <span id="ipv4MappedDisplay" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                    </div>
+                  </div>
+                  
+                  <div class="col-12">
+                    <div class="d-flex justify-content-between uppercase">
+                      <span style="color: var(--cp-blue); font-weight: 600;">6to4 Prefix:</span>
+                      <span id="sixToFourDisplay" style="color: var(--cp-yellow); font-weight: 700;">---</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -276,8 +344,9 @@
         const ipInput = document.getElementById('ipAddress').value.trim();
         const prefix = parseInt(document.getElementById('sizeSlider').value);
         
-        // Update prefix label
+        // Update prefix labels
         document.getElementById('sliderValue').innerText = '/' + prefix;
+        document.querySelectorAll('.current-prefix-display').forEach(el => el.innerText = '/' + prefix);
         
         // Calculate Usable Hosts
         let usableHosts = 0;
@@ -290,7 +359,6 @@
         }
         document.getElementById('usableHostsCount').innerText = usableHosts.toLocaleString();
 
-        // Calculate Range if IP is valid
         const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
         if (ipRegex.test(ipInput)) {
             const parts = ipInput.split('.').map(Number);
@@ -300,9 +368,52 @@
                 
                 // Mask calculation
                 const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                const wildcard = (~mask) >>> 0;
                 
                 const network = (ipInt & mask) >>> 0;
                 const broadcast = (network | ~mask) >>> 0;
+
+                const intToIp = (i) => [
+                    (i >>> 24) & 0xFF,
+                    (i >>> 16) & 0xFF,
+                    (i >>> 8) & 0xFF,
+                    i & 0xFF
+                ].join('.');
+
+                // Update Display Fields
+                document.getElementById('networkAddressDisplay').innerText = intToIp(network);
+                document.getElementById('subnetMaskDisplay').innerText = intToIp(mask);
+                document.getElementById('wildcardMaskDisplay').innerText = intToIp(wildcard);
+                
+                // IP Class
+                let ipClass = 'E';
+                if (parts[0] <= 127) ipClass = 'A';
+                else if (parts[0] <= 191) ipClass = 'B';
+                else if (parts[0] <= 223) ipClass = 'C';
+                else if (parts[0] <= 239) ipClass = 'D';
+                document.getElementById('ipClassDisplay').innerText = ipClass;
+
+                // in-addr.arpa
+                const inAddr = parts.slice().reverse().join('.') + '.in-addr.arpa';
+                document.getElementById('inAddrArpaDisplay').innerText = inAddr;
+                
+                // IPv4 Mapped Address
+                const ipv4Mapped = '::ffff:' + ipInput;
+                document.getElementById('ipv4MappedDisplay').innerText = ipv4Mapped;
+                
+                // 6to4 Prefix
+                const hex = parts.map(p => p.toString(16).padStart(2, '0')).join('');
+                const sixToFour = `2002:${hex.slice(0, 4)}:${hex.slice(4, 8)}::/48`;
+                document.getElementById('sixToFourDisplay').innerText = sixToFour;
+
+                // Update Hidden Inputs for Backend
+                document.getElementById('hiddenNetworkAddress').value = intToIp(network);
+                document.getElementById('hiddenSubnetMask').value = intToIp(mask);
+                document.getElementById('hiddenWildcardMask').value = intToIp(wildcard);
+                document.getElementById('hiddenIpClass').value = ipClass;
+                document.getElementById('hiddenInAddrArpa').value = inAddr;
+                document.getElementById('hiddenIpv4Mapped').value = ipv4Mapped;
+                document.getElementById('hiddenSixToFourPrefix').value = sixToFour;
 
                 let first, last;
                 if (prefix === 32) {
@@ -315,18 +426,23 @@
                     last = broadcast - 1;
                 }
 
-                const intToIp = (i) => [
-                    (i >>> 24) & 0xFF,
-                    (i >>> 16) & 0xFF,
-                    (i >>> 8) & 0xFF,
-                    i & 0xFF
-                ].join('.');
-
                 document.getElementById('hostRangeDisplay').innerText = intToIp(first) + ' - ' + intToIp(last);
                 return;
             }
         }
-        document.getElementById('hostRangeDisplay').innerText = '---';
+        
+        // Reset values if IP is invalid
+        ['networkAddressDisplay', 'subnetMaskDisplay', 'wildcardMaskDisplay', 'ipClassDisplay', 
+         'inAddrArpaDisplay', 'ipv4MappedDisplay', 'sixToFourDisplay', 'hostRangeDisplay'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = '---';
+        });
+
+        ['hiddenNetworkAddress', 'hiddenSubnetMask', 'hiddenWildcardMask', 'hiddenIpClass', 
+         'hiddenInAddrArpa', 'hiddenIpv4Mapped', 'hiddenSixToFourPrefix'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
     }
 
     // Add listeners

@@ -101,6 +101,15 @@ class IPAMHandler(RequestHandler):
         subnet_type = self.get_argument("subnet_type", "N/A")
         prefix_size = self.get_argument("prefix_size", "24")
         default_gateway = self.get_argument("default_gateway", "N/A")
+        
+        # Derived network fields from frontend
+        network_address = self.get_argument("network_address", "N/A")
+        subnet_mask = self.get_argument("subnet_mask", "N/A")
+        wildcard_mask = self.get_argument("wildcard_mask", "N/A")
+        ip_class = self.get_argument("ip_class", "N/A")
+        in_addr_arpa = self.get_argument("in_addr_arpa", "N/A")
+        ipv4_mapped = self.get_argument("ipv4_mapped", "N/A")
+        six_to_four_prefix = self.get_argument("six_to_four_prefix", "N/A")
 
         # Validate that the provided IP address is well-formed
         try:
@@ -118,11 +127,18 @@ class IPAMHandler(RequestHandler):
         print(">> INCOMING CONNECTION: IPAM_ADD_SERVICE")
         print(f">> DATA PACKET RECEIVED:")
         print(f"   - TARGET IP: {ip_address}/{prefix_size}")
+        print(f"   - NET ADDRESS: {network_address}")
+        print(f"   - SUBNET MASK: {subnet_mask}")
+        print(f"   - WILDCARD: {wildcard_mask}")
+        print(f"   - IP CLASS: {ip_class}")
         print(f"   - CONTAINER MODE: {network_container.upper()}")
         print(f"   - DEFAULT GATEWAY: {default_gateway}")
         print(f"   - PHYSICAL LOC: {physical_location}")
         print(f"   - VIRTUAL LOC: {svi_location}")
         print(f"   - CLASS: {subnet_type}")
+        print(f"   - IN-ADDR.ARPA: {in_addr_arpa}")
+        print(f"   - IPV4 MAPPED: {ipv4_mapped}")
+        print(f"   - 6TO4 PREFIX: {six_to_four_prefix}")
         print(f"   - ENCRYPTION NOTES: {comments if comments else 'NONE'}")
         print(">> STATUS: SYNCING WITH ARASAKA MAINFRAME...")
         print(">> RESULT: NODE INITIALIZED SUCCESSFULLY")
