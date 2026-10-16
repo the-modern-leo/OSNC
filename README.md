@@ -3,6 +3,14 @@
 This code Library is a WIP (work in progress) library intended to be consumed by python developers for Networking applications. The library is intended to provide a universal framework,
 and dataclass structure for different network equipment from different vendors. This library should serve as the centeral application to control most network applications.
 
+Intergation with Hardware and software:
+Most Cisco Catalyst switches
+Some Cisco routers
+Some Cisco NX-OS switches
+Infoblox
+Palo Alto Next Gen Firewalls
+Palo Alto Panorama
+
 This application can be called as a library from other python libraries, or it can be ran as a standalone web application with GUI. Below is the instructions for Web application:
 
 **Web Application Install:**
