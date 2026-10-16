@@ -12,7 +12,6 @@ docker build -t osnc:latest .
 docker run osnc:latest -p 8080:8080 -v $(pwd):/opt/OSNC
 ```
 
-
 **Python Application:**
 
 - `from Network.L2.Switch import Stack`
