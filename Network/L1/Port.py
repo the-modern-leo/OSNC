@@ -31,7 +31,7 @@ class Interface:
         self.outBcastPkts = None
         self.downtime = None
         self.portnumber = 0
-        self.mediatype = ''
+        self.type = ''
         self.Duplex = None
         self.mgmt = False
         self.rawdata = None
@@ -51,13 +51,9 @@ class Interface:
 
     def __repr__(self):
         return self.fullname
-    def __str__(self):
-        return self.fullname
-
 
     def shortname(self):
-        if not self.fullname:
-            assert self.fullname != '', f'Interface must have a fullname before running shortname'
+        assert self.fullname != '', f'Interface must have a fullname before running shortname'
         self.short = re.sub('interface', '', self.fullname)
         self.short = re.sub('FastEthernet', 'Fa', self.short)
         self.short = re.sub(' ', '', self.short)
@@ -92,7 +88,6 @@ class Interface:
         # {'ip dhcp snooping trust' if self.trunk else 'spanning-tree portfast'}
         # !"""
         return interface_config
-
     def assign_config_attributes_from_full_name(self):
         """
         if only self.fullname attribute set then get as much information
