@@ -1,8 +1,9 @@
 import unittest
-from Network.L2.Switch import Stack
-import re
-from netaddr import mac_cisco
-
+from Network.L2.Switch import Stack, Blade
+from unittest.mock import Mock
+from os import listdir
+from os.path import isfile, join
+import json
 
 class TestStack(unittest.TestCase):
 
@@ -37,4 +38,45 @@ class TestStack(unittest.TestCase):
                 pass
             s.logout()
             
+    def testAssignVersion(self):
+        """testing Assigning Variables from several different Models, and Software Versions"""
+        mypath = "C:/Users/nbradberry/Documents/Configurations"
+        onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
+        for file in onlyfiles:
+            try:
+                with open(f'{mypath}/{file}') as json_data:
+                        d = json.loads(json_data.read())
+                        json_data.close()
+                        s = Stack("10.45.150.129")
+                        s.hostname = d["hostname"]
+                        s.version_result = d["version_result"]
+                        s.assignVersionVariables(d["version_result"])
+                        self.assertTrue(s.blades)
+                        for blade in s.blades:
+                            self.assertIsInstance(blade,Blade)
+                        self.assertTrue(s.uptime)
+                        self.assertTrue(s.SystemSoftwareVersion)
+            except Exception as e:
+                print(e)
 
+    def testAssigninventory(self):
+        """testing Assigning Variables from several different Models, and Software Versions"""
+        mypath = "C:/Users/nbradberry/Documents/Configurations"
+        onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
+        for file in onlyfiles:
+            try:
+                with open(f'{mypath}/{file}') as json_data:
+                    d = json.loads(json_data.read())
+                    json_data.close()
+                    s = Stack("10.45.150.129")
+                    s.hostname = d["hostname"]
+                    s.version_result = d["version_result"]
+                    s.assignVersionVariables(d["version_result"])
+                    s.sortInventory(d["inv_result"])
+                    self.assertTrue(s.blades)
+                    for blade in s.blades:
+                        self.assertIsInstance(blade, Blade)
+                    self.assertTrue(s.uptime)
+                    self.assertTrue(s.SystemSoftwareVersion)
+            except Exception as e:
+                print(e)

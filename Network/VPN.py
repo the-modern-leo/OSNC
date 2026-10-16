@@ -249,7 +249,7 @@ class ASA(Router):
         """
         logging.info(f"Assigning Data to Router Object - Starting")
         try:
-            self.sortVersion(versionresult=self.version_result)
+            self.assignVersionVariables(versionresult=self.version_result)
             self.sort_acl()
             self.sort_object_groups()
             self.sortsnmp()
@@ -287,7 +287,7 @@ class ASA(Router):
         else:
             logging.info(f"Scraping Router Data - Success")
 
-    def sortVersion(self, versionresult):
+    def assignVersionVariables(self, versionresult):
         """
         This functions pulls out the Stack information, Version number, Model Number, Serial number,
         and switch uptime for the 'show version' response

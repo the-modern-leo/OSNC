@@ -10,6 +10,7 @@ from ipaddress import IPv4Network,ip_network,ip_address,IPv4Address
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
 from netaddr import EUI
+import traceback
 
 def _exception(e):
     print(e)
