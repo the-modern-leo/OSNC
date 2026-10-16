@@ -1,16 +1,11 @@
 # OSNC - Open Source Network Controller
 **Intent:**
-This code Library is a WIP (work in progress) library intended to be consumed by other developers working on 
-by other python developers working on Networking applications. The library is intended to provide a universal framework,
-and dataclass structure for developing applications in real time by scraping data using SSH. 
-The 
+This code Library is a WIP (work in progress) library intended to be consumed by python developers for Networking applications. The library is intended to provide a universal framework,
+and dataclass structure for different network equipment from different vendors. This library should serve as the centeral application to control most network applications.
 
-Application is currently working on being deployed on a single server directly from the server at the moment. 
-Support is only on Mac, Linux. 
-Future improvements will be running the service as a single docker container for support on all platforms. 
-Possible improvements will also see the application 
+This application can be called as a library from other python libraries, or it can be ran as a standalone web application with GUI. Below is the instructions for Web application:
 
-**Install:**
+**Web Application Install:**
 ```
 docker pull python:3.8-slim-bullseye
 docker build -t osnc:latest .
@@ -18,7 +13,7 @@ docker run osnc:latest -p 8080:8080 -v $(pwd):/opt/OSNC
 ```
 
 
-Intended Consumable Packages are located under the Network Package:
+**Python Application:**
 
 - `from Network.L2.Switch import Stack`
 - `from Network.L2.Vlan import vlan`
