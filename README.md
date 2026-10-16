@@ -27,36 +27,17 @@ docker run osnc:latest -p 8080:8080 -v $(pwd):/opt/OSNC
 - `from Network.L1.Port import Interface`
 
 
-An example of the starting entry point would look like: 
+An example of the starting entry point for switches would look like: 
 ```
-from Network.Switch import Stack
+from Network.L2.Switch import Stack
 
 s = Stack(<ipaddress>)
 s.login()
-s.getswitchinfo()
-s.assignattibutes()
+s.getswitchinfo() #SSH into switch, 
+s.assignattibutes() #run all get commands and makes Python objects
+
+from Network.L3.Router import Router
+r = Router('<ipaddress>')
+r.get_started() #SSH into router, run all get commands and makes Python objects
 ```
 
-This Will log into the switch and run the following commands:
-- `show run`
-- `show version`
-- `show int status`
-- `show run | section interface`
-- `show run | in interface`
-- `show interface`
-- `show inventory`
-- `show interface counters`
-- `show cdp nei detail`
-- `show module all`
-- `show module`
-- `show run | section snmp`
-- `show snmp user`
-- `show access-list`
-- `show run | section logging`
-- `show run | in logging`
-- `show mac address-table`
-- `show run | section tacacs`
-- `show power inline`
-- `show environment all`
-
-Using the data from those commands the script than populates the Stack object's properties with the data from the commands
