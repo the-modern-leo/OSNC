@@ -6,4 +6,4 @@ RUN pip install -r requirements.txt
 RUN pip cache purge
 
 EXPOSE 8080
-CMD ["python" ,"/opt/OSNC/main.py"]
+CMD ["python" ,"/opt/ONSC/main.py"]
