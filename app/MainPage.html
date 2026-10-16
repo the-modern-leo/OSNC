@@ -3,6 +3,46 @@
 {% include "Header.html" %}
   <body>
   {% include "Nav.html" %}
+  
+  <main>
+    <section class="hero-section text-center">
+        <div class="container">
+            <h1 class="display-1"><span class="cyber-text-gradient">ONSC</span></h1>
+            <p class="lead mb-5" style="font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase;">Open Source Network Controller / Night City Edition</p>
+            <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                <button type="button" class="btn btn-cyber btn-lg px-5 gap-3">INITIALIZE LINK</button>
+                <button type="button" class="btn btn-outline-info btn-lg px-5" style="border: 2px solid var(--cp-blue); color: var(--cp-blue); font-weight: 700; text-transform: uppercase; border-radius: 0;">DATABASE</button>
+            </div>
+        </div>
+    </section>
+
+    <div class="container my-5">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card card-cyber p-4">
+                    <h3 class="mb-3" style="color: var(--cp-yellow);">IPAM MODULE</h3>
+                    <p>Complete IP Address Management. Track every node in the sprawl with surgical precision. Real-time mapping for the modern Netrunner.</p>
+                    <a href="/IPAM" class="btn btn-cyber mt-auto" style="width: fit-content; padding: 5px 20px;">ACCESS</a>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-cyber p-4">
+                    <h3 class="mb-3" style="color: var(--cp-blue);">VLAN MATRIX</h3>
+                    <p>Isolate your data streams. Define boundaries in the digital void. Segment, secure, and stabilize your network infrastructure.</p>
+                    <a href="/Vlans" class="btn btn-cyber mt-auto" style="width: fit-content; padding: 5px 20px;">DIVE</a>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-cyber p-4">
+                    <h3 class="mb-3" style="color: var(--cp-pink);">HARDWARE</h3>
+                    <p>Direct control over Routers and Switches. Manage the backbone of your empire. Command the hardware that powers the City.</p>
+                    <a href="/Routers" class="btn btn-cyber mt-auto" style="width: fit-content; padding: 5px 20px;">COMMAND</a>
+                </div>
+            </div>
+        </div>
+    </div>
+  </main>
+
   {% include "Footer.html" %}
   </body>
 </html>

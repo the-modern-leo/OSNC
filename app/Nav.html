@@ -1,29 +1,30 @@
-<nav class="navbar navbar-expand-lg bg-body-tertiary">
+<nav class="navbar navbar-expand-lg">
   <div class="container-fluid">
-    <a class="navbar-brand" href="#">NetRunner</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
+    <a class="navbar-brand" href="/">ONSC</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" style="border-color: var(--cp-yellow);">
+      <span class="navbar-toggler-icon" style="filter: invert(1) sepia(1) saturate(5) hue-rotate(10deg);"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
-          <a class="nav-link active" aria-current="page" href="#">Home</a>
+          <a class="nav-link active" aria-current="page" href="/">Home</a>
         </li>
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="/Vlans" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             Network
           </a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="/Routers">Router</a></li>
-            <li><a class="dropdown-item" href="/Switchs">Switch</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="/Vlans">vlan</a></li>
+          <ul class="dropdown-menu dropdown-menu-dark" style="border: 1px solid var(--cp-blue); background-color: var(--cp-dark);">
+            <li><a class="dropdown-item" href="/Routers" style="color: var(--cp-yellow);">Router</a></li>
+            <li><a class="dropdown-item" href="/Switchs" style="color: var(--cp-yellow);">Switch</a></li>
+            <li><hr class="dropdown-divider" style="border-color: var(--cp-blue);"></li>
+            <li><a class="dropdown-item" href="/Vlans" style="color: var(--cp-yellow);">Vlan</a></li>
+            <li><a class="dropdown-item" href="/IPAM" style="color: var(--cp-yellow);">IPAM</a></li>
           </ul>
         </li>
       </ul>
       <form class="d-flex" role="search">
-        <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
-        <button class="btn btn-outline-success" type="submit">Search</button>
+        <input class="form-control me-2" type="search" placeholder="Search Net..." aria-label="Search" style="background: var(--cp-gray); border: 1px solid var(--cp-blue); color: white;">
+        <button class="btn btn-cyber" type="submit" style="padding: 5px 20px;">Search</button>
       </form>
     </div>
   </div>
