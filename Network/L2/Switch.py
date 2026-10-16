@@ -1,4 +1,8 @@
 ### Network Imports ###
+import socket
+from inspect import stack
+from wsgiref.simple_server import software_version
+
 from Network.L2.Vlan import vlan
 from Network.settings.cisco import Hardware as chw
 from Network.L1.Port import Interface, PortChannel, SFP
@@ -730,12 +734,6 @@ class Stack():
                     self.interface_name_r = self.conn.send_command('show run | in interface', manypages=True)
                     pass
             else:
-            self.interface_result = self.conn.send_command('show run | section interface', manypages=True)
-            interface_result = self.interface_result
-            if 'Invalid input detected at' in self.interface_result:
-                self.interface_name_r = self.conn.send_command('show run | in interface', manypages=True)
-                interface_result = self.interface_name_r
-            elif not self.interface_result:
                 pass
             if not interfacedetails_result_in:
                 self.interfacedetails_result_in = self.conn.send_command('show interface', manypages=True)
@@ -846,99 +844,6 @@ class Stack():
             blades = set()
             for interface in all_inteface_objects:
                 blades.add(interface.blade)
-                interfaces = re.findall(r"(?<=interface)(.*?)(?=interface)", interface_result, re.S)
-                all_inteface_objects =[]
-                for inter in interfaces:
-                    test_string = re.sub(
-                        "([a-zA-Z]{0,20}[\d]{0,3}\/[\d]{0,3}\/[\d]{0,3}|[\d]{0,3}\/[\d]{0,3}|[a-zA-Z]{0,20}[\d]{0,3}\/[\d]{0,3})",
-                        "", inter)
-                    if "Loopback" in inter:
-                        pass
-                    elif "Vlan" in inter:
-                        pass
-                    elif "Port-channel" in inter:
-                        p = PortChannel()
-                        inter = inter.split("\n")
-                        p.fullname = int[0]
-                        p.ponumber = int(re.sub("Port-channel", "", p.fullname))
-                        p.fullname = re.sub("interface", "", p.fullname)
-                        # handle adding port channels
-                        for line in inter:
-                            if 'switchport mode trunk' in line:
-                                p.trunk = True
-                            elif 'switchport mode trunk allowed vlan' in line:
-                                p.trunkvlan.append(re.sub('switchport mode trunk allowed vlan', '', line))
-                            elif 'switchport mode trunk allowed vlan add' in line:
-                                p.trunkvlan.append(re.sub('switchport mode trunk allowed vlan add', '', line))
-                            elif 'description' in line:
-                                p.description = re.sub('description', '', line)
-                            elif 'switchport access vlan' in line:
-                                line2 = re.sub('--More--', '', line)
-                                line2 = re.sub('\\x1b\\r', '', line2)
-                                p.vlan = int(re.sub('switchport access vlan', '', line2))
-                            elif 'spanning-tree portfast' in line:
-                                p.stpf = True
-                            elif 'switchport voice vlan' in line:
-                                p.voicevlan = re.sub('switchport voice vlan', '', line)
-                        self.port_channels.append(p)
-                    elif "FastEthernet0" in inter:
-                        pass
-                    else:
-                        i = Interface()
-                        inter = inter.split("\n")
-                        i.fullname = inter[0]
-                        namesplit = i.fullname.split(" ")
-                        namesplit = [x for x in namesplit if x]  # remove spaces
-                        i.fullname = " ".join(namesplit).rstrip()
-                        blandport = self._get_interface_numbers(i.fullname)
-                        blandport = blandport.split("/")
-                        if len(blandport) > 2:  # handle 3 long
-                            i.blade = int(blandport[0])
-                            i.module = int(blandport[1])
-                            if "." in blandport[2]:
-                                continue
-                            else:
-                                i.portnumber = int(blandport[2])
-                        else:
-                            i.module = int(0)
-                            i.blade = int(blandport[0])
-                            if "." in blandport[1]:
-                                continue
-                            else:
-                                i.portnumber = int(blandport[1])
-                        for line in inter:
-                            if 'switchport mode trunk' in line:
-                                i.trunk = True
-                            elif 'switchport mode trunk allowed vlan' in line:
-                                i.trunkvlan.append(re.sub('switchport mode trunk allowed vlan', '', line))
-                            elif 'switchport mode trunk allowed vlan add' in line:
-                                i.trunkvlan.append(re.sub('switchport mode trunk allowed vlan add', '', line))
-                            elif 'description' in line:
-                                i.description = re.sub('description', '', line)
-                            elif 'switchport access vlan' in line:
-                                line2 = re.sub('--More--', '', line)
-                                line2 = re.sub('\\x1b\\r', '', line2)
-                                i.vlan = int(re.sub('switchport access vlan', '', line2))
-                            elif 'spanning-tree portfast' in line:
-                                i.stpf = True
-                            elif 'switchport voice vlan' in line:
-                                i.voicevlan = re.sub('switchport voice vlan', '', line)
-                            elif 'TenGigabitEthernet' in line:
-                                i.type = 'copper'
-                            elif 'GigabitEthernet' in line and 'Ten' not in line:
-                                i.type = 'copper'
-                            elif 'GigabitEthernet' in line and 'Ten' not in line:
-                                i.type = 'copper'
-                            elif 'FastEthernet' in line and 'Ten' not in line:
-                                i.type = 'copper'
-                        all_inteface_objects.append(i)
-                        # assign the interface to the blade it is on.
-                blades = set()
-                testblades = set()
-                testblades.add(0)
-                testblades.add(1)
-                for interface in all_inteface_objects:
-                    blades.add(interface.blade)
 
             for i in all_inteface_objects:
                 self.assigninterfacetoblades(i)
@@ -976,40 +881,6 @@ class Stack():
                 #                 blade.moduleinterfaces[f"{i.fullname}"] = i
                 #             else:
                 #                 blade.interfaces[f"{i.fullname}"] = i
-                for i in all_inteface_objects:
-                    if i.blade == 5:
-                        pass
-                    if i.portchannel:  # add interface to port channels
-                        for port_channel in self.port_channels:
-                            if port_channel.ponumber == i.portchannel.ponumber:
-                                port_channel.interfaces.append(i)
-                    if blades == testblades:  # handle module information for single blade
-                        for blade in self.blades:
-                            if blade.stacknumber == 1:
-                                if i.module == 0:  # assign to blade 1
-                                    blade.interfaces[f"{i.fullname}"] = i
-                                if i.module == 1:
-                                    blade.moduleinterfaces[f"{i.fullname}"] = i
-                    else:  # handle standard formating of 0/1 and 1/0/1 formats
-                        for blade in self.blades:
-                            if i.blade == 0:
-                                if blade.stacknumber == 1:
-                                    blade.interfaces[f"{i.fullname}"] = i
-                            elif hasattr(i, "module"):
-                                if i.module != 0:
-                                    if i.blade == blade.stacknumber:
-                                        blade.moduleinterfaces[f"{i.fullname}"] = i
-                                else:
-                                    if i.blade == blade.stacknumber:
-                                        if i.portnumber == 49 or i.portnumber == 50 or i.portnumber == 51 or i.portnumber == 52:
-                                            blade.moduleinterfaces[f"{i.fullname}"] = i
-                                        else:
-                                            blade.interfaces[f"{i.fullname}"] = i
-                            elif i.blade == blade.stacknumber:
-                                if i.portnumber == 49 or i.portnumber == 50 or i.portnumber == 51 or i.portnumber == 52:
-                                    blade.moduleinterfaces[f"{i.fullname}"] = i
-                                else:
-                                    blade.interfaces[f"{i.fullname}"] = i
 
             for blade in self.blades:
                 if blade.interfaces == {} and blade.moduleinterfaces == {}:
@@ -2037,188 +1908,6 @@ class Stack():
             else:
                 if not self.blades or not self.uptime or not self.SystemSoftwareVersion:
                     print("Did not complete")
-            stackline = None
-            # run code here
-            # search through response to gather the indivigual info
-            if "Cisco IOS Software" in versionresult:
-                self.nexus = False
-            elif "Cisco Nexus Operating System" in versionresult:
-                self.nexus = True
-            else:
-                self.nexus = False
-            if not '\r\n' in versionresult:
-                ver = versionresult.split('\n')
-            else:
-                ver = versionresult.split('\r\n')
-            serialnumber = set()
-
-            # sort version using nexus sort methods
-            if self.nexus:
-                for count, line2 in enumerate(ver):
-                    if 'system:' in line2:
-                        self.version = re.sub('version', '', line2)
-                        self.version = re.sub('system:', '', self.version)
-                        self.version = re.sub(' ', '', self.version)
-                    elif 'Device name:' in line2:
-                        self.hostname = re.sub('Device name:', '', line2)
-                        self.hostname = re.sub(' ', '', self.hostname)
-                    elif 'Kernel uptime' in line2:
-                        self.uptime = re.sub('Kernel uptime is', '', line2)
-                        self.uptime = re.sub(' ', '', self.uptime)
-                    elif 'Hardware' in line2:
-                        self.modelnumber = re.sub('cisco', '', ver[count + 1])
-                        self.modelnumber = re.sub('"20x10GE/Supervisor"', '', self.modelnumber)
-                        self.modelnumber = re.sub('Chassis', '', self.modelnumber)
-                        self.modelnumber = re.sub(' ', '', self.modelnumber)
-                        self.modelnumber = self.modelnumber.rstrip('()')
-                        self.modelnumber = self.modelnumber.strip()
-                        # self.blades = set()
-                        # b = Blade()
-                        # b.stacknumber = 1
-                        # self.blades.add(b)
-                print("Sorting 'show Version' - Success")
-                return self
-
-            for count, line in enumerate(ver):
-                # discover if there is more than one blade in this stack by counting serial numbers
-                if 'System Serial Number' in line or 'System serial number' in line or 'Processor board ID' in line:
-                    line = re.sub('System Serial Number', '', line)
-                    line = re.sub('System serial number', '', line)
-                    line = re.sub('Processor board ID', '', line)
-                    line = re.sub(':', '', line)
-                    line = re.sub(' ', '', line)
-                    serialnumber.add(line)
-                if 'Hardware: ' in line:
-                    self.modelnumber = re.sub('Hardware: ','',line)
-                    self.modelnumber = self.modelnumber.split(',')[0]
-                    self.modelnumber = self.modelnumber.strip()
-                    pass
-                if 'Model Number ' in line:
-                    self.modelnumber = re.sub("Model Number ", "", line)
-                    self.modelnumber = re.sub(":", "", self.modelnumber)
-                    self.modelnumber = [x for x in self.modelnumber if x]
-                    self.modelnumber = ''.join([x for x in self.modelnumber if x != ' '])
-                    self.modelnumber = self.modelnumber.strip()
-                if "------ ----- -----              ----------        ----------            ----" in line:
-                    stackline = count + 1
-                # discover if device is a nexus device
-                if 'uptime is' in line:
-                    time = self._get_uptime(line)
-                    self.uptime = self._get_uptime(line)
-                # discovers if the switch is a chassis
-                for model in chw.chassis:
-                    if model in line:
-                        self.modelnumber = model
-                        # gets the all possible data points from Version
-                        for line in ver:
-                            # gets restart time
-                            if 'System restarted at' in line:
-                                self.uptime = line.split('at')[1]
-                            if "Cisco IOS Software, IOS-XE Software," in line:
-                                match = re.findall('[\d]{0,2}\.[\d]{0,2}\.[\da-zA-z]{0,3}\.[a-zA-Z]{0,3}|[\d]{0,2}\.[\d]{0,2}\.[\da-zA-z]{0,4}',line)
-                                if match:
-                                    self.version = match[0]
-
-
-                        print("Sorting 'show Version' - Success")
-                        return self
-
-            if self.modelnumber not in chw.chassis:  # handle working on a Stack of Switches_syntax_compatability
-                if len(serialnumber) > 1:
-                    self.__setattr__('stack', True)
-                    if not stackline or stackline == None:
-                        self.serial = []
-                        # collects everything for all blades in stack
-                        for line in ver:
-                            if ('Switch' in line and
-                                    'Ports' in line and
-                                    'Model' in line and
-                                    'SW Version' in line):
-                                stackline = ver.index(line) + 2
-                            # finds Serial Number
-                            elif 'System Serial Number' in line or 'System serial number' in line:
-                                line = line.split(':')[1]
-                                line = re.sub(' ', '', line)
-                                self.serial.append(line)
-                                pass
-                            # finds Switch uptime
-                            elif 'uptime is' in line:
-                                uptime = line.split('is')[1]
-                                self.uptime = uptime
-                    stackinfo = ver[stackline:stackline + 8]
-
-                    endofstackline = None
-                    for line in stackinfo:
-                        if line == '' or line.strip() == '':
-                            endofstackline = stackinfo.index(line)
-                            break
-                    stackinfo = stackinfo[:endofstackline]
-                    tports = 0
-                    self.blades = set()
-                    bl = [x for x in stackinfo if x != '']
-                    for bl in stackinfo:
-                        bl = bl.split(' ')
-                        bl = [x for x in bl if x != '']
-                        bl = [x for x in bl if x != '*']
-                        # get ports
-                        b = Blade(None)
-                        b.portcount = int(bl[1])
-                        tports += int(bl[1])
-                        b.modelnumber = bl[2]
-                        b.ISOversion = bl[3]
-                        b.stacknumber = int(bl[0])
-                        self.blades.add(b)
-                    self.portcount = tports
-
-                else:
-                    # collects information as just one switch
-                    for line in ver:
-                        if 'System Serial Number' in line or 'System serial number' in line:
-                            line = line.split(':')[1]
-                            line = re.sub(' ', '', line)
-                            self.serial = line
-                        # finds hardware type
-                        elif 'Model Number' in line:
-                            self.modelnumber = line.split(':')[1]
-                            self.modelnumber = self.modelnumber.strip()
-                        # finds Switch uptime
-                        elif 'System restarted at' in line:
-                            self.uptime = line.split('at')[1]
-                        # finds up time on older switches
-                        elif 'uptime is' in line:
-                            uptime = line.split('is')[1]
-                            self.uptime = uptime
-                        # gets the index number of the titles for the stacks
-                        elif ('Switch' in line and
-                              'Ports' in line and
-                              'Model' in line and
-                              'SW Version' in line):
-                            stackline = ver.index(line)
-                    # gets the first stack line
-                    if stackline: #create blades if there is information to do so else skip creation.
-                        self.blades = set()
-                        b = Blade(serialnumber.pop())
-                        firststack = ver[int(stackline) + 2]
-                        firststack = firststack.split(' ')
-                        firststack = list(filter(None, firststack))
-                        b.stacknumber = int(firststack[1])
-                        b.portcount = firststack[2]
-                        b.modelnumber = firststack[3]
-                        b.ISOversion = firststack[4]
-                        self.modelnumber = firststack[3]
-                        self.modelnumber = self.modelnumber.strip()
-                        self.version = firststack[4]
-                        self.blades.add(b)
-                    if self.blades == set():
-                        bl = Blade(serialnumber.pop())
-                        bl.modelnumber = self.modelnumber
-                        bl.stacknumber = 1
-                        for line in ver:
-                            if 'TwentyFive Gigabit Ethernet interfaces' in line: # get mac address for blade
-                                bl.portcount = int(re.sub('TwentyFive Gigabit Ethernet interfaces','',line).strip())
-                            elif 'Cisco IOS XE Software, Version' in line:
-                                bl.ISOversion = re.sub("Cisco IOS XE Software, Version","",line).strip()
-                        self.blades.add(bl)
         except Exception as e:
             print("Sorting 'show Version' - failed")
             traceback.print_exc()

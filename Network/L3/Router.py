@@ -95,10 +95,12 @@ class routing_protocol():
                 i.shortname()
                 self.interfaces.append(i)
     def _assign_neighbors(self):
-        self.neighbors = []
-        neighborsText = re.findall(r"neighbor [\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3}", self.config_text, re.MULTILINE)
-        for nei in neighborsText:
-            nei = re.sub("\r", "", int)
+        self.neighbors = set()
+        neighborsText = re.findall(r"neighbor ([\d]{0,3}.[\d]{0,3}.[\d]{0,3}.[\d]{0,3})", self.config_text, re.MULTILINE)
+        if neighborsText:
+            for nei in neighborsText:
+                self.neighbors.add(re.sub("\r", "", nei))
+
 
 class eigrp(routing_protocol):
     def __int__(self,*args, **kwargs):
