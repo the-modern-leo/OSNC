@@ -40,4 +40,3 @@ from Network.L3.Router import Router
 r = Router('<ipaddress>')
 r.get_started() #SSH into router, run all get commands and makes Python objects
 ```
-
