@@ -1,6 +1,6 @@
 beautifulsoup4
 croniter
-dnspython==2.6.1
+dnspython==2.9.0
 holidays
 Jinja2>=2.9
 netaddr
